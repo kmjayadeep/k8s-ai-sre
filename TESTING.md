@@ -183,6 +183,7 @@ kubectl get events -n ai-sre-demo --field-selector involvedObject.kind=Pod
 uv run main.py deployment ai-sre-demo bad-deploy
 ```
 
+
 Optional Prometheus-enabled run:
 
 ```bash

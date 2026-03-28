@@ -25,11 +25,9 @@ def get_target_from_args() -> tuple[str, str, str]:
     return "deployment", "ai-sre-demo", "bad-deploy"
 
 
-async def main():
+def create_agent() -> Agent:
     model = create_groq_model()
-    kind, namespace, name = get_target_from_args()
-
-    agent = Agent(
+    return Agent(
         name="K8s SRE Investigator",
         instructions=AGENT_INSTRUCTIONS,
         model=model,
@@ -44,6 +42,8 @@ async def main():
         ],
     )
 
+
+async def run_investigation(agent: Agent, kind: str, namespace: str, name: str) -> None:
     print("Agent: Processing request...")
     evidence = collect_investigation_evidence(kind, namespace, name)
     print("Collected evidence:")
@@ -54,6 +54,10 @@ async def main():
     )
 
     print(f"Agent: {result.final_output}")
+
+async def main():
+    agent = create_agent()
+    await run_investigation(agent, *get_target_from_args())
 
 if __name__ == "__main__":
     asyncio.run(main())
