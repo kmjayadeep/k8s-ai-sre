@@ -5,27 +5,50 @@ from model_factory import create_groq_model
 set_tracing_disabled(True)
 
 @function_tool
-def get_weather(city: str) -> str:
-    """returns weather info for the specified city."""
-    return f"The weather in {city} is sunny"
+def get_pod_status(namespace: str, pod_name: str) -> str:
+    """Returns fake Kubernetes pod status data for local testing."""
+    fake_pods = {
+        ("payments", "api-123"): {
+            "phase": "Running",
+            "restarts": 7,
+            "reason": "CrashLoopBackOff",
+            "event": "Back-off restarting failed container",
+        },
+        ("checkout", "worker-456"): {
+            "phase": "Pending",
+            "restarts": 0,
+            "reason": "Unschedulable",
+            "event": "0/3 nodes are available: insufficient memory",
+        },
+    }
 
-async def main():
-    # 2. Initialize the model (defaults to openai/gpt-oss-20b)
-    model = create_groq_model()
+    pod = fake_pods.get((namespace, pod_name))
+    if not pod:
+        return f"Pod {pod_name} in namespace {namespace} was not found."
 
-    # 3. Create the Agent
-    agent = Agent(
-        name="Fast Assistant",
-        instructions="You are a helpful assistant. just answe the question using avaialble tools",
-        model=model,
-        tools=[get_weather],
+    return (
+        f"Pod {pod_name} in namespace {namespace} is {pod['phase']}. "
+        f"Restart count: {pod['restarts']}. "
+        f"Current reason: {pod['reason']}. "
+        f"Recent event: {pod['event']}."
     )
 
-    # 4. Run the Agent
+async def main():
+    model = create_groq_model()
+
+    agent = Agent(
+        name="K8s Assistant",
+        instructions="You are a Kubernetes assistant. Use the available tools to answer questions about pod health.",
+        model=model,
+        tools=[get_pod_status],
+    )
+
     print("Agent: Processing request...")
-    result = await Runner.run(agent, "how the weather in new york")
-    
-    # 5. Output the result
+    result = await Runner.run(
+        agent,
+        "Investigate why pod api-123 in namespace payments is unhealthy.",
+    )
+
     print(f"Agent: {result.final_output}")
 
 if __name__ == "__main__":
