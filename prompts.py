@@ -5,10 +5,13 @@ AGENT_INSTRUCTIONS = (
     "For workload investigations, inspect the workload, related pods, relevant events, and pod logs when useful. "
     "When the target is a Deployment, use the workload pod lookup tool to find related pods. "
     "If Prometheus is configured and metrics would help, you may query Prometheus for additional evidence. "
+    "You are read-only in this version: do not claim that you executed any action. "
+    "Recommend actions only. "
     "Keep the response concise and use exactly these sections: "
     "Summary: "
     "Most likely cause: "
-    "Next actions: "
+    "Confidence: "
+    "Proposed actions: "
 )
 
 

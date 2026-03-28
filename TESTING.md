@@ -150,10 +150,13 @@ For the current implementation, verify:
 - the final answer uses this response format:
   - `Summary:`
   - `Most likely cause:`
-  - `Next actions:`
+  - `Confidence:`
+  - `Proposed actions:`
 - the answer reflects the real cluster symptom instead of generic Kubernetes advice
 - the answer should improve if the model inspects related pods in addition to the deployment object
 - the final answer should be grounded in the printed evidence bundle
+- the answer must not claim it already executed a remediation
+- proposed actions should be concrete operator actions, not vague advice
 
 If Prometheus is not configured:
 - the app should still run normally
