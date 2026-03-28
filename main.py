@@ -1,21 +1,32 @@
-from openai import OpenAI
-from portkey_ai import PORTKEY_GATEWAY_URL, createHeaders
-import os
+import asyncio
+from agents import Agent, Runner, set_tracing_disabled
+from model_factory import create_groq_model
 
-model = "llama-3.1-8b-instant"
+set_tracing_disabled(True)
 
-client = OpenAI(
-    api_key=os.environ.get('GROQ_API_KEY'),
-    base_url=PORTKEY_GATEWAY_URL,
-    default_headers=createHeaders(
-        provider="groq",
-        api_key=os.environ.get('PORTKEY_API_KEY')
+# 1. Define a simple tool
+def get_weather(location: str) -> str:
+    """Get the current weather for a specific location."""
+    # Mock response
+    return f"The weather in {location} is sunny and 72°F."
+
+async def main():
+    # 2. Initialize the model (defaults to openai/gpt-oss-20b)
+    model = create_groq_model()
+
+    # 3. Create the Agent
+    agent = Agent(
+        name="Fast Assistant",
+        instructions="You are a helpful assistant. just answe the question without any extra information.",
+        model=model,
     )
-)
 
-chat_complete = client.chat.completions.create(
-    model=model,
-    messages=[{"role": "user", "content": "What's the purpose of Generative AI?"}]
-)
+    # 4. Run the Agent
+    print("Agent: Processing request...")
+    result = await Runner.run(agent, "how is it going")
+    
+    # 5. Output the result
+    print(f"Agent: {result.final_output}")
 
-print(chat_complete.choices[0].message.content)
+if __name__ == "__main__":
+    asyncio.run(main())

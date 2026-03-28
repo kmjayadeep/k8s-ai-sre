@@ -7,5 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "groq>=1.1.2",
     "openai>=2.30.0",
+    "openai-agents>=0.13.2",
     "portkey-ai>=2.2.0",
 ]
