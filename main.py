@@ -9,6 +9,7 @@ from tools import (
     get_k8s_resource_events,
     get_pod_logs,
     get_pod_status,
+    get_workload_pods,
     list_k8s_resources,
 )
 
@@ -30,7 +31,7 @@ async def main():
         name="K8s SRE Investigator",
         instructions=AGENT_INSTRUCTIONS,
         model=model,
-        tools=[get_k8s_resource, get_pod_status, list_k8s_resources, get_k8s_resource_events, get_pod_logs],
+        tools=[get_k8s_resource, get_pod_status, list_k8s_resources, get_workload_pods, get_k8s_resource_events, get_pod_logs],
     )
 
     print("Agent: Processing request...")

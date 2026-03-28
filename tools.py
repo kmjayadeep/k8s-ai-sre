@@ -27,9 +27,7 @@ def _kubectl_get_json(resource_type: str, namespace: str, name: str) -> dict | N
     return json.loads(output)
 
 
-@function_tool
-def get_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
-    """Returns a compact real Kubernetes resource summary using kubectl."""
+def _summarize_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
     resource = _kubectl_get_json(kind.lower(), namespace, name)
     if resource is None:
         return f"Failed to fetch {kind} {name} in namespace {namespace}."
@@ -82,9 +80,15 @@ def get_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> 
 
 
 @function_tool
+def get_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
+    """Returns a compact real Kubernetes resource summary using kubectl."""
+    return _summarize_k8s_resource(api_version, kind, namespace, name)
+
+
+@function_tool
 def get_pod_status(namespace: str, pod_name: str) -> str:
     """Returns real pod status data from kubectl for local testing."""
-    return get_k8s_resource("v1", "Pod", namespace, pod_name)
+    return _summarize_k8s_resource("v1", "Pod", namespace, pod_name)
 
 
 @function_tool
@@ -113,6 +117,50 @@ def list_k8s_resources(api_version: str, kind: str, namespace: str, label_select
 
     names = [item.get("metadata", {}).get("name", "unknown") for item in items]
     return f"{kind} resources in namespace {namespace}: {', '.join(names)}."
+
+
+@function_tool
+def get_workload_pods(namespace: str, workload_kind: str, workload_name: str) -> str:
+    """Lists pods selected by a workload, currently supporting Deployments."""
+    if workload_kind.lower() != "deployment":
+        return f"Workload pod lookup is currently supported only for Deployment, not {workload_kind}."
+
+    deployment = _kubectl_get_json("deployment", namespace, workload_name)
+    if deployment is None:
+        return f"Failed to fetch Deployment {workload_name} in namespace {namespace}."
+
+    selector = deployment.get("spec", {}).get("selector", {}).get("matchLabels", {})
+    if not selector:
+        return f"Deployment {workload_name} in namespace {namespace} does not have matchLabels selector data."
+
+    label_selector = ",".join(f"{key}={value}" for key, value in selector.items())
+    command = [
+        "kubectl",
+        "get",
+        "pods",
+        "-n",
+        namespace,
+        "-l",
+        label_selector,
+        "-o",
+        "json",
+    ]
+    ok, output = _run_kubectl(command)
+    if not ok:
+        return f"Failed to list pods for Deployment {workload_name} in namespace {namespace}: {output}"
+
+    payload = json.loads(output)
+    items = payload.get("items", [])
+    if not items:
+        return f"No pods found for Deployment {workload_name} in namespace {namespace}."
+
+    pod_summaries = []
+    for item in items:
+        pod_name = item.get("metadata", {}).get("name", "unknown")
+        pod_phase = item.get("status", {}).get("phase", "Unknown")
+        pod_summaries.append(f"{pod_name} ({pod_phase})")
+
+    return f"Pods for Deployment {workload_name} in namespace {namespace}: " + ", ".join(pod_summaries)
 
 
 @function_tool

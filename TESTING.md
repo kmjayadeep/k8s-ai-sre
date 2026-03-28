@@ -8,6 +8,7 @@ The app currently supports:
 - a real `kubectl`-backed pod lookup tool
 - a real generic `kubectl`-backed resource lookup tool
 - real evidence tools for listing resources, events, and pod logs
+- a workload-level helper for finding pods owned by a deployment
 - an SRE-oriented response format
 - CLI target selection in the form `<kind> <namespace> <name>`
 - a small module layout:
@@ -138,6 +139,7 @@ For the current implementation, verify:
 - for the deployment scenario, the investigation may use:
   - `get_k8s_resource`
   - `list_k8s_resources`
+  - `get_workload_pods`
   - `get_k8s_resource_events`
   - `get_pod_logs`
 - the final answer uses this response format:
@@ -145,7 +147,7 @@ For the current implementation, verify:
   - `Most likely cause:`
   - `Next actions:`
 - the answer reflects the real cluster symptom instead of generic Kubernetes advice
-- the answer should improve if the model inspects pod-level evidence in addition to the deployment object
+- the answer should improve if the model inspects related pods in addition to the deployment object
 
 ## Useful Manual Checks
 
