@@ -1,5 +1,9 @@
 import json
+import os
 import subprocess
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from agents import function_tool
 
@@ -216,3 +220,32 @@ def get_pod_logs(namespace: str, pod_name: str, container: str = "") -> str:
     if not output:
         return f"No logs returned for pod {pod_name} in namespace {namespace}."
     return f"Recent logs for pod {pod_name} in namespace {namespace}: {output}"
+
+
+@function_tool
+def query_prometheus(query: str) -> str:
+    """Runs a Prometheus instant query if PROMETHEUS_BASE_URL is configured."""
+    base_url = os.getenv("PROMETHEUS_BASE_URL", "").strip()
+    if not base_url:
+        return "Prometheus is not configured. Set PROMETHEUS_BASE_URL to enable metrics queries."
+
+    url = base_url.rstrip("/") + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError as exc:
+        return f"Failed to query Prometheus: {exc}"
+
+    if payload.get("status") != "success":
+        return f"Prometheus query failed: {json.dumps(payload)}"
+
+    results = payload.get("data", {}).get("result", [])
+    if not results:
+        return f"Prometheus query returned no data for: {query}"
+
+    compact = []
+    for item in results[:5]:
+        metric = item.get("metric", {})
+        value = item.get("value", [])
+        compact.append(f"metric={metric}, value={value}")
+    return "Prometheus results: " + " | ".join(compact)

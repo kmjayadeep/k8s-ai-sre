@@ -4,6 +4,7 @@ AGENT_INSTRUCTIONS = (
     "Do not guess when tool output is missing. "
     "For workload investigations, inspect the workload, related pods, relevant events, and pod logs when useful. "
     "When the target is a Deployment, use the workload pod lookup tool to find related pods. "
+    "If Prometheus is configured and metrics would help, you may query Prometheus for additional evidence. "
     "Keep the response concise and use exactly these sections: "
     "Summary: "
     "Most likely cause: "

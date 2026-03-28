@@ -9,6 +9,7 @@ The app currently supports:
 - a real generic `kubectl`-backed resource lookup tool
 - real evidence tools for listing resources, events, and pod logs
 - a workload-level helper for finding pods owned by a deployment
+- an optional Prometheus query tool controlled by `PROMETHEUS_BASE_URL`
 - an SRE-oriented response format
 - CLI target selection in the form `<kind> <namespace> <name>`
 - a small module layout:
@@ -24,6 +25,7 @@ The default demo investigation target is:
 - a local kind cluster is running
 - your kube context points to that cluster
 - required model environment variables are available
+- optional: `PROMETHEUS_BASE_URL` if you want metrics queries enabled
 
 Check cluster access:
 
@@ -142,12 +144,21 @@ For the current implementation, verify:
   - `get_workload_pods`
   - `get_k8s_resource_events`
   - `get_pod_logs`
+  - `query_prometheus`
 - the final answer uses this response format:
   - `Summary:`
   - `Most likely cause:`
   - `Next actions:`
 - the answer reflects the real cluster symptom instead of generic Kubernetes advice
 - the answer should improve if the model inspects related pods in addition to the deployment object
+
+If Prometheus is not configured:
+- the app should still run normally
+- the Prometheus tool should fail gracefully if the model tries to use it
+
+If Prometheus is configured:
+- the model may use metrics as additional evidence
+- metrics should supplement Kubernetes evidence, not replace it
 
 ## Useful Manual Checks
 
@@ -166,6 +177,13 @@ For the deployment scenario:
 kubectl get deployment bad-deploy -n ai-sre-demo -o json
 kubectl get pods -n ai-sre-demo -l app=bad-deploy -o wide
 kubectl get events -n ai-sre-demo --field-selector involvedObject.kind=Pod
+uv run main.py deployment ai-sre-demo bad-deploy
+```
+
+Optional Prometheus-enabled run:
+
+```bash
+export PROMETHEUS_BASE_URL=http://localhost:9090
 uv run main.py deployment ai-sre-demo bad-deploy
 ```
 
