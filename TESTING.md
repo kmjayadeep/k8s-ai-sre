@@ -12,6 +12,7 @@ The app currently supports:
 - an optional Prometheus query tool controlled by `PROMETHEUS_BASE_URL`
 - an SRE-oriented response format
 - CLI target selection in the form `<kind> <namespace> <name>`
+- a Python evidence collection step before the model response
 - a small module layout:
   - `main.py`
   - `tools.py`
@@ -135,6 +136,7 @@ uv run main.py <kind> <namespace> <name>
 
 For the current implementation, verify:
 - the app runs successfully
+- the app prints a collected evidence bundle before the final answer
 - the agent uses the expected tools for the current demo target
 - the tools read real data from `kubectl`
 - custom CLI targets work without editing code
@@ -151,6 +153,7 @@ For the current implementation, verify:
   - `Next actions:`
 - the answer reflects the real cluster symptom instead of generic Kubernetes advice
 - the answer should improve if the model inspects related pods in addition to the deployment object
+- the final answer should be grounded in the printed evidence bundle
 
 If Prometheus is not configured:
 - the app should still run normally

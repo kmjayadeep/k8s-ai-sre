@@ -31,6 +31,24 @@ def _kubectl_get_json(resource_type: str, namespace: str, name: str) -> dict | N
     return json.loads(output)
 
 
+def _list_resource_items(kind: str, namespace: str, label_selector: str = "") -> list[dict]:
+    command = [
+        "kubectl",
+        "get",
+        kind.lower(),
+        "-n",
+        namespace,
+        "-o",
+        "json",
+    ]
+    if label_selector:
+        command.extend(["-l", label_selector])
+    ok, output = _run_kubectl(command)
+    if not ok:
+        return []
+    return json.loads(output).get("items", [])
+
+
 def _summarize_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
     resource = _kubectl_get_json(kind.lower(), namespace, name)
     if resource is None:
@@ -83,93 +101,48 @@ def _summarize_k8s_resource(api_version: str, kind: str, namespace: str, name: s
     )
 
 
-@function_tool
-def get_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
-    """Returns a compact real Kubernetes resource summary using kubectl."""
-    return _summarize_k8s_resource(api_version, kind, namespace, name)
-
-
-@function_tool
-def get_pod_status(namespace: str, pod_name: str) -> str:
-    """Returns real pod status data from kubectl for local testing."""
-    return _summarize_k8s_resource("v1", "Pod", namespace, pod_name)
-
-
-@function_tool
-def list_k8s_resources(api_version: str, kind: str, namespace: str, label_selector: str = "") -> str:
-    """Lists Kubernetes resources using kubectl."""
-    command = [
-        "kubectl",
-        "get",
-        kind.lower(),
-        "-n",
-        namespace,
-        "-o",
-        "json",
-    ]
-    if label_selector:
-        command.extend(["-l", label_selector])
-
-    ok, output = _run_kubectl(command)
-    if not ok:
-        return f"Failed to list {kind} resources in namespace {namespace}: {output}"
-
-    payload = json.loads(output)
-    items = payload.get("items", [])
-    if not items:
-        return f"No {kind} resources found in namespace {namespace}."
-
-    names = [item.get("metadata", {}).get("name", "unknown") for item in items]
-    return f"{kind} resources in namespace {namespace}: {', '.join(names)}."
-
-
-@function_tool
-def get_workload_pods(namespace: str, workload_kind: str, workload_name: str) -> str:
-    """Lists pods selected by a workload, currently supporting Deployments."""
+def _get_workload_pod_names(namespace: str, workload_kind: str, workload_name: str) -> list[str]:
     if workload_kind.lower() != "deployment":
-        return f"Workload pod lookup is currently supported only for Deployment, not {workload_kind}."
-
+        return []
     deployment = _kubectl_get_json("deployment", namespace, workload_name)
     if deployment is None:
-        return f"Failed to fetch Deployment {workload_name} in namespace {namespace}."
-
+        return []
     selector = deployment.get("spec", {}).get("selector", {}).get("matchLabels", {})
     if not selector:
-        return f"Deployment {workload_name} in namespace {namespace} does not have matchLabels selector data."
-
+        return []
     label_selector = ",".join(f"{key}={value}" for key, value in selector.items())
-    command = [
-        "kubectl",
-        "get",
-        "pods",
-        "-n",
-        namespace,
-        "-l",
-        label_selector,
-        "-o",
-        "json",
-    ]
-    ok, output = _run_kubectl(command)
-    if not ok:
-        return f"Failed to list pods for Deployment {workload_name} in namespace {namespace}: {output}"
-
-    payload = json.loads(output)
-    items = payload.get("items", [])
-    if not items:
-        return f"No pods found for Deployment {workload_name} in namespace {namespace}."
-
-    pod_summaries = []
-    for item in items:
-        pod_name = item.get("metadata", {}).get("name", "unknown")
-        pod_phase = item.get("status", {}).get("phase", "Unknown")
-        pod_summaries.append(f"{pod_name} ({pod_phase})")
-
-    return f"Pods for Deployment {workload_name} in namespace {namespace}: " + ", ".join(pod_summaries)
+    items = _list_resource_items("pods", namespace, label_selector)
+    return [item.get("metadata", {}).get("name", "unknown") for item in items]
 
 
-@function_tool
-def get_k8s_resource_events(kind: str, namespace: str, name: str) -> str:
-    """Fetches recent events for a Kubernetes object."""
+def _query_prometheus(query: str) -> str:
+    base_url = os.getenv("PROMETHEUS_BASE_URL", "").strip()
+    if not base_url:
+        return "Prometheus is not configured. Set PROMETHEUS_BASE_URL to enable metrics queries."
+
+    url = base_url.rstrip("/") + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError as exc:
+        return f"Failed to query Prometheus: {exc}"
+
+    if payload.get("status") != "success":
+        return f"Prometheus query failed: {json.dumps(payload)}"
+
+    results = payload.get("data", {}).get("result", [])
+    if not results:
+        return f"Prometheus query returned no data for: {query}"
+
+    compact = []
+    for item in results[:5]:
+        metric = item.get("metric", {})
+        value = item.get("value", [])
+        compact.append(f"metric={metric}, value={value}")
+    return "Prometheus results: " + " | ".join(compact)
+
+
+def _summarize_resource_events(kind: str, namespace: str, name: str) -> str:
     command = [
         "kubectl",
         "get",
@@ -199,9 +172,7 @@ def get_k8s_resource_events(kind: str, namespace: str, name: str) -> str:
     return f"Recent events for {kind} {name} in namespace {namespace}: " + " | ".join(messages)
 
 
-@function_tool
-def get_pod_logs(namespace: str, pod_name: str, container: str = "") -> str:
-    """Fetches recent logs for a pod."""
+def _summarize_pod_logs(namespace: str, pod_name: str, container: str = "") -> str:
     command = [
         "kubectl",
         "logs",
@@ -222,30 +193,97 @@ def get_pod_logs(namespace: str, pod_name: str, container: str = "") -> str:
     return f"Recent logs for pod {pod_name} in namespace {namespace}: {output}"
 
 
+def _summarize_workload_pods(namespace: str, workload_kind: str, workload_name: str) -> str:
+    if workload_kind.lower() != "deployment":
+        return f"Workload pod lookup is currently supported only for Deployment, not {workload_kind}."
+    pod_names = _get_workload_pod_names(namespace, workload_kind, workload_name)
+    if not pod_names:
+        return f"No pods found for Deployment {workload_name} in namespace {namespace}."
+
+    items = []
+    for pod_name in pod_names:
+        pod = _kubectl_get_json("pod", namespace, pod_name)
+        if pod:
+            items.append(pod)
+
+    pod_summaries = []
+    for item in items:
+        pod_name = item.get("metadata", {}).get("name", "unknown")
+        pod_phase = item.get("status", {}).get("phase", "Unknown")
+        pod_summaries.append(f"{pod_name} ({pod_phase})")
+
+    return f"Pods for Deployment {workload_name} in namespace {namespace}: " + ", ".join(pod_summaries)
+
+
+def collect_investigation_evidence(kind: str, namespace: str, name: str) -> str:
+    """Collects a small evidence bundle in Python before handing off to the model."""
+    normalized_kind = kind.capitalize()
+    sections = [
+        f"Target: {normalized_kind} {name} in namespace {namespace}",
+        f"Resource: {_summarize_k8s_resource('v1' if normalized_kind == 'Pod' else 'apps/v1', normalized_kind, namespace, name)}",
+        f"Events: {_summarize_resource_events(normalized_kind, namespace, name)}",
+    ]
+
+    if normalized_kind == "Deployment":
+        sections.append(f"Related pods: {_summarize_workload_pods(namespace, 'Deployment', name)}")
+        pod_names = _get_workload_pod_names(namespace, "Deployment", name)
+        if pod_names:
+            first_pod = pod_names[0]
+            sections.append(f"First pod details: {_summarize_k8s_resource('v1', 'Pod', namespace, first_pod)}")
+            sections.append(f"First pod events: {_summarize_resource_events('Pod', namespace, first_pod)}")
+            sections.append(f"First pod logs: {_summarize_pod_logs(namespace, first_pod)}")
+        sections.append(
+            "Metrics: " + _query_prometheus(f'kube_deployment_status_replicas_unavailable{{namespace="{namespace}",deployment="{name}"}}')
+        )
+
+    if normalized_kind == "Pod":
+        sections.append(f"Pod logs: {_summarize_pod_logs(namespace, name)}")
+
+    return "\n".join(sections)
+
+
+@function_tool
+def get_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
+    """Returns a compact real Kubernetes resource summary using kubectl."""
+    return _summarize_k8s_resource(api_version, kind, namespace, name)
+
+
+@function_tool
+def get_pod_status(namespace: str, pod_name: str) -> str:
+    """Returns real pod status data from kubectl for local testing."""
+    return _summarize_k8s_resource("v1", "Pod", namespace, pod_name)
+
+
+@function_tool
+def list_k8s_resources(api_version: str, kind: str, namespace: str, label_selector: str = "") -> str:
+    """Lists Kubernetes resources using kubectl."""
+    items = _list_resource_items(kind, namespace, label_selector)
+    if not items:
+        return f"No {kind} resources found in namespace {namespace}."
+
+    names = [item.get("metadata", {}).get("name", "unknown") for item in items]
+    return f"{kind} resources in namespace {namespace}: {', '.join(names)}."
+
+
+@function_tool
+def get_workload_pods(namespace: str, workload_kind: str, workload_name: str) -> str:
+    """Lists pods selected by a workload, currently supporting Deployments."""
+    return _summarize_workload_pods(namespace, workload_kind, workload_name)
+
+
+@function_tool
+def get_k8s_resource_events(kind: str, namespace: str, name: str) -> str:
+    """Fetches recent events for a Kubernetes object."""
+    return _summarize_resource_events(kind, namespace, name)
+
+
+@function_tool
+def get_pod_logs(namespace: str, pod_name: str, container: str = "") -> str:
+    """Fetches recent logs for a pod."""
+    return _summarize_pod_logs(namespace, pod_name, container)
+
+
 @function_tool
 def query_prometheus(query: str) -> str:
     """Runs a Prometheus instant query if PROMETHEUS_BASE_URL is configured."""
-    base_url = os.getenv("PROMETHEUS_BASE_URL", "").strip()
-    if not base_url:
-        return "Prometheus is not configured. Set PROMETHEUS_BASE_URL to enable metrics queries."
-
-    url = base_url.rstrip("/") + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
-    try:
-        with urllib.request.urlopen(url, timeout=10) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.URLError as exc:
-        return f"Failed to query Prometheus: {exc}"
-
-    if payload.get("status") != "success":
-        return f"Prometheus query failed: {json.dumps(payload)}"
-
-    results = payload.get("data", {}).get("result", [])
-    if not results:
-        return f"Prometheus query returned no data for: {query}"
-
-    compact = []
-    for item in results[:5]:
-        metric = item.get("metric", {})
-        value = item.get("value", [])
-        compact.append(f"metric={metric}, value={value}")
-    return "Prometheus results: " + " | ".join(compact)
+    return _query_prometheus(query)

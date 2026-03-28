@@ -5,6 +5,7 @@ from agents import Agent, Runner, set_tracing_disabled
 from model_factory import create_groq_model
 from prompts import AGENT_INSTRUCTIONS, build_demo_prompt
 from tools import (
+    collect_investigation_evidence,
     get_k8s_resource,
     get_k8s_resource_events,
     get_pod_logs,
@@ -44,7 +45,13 @@ async def main():
     )
 
     print("Agent: Processing request...")
-    result = await Runner.run(agent, build_demo_prompt(kind, namespace, name))
+    evidence = collect_investigation_evidence(kind, namespace, name)
+    print("Collected evidence:")
+    print(evidence)
+    result = await Runner.run(
+        agent,
+        build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence,
+    )
 
     print(f"Agent: {result.final_output}")
 
