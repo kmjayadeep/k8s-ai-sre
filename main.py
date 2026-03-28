@@ -1,14 +1,13 @@
 import asyncio
-from agents import Agent, Runner, set_tracing_disabled
+from agents import Agent, Runner, set_tracing_disabled, function_tool
 from model_factory import create_groq_model
 
 set_tracing_disabled(True)
 
-# 1. Define a simple tool
-def get_weather(location: str) -> str:
-    """Get the current weather for a specific location."""
-    # Mock response
-    return f"The weather in {location} is sunny and 72°F."
+@function_tool
+def get_weather(city: str) -> str:
+    """returns weather info for the specified city."""
+    return f"The weather in {city} is sunny"
 
 async def main():
     # 2. Initialize the model (defaults to openai/gpt-oss-20b)
@@ -17,13 +16,14 @@ async def main():
     # 3. Create the Agent
     agent = Agent(
         name="Fast Assistant",
-        instructions="You are a helpful assistant. just answe the question without any extra information.",
+        instructions="You are a helpful assistant. just answe the question using avaialble tools",
         model=model,
+        tools=[get_weather],
     )
 
     # 4. Run the Agent
     print("Agent: Processing request...")
-    result = await Runner.run(agent, "how is it going")
+    result = await Runner.run(agent, "how the weather in new york")
     
     # 5. Output the result
     print(f"Agent: {result.final_output}")
