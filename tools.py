@@ -49,6 +49,21 @@ def _list_resource_items(kind: str, namespace: str, label_selector: str = "") ->
     return json.loads(output).get("items", [])
 
 
+def delete_pod(namespace: str, pod_name: str, confirm: bool) -> str:
+    """Deletes a pod only when explicit confirmation is provided."""
+    if not confirm:
+        return (
+            f"Refusing to delete pod {pod_name} in namespace {namespace} without --confirm. "
+            f"Re-run with: uv run main.py delete-pod {namespace} {pod_name} --confirm"
+        )
+
+    command = ["kubectl", "delete", "pod", pod_name, "-n", namespace]
+    ok, output = _run_kubectl(command)
+    if not ok:
+        return f"Failed to delete pod {pod_name} in namespace {namespace}: {output}"
+    return output
+
+
 def _summarize_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
     resource = _kubectl_get_json(kind.lower(), namespace, name)
     if resource is None:

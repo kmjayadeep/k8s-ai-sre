@@ -13,6 +13,7 @@ The app currently supports:
 - an SRE-oriented response format
 - CLI target selection in the form `<kind> <namespace> <name>`
 - a Python evidence collection step before the model response
+- one guarded local action: `delete-pod`
 - a small module layout:
   - `main.py`
   - `tools.py`
@@ -132,6 +133,12 @@ Argument format:
 uv run main.py <kind> <namespace> <name>
 ```
 
+Guarded action format:
+
+```bash
+uv run main.py delete-pod <namespace> <pod-name> --confirm
+```
+
 ## What To Verify
 
 For the current implementation, verify:
@@ -157,6 +164,7 @@ For the current implementation, verify:
 - the final answer should be grounded in the printed evidence bundle
 - the answer must not claim it already executed a remediation
 - proposed actions should be concrete operator actions, not vague advice
+- pod deletion requires explicit `--confirm`
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -176,6 +184,18 @@ For the pod scenario:
 kubectl get pod crashy -n ai-sre-demo -o json
 uv run main.py pod ai-sre-demo crashy
 ```
+
+Guarded delete test:
+
+```bash
+uv run main.py delete-pod ai-sre-demo crashy
+uv run main.py delete-pod ai-sre-demo crashy --confirm
+kubectl get pod crashy -n ai-sre-demo
+```
+
+Expected behavior:
+- without `--confirm`, deletion is refused
+- with `--confirm`, the pod is deleted and Kubernetes recreates it only if a controller owns it
 
 For the deployment scenario:
 
