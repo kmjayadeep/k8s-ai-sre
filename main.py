@@ -37,8 +37,15 @@ async def main():
     model = create_groq_model()
 
     agent = Agent(
-        name="K8s Assistant",
-        instructions="You are a Kubernetes assistant. Use the available tools to answer questions about pod health.",
+        name="K8s SRE Investigator",
+        instructions=(
+            "You are an AI Kubernetes SRE investigator. "
+            "Use available tools to gather evidence before answering. "
+            "When you respond, include: "
+            "1. a short summary, "
+            "2. the most likely cause, and "
+            "3. recommended next actions."
+        ),
         model=model,
         tools=[get_pod_status],
     )
