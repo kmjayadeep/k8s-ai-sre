@@ -6,11 +6,12 @@ This project will be built in small, locally testable steps. The goal is to avoi
 
 Build from the current boilerplate to an AI Kubernetes SRE agent in controlled layers:
 
-1. local single-tool agent
-2. local multi-tool investigator
-3. local webhook-driven service
-4. local chat and approval loop
-5. in-cluster deployment
+1. local single-tool agent with real cluster reads
+2. local multi-tool investigator with real evidence
+3. local operator workflow with approvals
+4. webhook-driven service
+5. Telegram integration
+6. in-cluster deployment
 
 ## Rules For Implementation
 
@@ -20,6 +21,7 @@ Build from the current boilerplate to an AI Kubernetes SRE agent in controlled l
 - Keep the code small until the behavior is proven.
 - Prefer read-only integrations first, then add approvals, then add write actions.
 - Prefer generic Kubernetes resource interfaces over resource-specific tool APIs where possible, so custom resources can fit naturally later.
+- Use the local `kubectl` context as the first real integration path before introducing in-cluster auth or larger client abstractions.
 
 ## Tool Design Principle
 
@@ -48,26 +50,28 @@ Current state:
 Verification:
 - `uv run main.py`
 
-## Step 1: Replace Weather With One Fake Kubernetes Tool
+## Step 1: Replace Weather With One Real Pod Read Tool
 
 Change:
 - remove the weather tool
-- add one fake Kubernetes investigation tool
-- for the very first step, keep it simple and pod-focused:
-  - `get_pod_status(namespace: str, pod_name: str) -> str`
-- internally, treat this as a temporary stepping stone toward a generic resource interface
-- return hardcoded pod data such as:
-  - pod phase
+- add `get_pod_status(namespace: str, pod_name: str) -> str`
+- implement it using local `kubectl`
+- return a compact summary containing:
+  - phase
   - restart count
-  - waiting reason
-  - short recent event summary
+  - waiting or terminated reason if present
+  - node name if present
+
+Implementation note:
+- use `subprocess` to call `kubectl get pod -n <namespace> <pod_name> -o json`
+- do not introduce a full Kubernetes Python client yet
 
 Goal:
-- introduce Kubernetes-shaped investigation without real cluster access
+- prove the agent can read real cluster state immediately
 
 Verification:
 - `uv run main.py`
-- prompt the agent to investigate one fake pod
+- investigate one real pod from your cluster
 
 ## Step 2: Make The Agent An SRE Investigator
 
@@ -84,39 +88,39 @@ Goal:
 Verification:
 - inspect the output format and confirm it includes summary, likely cause, and next steps
 
-## Step 3: Introduce A Generic Fake Kubernetes Resource Tool
+## Step 3: Introduce A Generic Real Kubernetes Resource Tool
 
 Change:
-- add a generic fake tool:
+- add a generic tool:
   - `get_k8s_resource(api_version, kind, namespace, name) -> str`
+- implement it with `kubectl get`
 - support at least:
   - `Pod`
   - `Deployment`
-  - one example CRD shape such as `Rollout`
-- keep the returned data hardcoded but realistic
-- make resource-specific investigation helpers call this generic layer where possible
+  - one real CRD if your cluster has one
+- keep `get_pod_status(...)` as a thin wrapper over the generic path where practical
 
 Goal:
-- establish a CRD-friendly tool interface before real Kubernetes integration
+- establish a CRD-friendly tool interface using real cluster access
 
 Verification:
-- run prompts against both a built-in resource and a fake custom resource
-- confirm the agent can reason over both using the same core lookup shape
+- investigate one built-in resource
+- investigate one custom resource if available
 
-## Step 4: Add More Fake SRE Tools
+## Step 4: Add Real Evidence Tools
 
 Change:
-- add fake tools such as:
+- add:
   - `list_k8s_resources`
   - `get_k8s_resource_events`
   - `get_pod_logs`
-- where useful, add resource-specific convenience wrappers that sit on top of the generic layer
+- implement each with `kubectl`
 
 Goal:
-- let the agent combine multiple evidence sources before adding real integrations
+- let the agent combine multiple real evidence sources
 
 Verification:
-- run a fake deployment failure scenario and confirm the agent uses more than one tool
+- investigate a real failing pod or workload and confirm the agent uses more than one tool
 
 ## Step 5: Refactor Into Small Modules
 
@@ -133,59 +137,28 @@ Goal:
 Verification:
 - `uv run main.py`
 
-## Step 6: Add Local Incident Scenarios
+## Step 6: Add A Configurable Local Investigation Target
 
 Change:
-- add a few selectable fake scenarios:
-  - crash loop
-  - image pull error
-  - pending pod
-  - custom resource degraded state
+- allow the target namespace and resource name to be passed in more easily
+- simplest options:
+  - constants at the top of `main.py`
+  - or CLI arguments
 
 Goal:
-- make local testing repeatable across different failure types
+- test against real cluster objects without editing deeper code paths every time
 
 Verification:
-- run multiple scenarios and compare agent output
+- investigate multiple real resources in separate runs
 
-## Step 7: Add One Real Kubernetes Read Tool
-
-Change:
-- introduce Kubernetes client access
-- replace only one fake tool first
-- prefer implementing the real generic lookup path:
-  - `get_k8s_resource(api_version, kind, namespace, name)`
-- make pod-specific helpers call into that path where appropriate
-
-Goal:
-- move from toy investigation to one real cluster read path
-
-Verification:
-- run locally against a real kubeconfig
-- investigate one real built-in resource
-- fetch one real CRD if available
-
-## Step 8: Add Real Logs And Events
-
-Change:
-- add real read-only tools for:
-  - pod logs
-  - recent object events
-
-Goal:
-- support useful pod-level investigation
-
-Verification:
-- investigate a real failing pod and confirm the response uses logs and events
-
-## Step 9: Add Workload-Level Reads
+## Step 7: Add Workload-Level Reads
 
 Change:
 - add tools for:
-  - listing resources by kind
-  - finding related workloads
-  - rollout or controller condition inspection
-- support both built-in controllers and selected CRDs where practical
+  - deployment or statefulset status
+  - listing related pods
+  - rollout condition inspection
+- support CRDs later through the generic resource path
 
 Goal:
 - support deployment-level investigation instead of only pod-level investigation
@@ -193,7 +166,7 @@ Goal:
 Verification:
 - investigate one unhealthy deployment
 
-## Step 10: Add Prometheus Reads
+## Step 8: Add Prometheus Reads
 
 Change:
 - add one Prometheus client
@@ -207,7 +180,7 @@ Goal:
 Verification:
 - run one scenario where metrics improve the diagnosis
 
-## Step 11: Add A Python Investigation Orchestrator
+## Step 9: Add A Python Investigation Orchestrator
 
 Change:
 - add a function like `investigate_workload(namespace, workload)`
@@ -220,7 +193,7 @@ Goal:
 Verification:
 - print or inspect the evidence bundle before synthesis
 
-## Step 12: Add A Local Interactive CLI
+## Step 10: Add A Local Interactive CLI
 
 Change:
 - replace the one hardcoded prompt with a small input loop
@@ -236,7 +209,7 @@ Goal:
 Verification:
 - run multiple investigations in one session
 
-## Step 13: Add Remediation Proposals Only
+## Step 11: Add Remediation Proposals Only
 
 Change:
 - return:
@@ -251,13 +224,14 @@ Goal:
 Verification:
 - confirm recommendations are concrete and evidence-based
 
-## Step 14: Add One Local Guarded Action
+## Step 12: Add One Local Guarded Action
 
 Change:
 - add exactly one write action, likely:
   - `delete_pod`
   or
   - `rollout_restart`
+- execute it through `kubectl`
 - require explicit local confirmation before execution
 
 Goal:
@@ -266,7 +240,7 @@ Goal:
 Verification:
 - propose action, confirm locally, execute against a safe target
 
-## Step 15: Add Local Approval Flow
+## Step 13: Add Local Approval Flow
 
 Change:
 - assign action IDs
@@ -280,7 +254,7 @@ Goal:
 Verification:
 - confirm approvals and rejections update action state correctly
 
-## Step 16: Add A Minimal HTTP Server
+## Step 14: Add A Minimal HTTP Server
 
 Change:
 - add a very small service with:
@@ -293,7 +267,7 @@ Goal:
 Verification:
 - `curl` a request and receive an investigation response
 
-## Step 17: Add Alertmanager Webhook Support
+## Step 15: Add Alertmanager Webhook Support
 
 Change:
 - add `POST /webhooks/alertmanager`
@@ -305,7 +279,7 @@ Goal:
 Verification:
 - send a saved sample Alertmanager payload locally
 
-## Step 18: Add Incident State Storage
+## Step 16: Add Incident State Storage
 
 Change:
 - add a store abstraction
@@ -318,7 +292,7 @@ Goal:
 Verification:
 - trigger an alert, then fetch or inspect stored incident data
 
-## Step 19: Add Telegram Notifications Only
+## Step 17: Add Telegram Notifications Only
 
 Change:
 - send summaries to Telegram
@@ -330,7 +304,7 @@ Goal:
 Verification:
 - trigger an alert and confirm the Telegram message arrives
 
-## Step 20: Add Read-Only Telegram Commands
+## Step 18: Add Read-Only Telegram Commands
 
 Change:
 - support commands such as:
@@ -343,7 +317,7 @@ Goal:
 Verification:
 - retrieve an incident report and ask a follow-up question
 
-## Step 21: Add Telegram Approval For One Action
+## Step 19: Add Telegram Approval For One Action
 
 Change:
 - support:
@@ -355,7 +329,7 @@ Goal:
 Verification:
 - receive an action proposal in Telegram and approve it successfully
 
-## Step 22: Add Safety Controls
+## Step 20: Add Safety Controls
 
 Change:
 - enforce:
@@ -370,7 +344,7 @@ Goal:
 Verification:
 - confirm disallowed requests are rejected cleanly
 
-## Step 23: Add Container And Kubernetes Manifests
+## Step 21: Add Container And Kubernetes Manifests
 
 Change:
 - add:
@@ -385,10 +359,10 @@ Goal:
 Verification:
 - deploy to a dev cluster and check health endpoints
 
-## Step 24: Support Local And In-Cluster Auth
+## Step 22: Support Local And In-Cluster Auth
 
 Change:
-- use kubeconfig locally
+- use local `kubectl` or kubeconfig for development
 - use service account credentials in-cluster
 - centralize config handling
 
@@ -398,7 +372,7 @@ Goal:
 Verification:
 - run locally and in-cluster without code changes
 
-## Step 25: Add Service Observability
+## Step 23: Add Service Observability
 
 Change:
 - add structured logs for:
@@ -415,7 +389,7 @@ Goal:
 Verification:
 - inspect logs for one full incident flow
 
-## Step 26: Expand The Action Set Carefully
+## Step 24: Expand The Action Set Carefully
 
 Only after the first action is stable, add more:
 - `rollout_restart`
@@ -430,24 +404,25 @@ Verification:
 
 ## Milestone Grouping
 
-### Milestone 1: Local Reasoning Prototype
+### Milestone 1: Real Cluster Read Prototype
 - Steps 1 to 6
 
 ### Milestone 2: Real Read-Only Cluster Investigator
 - Steps 7 to 11
 
 ### Milestone 3: Local Operator Workflow
-- Steps 12 to 15
+- Steps 12 to 13
 
 ### Milestone 4: Service, Alerts, And Chat
-- Steps 16 to 21
+- Steps 14 to 19
 
 ### Milestone 5: Safety And Deployment
-- Steps 22 to 26
+- Steps 20 to 24
 
 ## Recommended Next Step
 
 Implement only Step 1 next:
-- replace the weather tool with a fake Kubernetes pod-status tool
+- replace the weather tool with a real `get_pod_status` tool
+- read pod data using local `kubectl`
 - keep everything else unchanged
 - verify locally with `uv run main.py`
