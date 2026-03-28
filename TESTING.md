@@ -9,12 +9,13 @@ The app currently supports:
 - a real generic `kubectl`-backed resource lookup tool
 - real evidence tools for listing resources, events, and pod logs
 - an SRE-oriented response format
+- CLI target selection in the form `<kind> <namespace> <name>`
 - a small module layout:
   - `main.py`
   - `tools.py`
   - `prompts.py`
 
-The current demo investigation target in is:
+The default demo investigation target is:
 - `Deployment bad-deploy` in namespace `ai-sre-demo`
 
 ## Prerequisites
@@ -109,8 +110,22 @@ Use this scenario when the current code path investigates a deployment or generi
 
 ## Run The App
 
+Default target:
+
 ```bash
 uv run main.py
+```
+
+Custom target:
+
+```bash
+uv run main.py pod ai-sre-demo crashy
+```
+
+Argument format:
+
+```bash
+uv run main.py <kind> <namespace> <name>
 ```
 
 ## What To Verify
@@ -119,6 +134,7 @@ For the current implementation, verify:
 - the app runs successfully
 - the agent uses the expected tools for the current demo target
 - the tools read real data from `kubectl`
+- custom CLI targets work without editing code
 - for the deployment scenario, the investigation may use:
   - `get_k8s_resource`
   - `list_k8s_resources`
@@ -139,6 +155,7 @@ For the pod scenario:
 
 ```bash
 kubectl get pod crashy -n ai-sre-demo -o json
+uv run main.py pod ai-sre-demo crashy
 ```
 
 For the deployment scenario:
@@ -147,6 +164,7 @@ For the deployment scenario:
 kubectl get deployment bad-deploy -n ai-sre-demo -o json
 kubectl get pods -n ai-sre-demo -l app=bad-deploy -o wide
 kubectl get events -n ai-sre-demo --field-selector involvedObject.kind=Pod
+uv run main.py deployment ai-sre-demo bad-deploy
 ```
 
 ## Cleanup

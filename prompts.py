@@ -9,4 +9,6 @@ AGENT_INSTRUCTIONS = (
     "Next actions: "
 )
 
-DEMO_PROMPT = "Investigate why deployment bad-deploy in namespace ai-sre-demo is unhealthy."
+
+def build_demo_prompt(kind: str, namespace: str, name: str) -> str:
+    return f"Investigate why {kind} {name} in namespace {namespace} is unhealthy."
