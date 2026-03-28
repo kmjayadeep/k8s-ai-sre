@@ -7,6 +7,7 @@ This file describes how to test the project in its current state. It should evol
 The app currently supports:
 - a real `kubectl`-backed pod lookup tool
 - a real generic `kubectl`-backed resource lookup tool
+- real evidence tools for listing resources, events, and pod logs
 - an SRE-oriented response format
 
 The current demo investigation target in is:
@@ -112,13 +113,19 @@ uv run main.py
 
 For the current implementation, verify:
 - the app runs successfully
-- the agent uses the expected tool for the current demo target
-- the tool reads real data from `kubectl`
+- the agent uses the expected tools for the current demo target
+- the tools read real data from `kubectl`
+- for the deployment scenario, the investigation may use:
+  - `get_k8s_resource`
+  - `list_k8s_resources`
+  - `get_k8s_resource_events`
+  - `get_pod_logs`
 - the final answer uses this response format:
   - `Summary:`
   - `Most likely cause:`
   - `Next actions:`
 - the answer reflects the real cluster symptom instead of generic Kubernetes advice
+- the answer should improve if the model inspects pod-level evidence in addition to the deployment object
 
 ## Useful Manual Checks
 
@@ -135,6 +142,7 @@ For the deployment scenario:
 ```bash
 kubectl get deployment bad-deploy -n ai-sre-demo -o json
 kubectl get pods -n ai-sre-demo -l app=bad-deploy -o wide
+kubectl get events -n ai-sre-demo --field-selector involvedObject.kind=Pod
 ```
 
 ## Cleanup

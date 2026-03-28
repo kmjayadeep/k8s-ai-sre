@@ -8,6 +8,12 @@ from model_factory import create_groq_model
 set_tracing_disabled(True)
 
 
+def _run_kubectl(command: list[str]) -> tuple[bool, str]:
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    output = result.stdout.strip() or result.stderr.strip()
+    return result.returncode == 0, output
+
+
 def _kubectl_get_json(resource_type: str, namespace: str, name: str) -> dict | None:
     command = [
         "kubectl",
@@ -19,10 +25,10 @@ def _kubectl_get_json(resource_type: str, namespace: str, name: str) -> dict | N
         "-o",
         "json",
     ]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
+    ok, output = _run_kubectl(command)
+    if not ok:
         return None
-    return json.loads(result.stdout)
+    return json.loads(output)
 
 
 @function_tool
@@ -59,13 +65,16 @@ def get_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> 
         )
 
     if kind == "Deployment":
+        selector = spec.get("selector", {}).get("matchLabels", {})
+        selector_text = ",".join(f"{key}={value}" for key, value in selector.items()) or "none"
         return (
             f"{kind} {name} in namespace {namespace} with apiVersion {api_version}. "
             f"Desired replicas: {spec.get('replicas', 'Unknown')}. "
             f"Ready replicas: {status.get('readyReplicas', 0)}. "
             f"Available replicas: {status.get('availableReplicas', 0)}. "
             f"Observed generation: {status.get('observedGeneration', 'Unknown')}. "
-            f"Generation: {metadata.get('generation', 'Unknown')}."
+            f"Generation: {metadata.get('generation', 'Unknown')}. "
+            f"Selector: {selector_text}."
         )
 
     return (
@@ -81,6 +90,89 @@ def get_pod_status(namespace: str, pod_name: str) -> str:
     """Returns real pod status data from kubectl for local testing."""
     return get_k8s_resource("v1", "Pod", namespace, pod_name)
 
+
+@function_tool
+def list_k8s_resources(api_version: str, kind: str, namespace: str, label_selector: str = "") -> str:
+    """Lists Kubernetes resources using kubectl."""
+    command = [
+        "kubectl",
+        "get",
+        kind.lower(),
+        "-n",
+        namespace,
+        "-o",
+        "json",
+    ]
+    if label_selector:
+        command.extend(["-l", label_selector])
+
+    ok, output = _run_kubectl(command)
+    if not ok:
+        return f"Failed to list {kind} resources in namespace {namespace}: {output}"
+
+    payload = json.loads(output)
+    items = payload.get("items", [])
+    if not items:
+        return f"No {kind} resources found in namespace {namespace}."
+
+    names = [item.get("metadata", {}).get("name", "unknown") for item in items]
+    return f"{kind} resources in namespace {namespace}: {', '.join(names)}."
+
+
+@function_tool
+def get_k8s_resource_events(kind: str, namespace: str, name: str) -> str:
+    """Fetches recent events for a Kubernetes object."""
+    command = [
+        "kubectl",
+        "get",
+        "events",
+        "-n",
+        namespace,
+        "--field-selector",
+        f"involvedObject.kind={kind},involvedObject.name={name}",
+        "--sort-by=.lastTimestamp",
+        "-o",
+        "json",
+    ]
+    ok, output = _run_kubectl(command)
+    if not ok:
+        return f"Failed to fetch events for {kind} {name} in namespace {namespace}: {output}"
+
+    payload = json.loads(output)
+    items = payload.get("items", [])
+    if not items:
+        return f"No events found for {kind} {name} in namespace {namespace}."
+
+    recent = items[-5:]
+    messages = [
+        f"{item.get('reason', 'UnknownReason')}: {item.get('message', '').strip()}"
+        for item in recent
+    ]
+    return f"Recent events for {kind} {name} in namespace {namespace}: " + " | ".join(messages)
+
+
+@function_tool
+def get_pod_logs(namespace: str, pod_name: str, container: str = "") -> str:
+    """Fetches recent logs for a pod."""
+    command = [
+        "kubectl",
+        "logs",
+        pod_name,
+        "-n",
+        namespace,
+        "--tail",
+        "30",
+    ]
+    if container:
+        command.extend(["-c", container])
+
+    ok, output = _run_kubectl(command)
+    if not ok:
+        return f"Failed to fetch logs for pod {pod_name} in namespace {namespace}: {output}"
+    if not output:
+        return f"No logs returned for pod {pod_name} in namespace {namespace}."
+    return f"Recent logs for pod {pod_name} in namespace {namespace}: {output}"
+
 async def main():
     model = create_groq_model()
 
@@ -90,13 +182,14 @@ async def main():
             "You are an AI Kubernetes SRE investigator. "
             "Use available tools to gather evidence before answering. "
             "Do not guess when tool output is missing. "
+            "For workload investigations, inspect the workload, related pods, relevant events, and pod logs when useful. "
             "Keep the response concise and use exactly these sections: "
             "Summary: "
             "Most likely cause: "
             "Next actions: "
         ),
         model=model,
-        tools=[get_k8s_resource, get_pod_status],
+        tools=[get_k8s_resource, get_pod_status, list_k8s_resources, get_k8s_resource_events, get_pod_logs],
     )
 
     print("Agent: Processing request...")
