@@ -60,11 +60,11 @@ async def main():
         instructions=(
             "You are an AI Kubernetes SRE investigator. "
             "Use available tools to gather evidence before answering. "
-            "You can investigate both built-in Kubernetes resources and custom resources. "
-            "When you respond, include: "
-            "1. a short summary, "
-            "2. the most likely cause, and "
-            "3. recommended next actions."
+            "Do not guess when tool output is missing. "
+            "Keep the response concise and use exactly these sections: "
+            "Summary: "
+            "Most likely cause: "
+            "Next actions: "
         ),
         model=model,
         tools=[get_pod_status],

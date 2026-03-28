@@ -65,3 +65,29 @@ uv run main.py
 ```bash
 kubectl delete namespace ai-sre-demo
 ```
+
+## Step 2: SRE Investigation Response Format
+
+### Goal
+
+Verify that the agent responds like an investigator instead of a generic assistant.
+
+### Reuse The Same Scenario
+
+If the `crashy` pod was deleted, recreate the Step 1 scenario first.
+
+### Run The Agent
+
+```bash
+uv run main.py
+```
+
+### Expected Result
+
+- the tool call still uses `get_pod_status`
+- the final answer is concise
+- the final answer uses these sections:
+  - `Summary:`
+  - `Most likely cause:`
+  - `Next actions:`
+- the cause and next actions should be based on the pod status output, not generic Kubernetes advice
