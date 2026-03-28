@@ -1,29 +1,41 @@
 # Testing Guide
 
-This file tracks how to test the project incrementally after each implementation step.
+This file describes how to test the project in its current state. It should evolve as the implementation changes, instead of keeping separate test sections for every historical step.
 
-## Step 1: Real Pod Read Via `kubectl`
+## Current Scope
 
-### Goal
+The app currently supports:
+- a real `kubectl`-backed pod lookup tool
+- a real generic `kubectl`-backed resource lookup tool
+- an SRE-oriented response format
 
-Verify that the agent can read real pod status from the local Kubernetes cluster using `kubectl`.
+The current demo investigation target in is:
+- `Deployment bad-deploy` in namespace `ai-sre-demo`
 
-### Prerequisites
+## Prerequisites
+
+- a local kind cluster is running
+- your kube context points to that cluster
+- required model environment variables are available
+
+Check cluster access:
 
 ```bash
-kind create cluster
+kubectl config current-context
+kubectl get nodes
 ```
 
-### Create The Test Scenario
+## Test Environment Setup
 
-Create a namespace:
+Create the namespace if it does not already exist:
 
 ```bash
 kubectl create namespace ai-sre-demo
-kubens ai-sre-demo
 ```
 
-Create a pod that intentionally crash loops:
+## Scenario 1: Crash-Looping Pod
+
+Create a pod that repeatedly crashes:
 
 ```bash
 kubectl apply -n ai-sre-demo -f - <<'EOF'
@@ -39,55 +51,96 @@ spec:
 EOF
 ```
 
-Watch it until it becomes unhealthy:
+Watch it:
 
 ```bash
 kubectl get pod crashy -n ai-sre-demo -w
 ```
 
-You should eventually see repeated restarts and likely `CrashLoopBackOff`.
+Expected symptom:
+- repeated restarts
+- likely `CrashLoopBackOff`
 
-### Run The Agent
+Use this scenario when the current code path investigates a pod.
+
+## Scenario 2: Unhealthy Deployment
+
+Create a deployment with a broken image:
+
+```bash
+kubectl apply -n ai-sre-demo -f - <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bad-deploy
+  template:
+    metadata:
+      labels:
+        app: bad-deploy
+    spec:
+      containers:
+        - name: app
+          image: nginx:does-not-exist
+EOF
+```
+
+Check status:
+
+```bash
+kubectl get deployment bad-deploy -n ai-sre-demo
+kubectl get pods -n ai-sre-demo -l app=bad-deploy
+```
+
+Expected symptom:
+- deployment does not become healthy
+- related pod shows image pull failure
+
+Use this scenario when the current code path investigates a deployment or generic resource.
+
+## Run The App
 
 ```bash
 uv run main.py
 ```
 
-### Expected Result
+## What To Verify
 
-- the agent calls `get_pod_status`
-- the tool reads real pod data through `kubectl`
-- the final answer mentions the pod is unhealthy
-- the answer should mention restart behavior or crash-loop behavior
+For the current implementation, verify:
+- the app runs successfully
+- the agent uses the expected tool for the current demo target
+- the tool reads real data from `kubectl`
+- the final answer uses this response format:
+  - `Summary:`
+  - `Most likely cause:`
+  - `Next actions:`
+- the answer reflects the real cluster symptom instead of generic Kubernetes advice
 
-### Cleanup
+## Useful Manual Checks
+
+Inspect the current demo target directly with `kubectl`:
+
+For the pod scenario:
+
+```bash
+kubectl get pod crashy -n ai-sre-demo -o json
+```
+
+For the deployment scenario:
+
+```bash
+kubectl get deployment bad-deploy -n ai-sre-demo -o json
+kubectl get pods -n ai-sre-demo -l app=bad-deploy -o wide
+```
+
+## Cleanup
+
+Delete the test namespace when you are done:
 
 ```bash
 kubectl delete namespace ai-sre-demo
 ```
-
-## Step 2: SRE Investigation Response Format
-
-### Goal
-
-Verify that the agent responds like an investigator instead of a generic assistant.
-
-### Reuse The Same Scenario
-
-If the `crashy` pod was deleted, recreate the Step 1 scenario first.
-
-### Run The Agent
-
-```bash
-uv run main.py
-```
-
-### Expected Result
-
-- the tool call still uses `get_pod_status`
-- the final answer is concise
-- the final answer uses these sections:
-  - `Summary:`
-  - `Most likely cause:`
-  - `Next actions:`
-- the cause and next actions should be based on the pod status output, not generic Kubernetes advice
