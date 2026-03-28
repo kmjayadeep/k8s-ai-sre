@@ -9,6 +9,10 @@ The app currently supports:
 - a real generic `kubectl`-backed resource lookup tool
 - real evidence tools for listing resources, events, and pod logs
 - an SRE-oriented response format
+- a small module layout:
+  - `main.py`
+  - `tools.py`
+  - `prompts.py`
 
 The current demo investigation target in is:
 - `Deployment bad-deploy` in namespace `ai-sre-demo`
