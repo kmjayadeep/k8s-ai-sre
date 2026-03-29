@@ -3,7 +3,7 @@ AI SRE for monitoring kubernetes and taking action
 
 ## Kubernetes Deployment
 
-The Kubernetes manifest is in [deploy/k8s-ai-sre.yaml](deploy/k8s-ai-sre.yaml).
+The Kubernetes manifests are in the [deploy](deploy) Kustomize base.
 
 The deployment uses this image:
 
@@ -15,7 +15,9 @@ ghcr.io/kmjayadeep/k8s-ai-sre:main
 
 #### Create Or Update The Secret Imperatively
 
-If you already have the values in your shell from `direnv` / `.envrc`, create the secret like this:
+If you already have the values in your shell from `direnv` / `.envrc`, you can create the secret imperatively.
+
+Create the secret like this:
 
 ```bash
 kubectl create namespace ai-sre-system --dry-run=client -o yaml | kubectl apply -f -
@@ -28,19 +30,25 @@ kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-Then apply the rest of the manifest:
+Then apply the base:
 
 ```bash
-kubectl apply -f deploy/k8s-ai-sre.yaml
+kubectl apply -k deploy
 ```
 
 ### Deploy
 
 ```bash
-kubectl apply -f deploy/k8s-ai-sre.yaml
+kubectl apply -k deploy
 kubectl get pods -n ai-sre-system
 kubectl get svc -n ai-sre-system
 ```
+
+The deployment manifest also includes:
+
+- `readinessProbe` on `/healthz`
+- `livenessProbe` on `/healthz`
+- conservative CPU and memory requests/limits
 
 ## Auth Model
 
@@ -65,7 +73,7 @@ The expected auth path is:
 
 - `kubectl` runs inside the container
 - Kubernetes mounts the service account token into the pod
-- RBAC from [deploy/k8s-ai-sre.yaml](/home/jayadeep/workspace/projects/k8s-ai-sre/deploy/k8s-ai-sre.yaml) controls what the app can read and write
+- RBAC from the manifests in [deploy](/deploy) controls what the app can read and write
 
 This keeps one execution model:
 - local: kubeconfig-backed `kubectl`

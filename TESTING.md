@@ -29,6 +29,7 @@ The app currently supports:
 - structured JSON logs for key lifecycle events via `loguru`
 - the image includes `kubectl` so the same kubectl-backed runtime can work in-cluster
 - a GitHub Actions workflow to build and push the image to GHCR
+- a Kustomize deployment base split across `deploy/*.yaml`
 - a small module layout:
   - `main.py`
   - `investigate.py`
@@ -42,7 +43,7 @@ The app currently supports:
   - `prompts.py`
   - `Dockerfile`
   - `.github/workflows/container.yml`
-  - `deploy/k8s-ai-sre.yaml`
+  - `deploy/kustomization.yaml`
 
 The default demo investigation target is:
 - `Deployment bad-deploy` in namespace `ai-sre-demo`
@@ -236,12 +237,13 @@ For the current implementation, verify:
 - actions should expire after a short time
 - Telegram command handling should ignore unauthorized chat IDs when configured
 - the app should be buildable into a container image
-- the app should be deployable to the cluster with the provided manifest
+- the app should be deployable to the cluster with the provided Kustomize base
 - the app should emit structured logs for key events
 - local execution should use your kubeconfig-backed `kubectl`
 - in-cluster execution should use service-account-backed `kubectl`
 - pushes to `main` should build and publish the image to GHCR
 - in-cluster RBAC should cover the currently supported deployment actions
+- the deployment manifest should define health probes and basic resource settings
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -562,7 +564,7 @@ kind load docker-image k8s-ai-sre:dev
 Deploy:
 
 ```bash
-kubectl apply -f deploy/k8s-ai-sre.yaml
+kubectl apply -k deploy
 kubectl get pods -n ai-sre-system
 kubectl get svc -n ai-sre-system
 ```
@@ -573,6 +575,8 @@ Expected behavior:
 - the pod can read cluster data and, if configured, delete pods only in `ai-sre-demo`
 - the container image contains `kubectl`
 - the write Role allows deployment restart, scale, and undo in `ai-sre-demo`
+- the pod reports ready via `/healthz`
+- the Kustomize base sets CPU and memory requests/limits
 
 Logging check:
 
