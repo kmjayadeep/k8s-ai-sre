@@ -19,6 +19,37 @@ The intended loop is:
 4. an operator approves or rejects those proposals
 5. approved actions execute through the existing guardrails
 
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Alertmanager or CLI] --> B[FastAPI / CLI entrypoint]
+    B --> C[Investigation flow]
+    C --> D[Kubernetes tools]
+    C --> E[Prometheus tool]
+    C --> F[LLM via model_factory]
+    F --> G[Proposal tools]
+    G --> H[Action store]
+    C --> I[Incident store]
+    I --> J[Telegram notifier]
+    K[Telegram poller] --> H
+    K --> I
+    H --> L[Guarded action execution]
+    D --> M[kubectl / Kubernetes API]
+    L --> M
+```
+
+Component guide:
+
+- [main.py](main.py): local entrypoint
+- [app/http.py](app/http.py): HTTP endpoints for investigations and Alertmanager webhooks
+- [app/investigate.py](app/investigate.py): agent orchestration
+- [app/tools/k8s.py](app/tools/k8s.py): Kubernetes and Prometheus read helpers
+- [app/tools/actions.py](app/tools/actions.py): guarded action execution helpers
+- [app/telegram.py](app/telegram.py): Telegram polling and commands
+- [app/stores](app/stores): local JSON stores for incidents and actions
+- [model_factory.py](model_factory.py): model selection and client configuration
+
 ## Quick Start
 
 ### 1. Install Dependencies
@@ -27,19 +58,24 @@ The intended loop is:
 uv sync
 ```
 
-### 2. Load Environment
+### 2. Configure The Model
 
-At minimum, load your model credentials. Telegram is optional for the local CLI flow.
-
-Typical local variables:
+Minimum configuration:
 
 ```bash
 export PORTKEY_API_KEY=...
-export TELEGRAM_BOT_TOKEN=...
-export TELEGRAM_CHAT_ID=...
-export TELEGRAM_ALLOWED_CHAT_IDS=...
-export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
 ```
+
+Optional overrides:
+
+```bash
+export MODEL_NAME=openai/gpt-oss-20b
+export MODEL_PROVIDER=groq
+export MODEL_BASE_URL=https://api.portkey.ai/v1
+export MODEL_API_KEY=...
+```
+
+`MODEL_API_KEY` overrides `PORTKEY_API_KEY` when both are set.
 
 ### 3. Prepare A Local Scenario
 
@@ -70,17 +106,25 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
 
 ## Telegram Flow
 
-Telegram is optional for investigation but required for the chat approval loop.
+Telegram is optional for local investigation, but required for the chat approval loop.
 
-Once the bot token and chat IDs are configured, you can:
+Typical variables:
 
-- receive incident notifications
-- fetch incident details with `/incident <incident-id>`
-- check status with `/status <incident-id>`
-- approve actions with `/approve <action-id>`
-- reject actions with `/reject <action-id>`
+```bash
+export TELEGRAM_BOT_TOKEN=...
+export TELEGRAM_CHAT_ID=...
+export TELEGRAM_ALLOWED_CHAT_IDS=...
+export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
+```
 
-To poll Telegram updates locally:
+Supported commands:
+
+- `/incident <incident-id>`
+- `/status <incident-id>`
+- `/approve <action-id>`
+- `/reject <action-id>`
+
+To poll Telegram locally:
 
 ```bash
 uv run main.py telegram-poll
@@ -99,7 +143,7 @@ They are namespace-restricted through `WRITE_ALLOWED_NAMESPACES` and require exp
 
 ## Deployment
 
-The repository includes a Kustomize base in [deploy](deploy) and publishes a container image to:
+The Kubernetes manifests are in [deploy](deploy) and deploy the published image:
 
 ```text
 ghcr.io/kmjayadeep/k8s-ai-sre:main
@@ -111,6 +155,10 @@ Create the runtime secret:
 kubectl create namespace ai-sre-system --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
   --from-literal=PORTKEY_API_KEY="$PORTKEY_API_KEY" \
+  --from-literal=MODEL_NAME="$MODEL_NAME" \
+  --from-literal=MODEL_PROVIDER="$MODEL_PROVIDER" \
+  --from-literal=MODEL_BASE_URL="$MODEL_BASE_URL" \
+  --from-literal=MODEL_API_KEY="$MODEL_API_KEY" \
   --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
   --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" \
   --from-literal=TELEGRAM_ALLOWED_CHAT_IDS="$TELEGRAM_ALLOWED_CHAT_IDS" \
@@ -126,22 +174,9 @@ kubectl get pods -n ai-sre-system
 kubectl get svc -n ai-sre-system
 ```
 
-The in-cluster runtime still uses `kubectl`, backed by the pod service account and the provided RBAC.
-
-## Repo Map
-
-- [main.py](main.py): entrypoint
-- [app/investigate.py](app/investigate.py): agent construction and investigation flow
-- [app/http.py](app/http.py): FastAPI endpoints
-- [app/telegram.py](app/telegram.py): Telegram polling and commands
-- [app/actions.py](app/actions.py): proposal and approval orchestration
-- [app/tools/k8s.py](app/tools/k8s.py): Kubernetes and Prometheus read tools
-- [app/tools/actions.py](app/tools/actions.py): guarded action execution
-- [app/stores](app/stores): local JSON stores for incidents and actions
-
 ## Testing
 
-See [TESTING.md](TESTING.md) for the current concise runbook:
+See [TESTING.md](TESTING.md) for the concise current runbook:
 
 - local investigation
 - local server plus webhook

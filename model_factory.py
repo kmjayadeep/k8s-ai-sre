@@ -1,31 +1,34 @@
 import os
-from openai import AsyncOpenAI
+
 from agents import OpenAIChatCompletionsModel
+from openai import AsyncOpenAI
 from portkey_ai import PORTKEY_GATEWAY_URL, createHeaders
 
-def create_groq_model(model_name: str = "openai/gpt-oss-20b"):
-    """
-    Creates an OpenAI Agents SDK model backed by Groq.
-    
-    Args:
-        model_name: The model ID to use. Defaults to 'openai/gpt-oss-20b'.
-                    Other options include 'llama-3.3-70b-versatile'.
-    """
-    api_key = os.getenv("PORTKEY_API_KEY")
-    if not api_key:
-        raise ValueError("PORTKEY_API_KEY environment variable is required")
 
-    # 1. Create a standard OpenAI client pointing to Groq
+DEFAULT_MODEL_NAME = "openai/gpt-oss-20b"
+DEFAULT_MODEL_PROVIDER = "groq"
+
+
+def create_model(model_name: str | None = None) -> OpenAIChatCompletionsModel:
+    api_key = os.getenv("MODEL_API_KEY") or os.getenv("PORTKEY_API_KEY")
+    if not api_key:
+        raise ValueError("MODEL_API_KEY or PORTKEY_API_KEY environment variable is required")
+
+    resolved_model = model_name or os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
+    provider = os.getenv("MODEL_PROVIDER", DEFAULT_MODEL_PROVIDER)
+    base_url = os.getenv("MODEL_BASE_URL", PORTKEY_GATEWAY_URL)
+
     client = AsyncOpenAI(
         api_key=api_key,
-        base_url=PORTKEY_GATEWAY_URL,
-        default_headers=createHeaders(
-            provider="@groq"
-        )
+        base_url=base_url,
+        default_headers=createHeaders(provider=f"@{provider}"),
     )
 
-    # 2. Wrap it in the Agents SDK model class
     return OpenAIChatCompletionsModel(
-        model=model_name,
+        model=resolved_model,
         openai_client=client,
     )
+
+
+def create_groq_model(model_name: str = DEFAULT_MODEL_NAME) -> OpenAIChatCompletionsModel:
+    return create_model(model_name)
