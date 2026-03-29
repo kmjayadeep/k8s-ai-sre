@@ -76,15 +76,11 @@ spec:
       serviceAccountName: k8s-ai-sre
       containers:
         - name: app
-          image: k8s-ai-sre:dev
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: GROQ_API_KEY
-              value: ""
-            - name: PORTKEY_API_KEY
-              value: ""
-            - name: WRITE_ALLOWED_NAMESPACES
-              value: "ai-sre-demo"
+          image: ghcr.io/kmjayadeep/k8s-ai-sre:main
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: k8s-ai-sre-env
           ports:
             - containerPort: 8080
 ---
