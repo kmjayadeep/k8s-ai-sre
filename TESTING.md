@@ -18,11 +18,13 @@ The app currently supports:
 - a minimal local HTTP server with `/healthz` and `/investigate`
 - an Alertmanager-compatible webhook endpoint
 - a JSON-backed local incident store with `GET /incidents/{incident_id}`
+- optional outbound Telegram notifications on new incidents
 - a small module layout:
   - `main.py`
   - `investigate.py`
   - `server.py`
   - `incident_store.py`
+  - `notifier.py`
   - `action_store.py`
   - `tools.py`
   - `prompts.py`
@@ -36,6 +38,7 @@ The default demo investigation target is:
 - your kube context points to that cluster
 - required model environment variables are available
 - optional: `PROMETHEUS_BASE_URL` if you want metrics queries enabled
+- optional: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` if you want Telegram notifications
 
 Check cluster access:
 
@@ -194,6 +197,7 @@ For the current implementation, verify:
 - the HTTP server should accept `POST /webhooks/alertmanager`
 - the HTTP server should allow incident lookup with `GET /incidents/{incident_id}`
 - incident data should be written to `/tmp/k8s-ai-sre-incidents.json`
+- if Telegram is configured, new incidents should send one outbound notification
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -202,6 +206,14 @@ If Prometheus is not configured:
 If Prometheus is configured:
 - the model may use metrics as additional evidence
 - metrics should supplement Kubernetes evidence, not replace it
+
+If Telegram is not configured:
+- incident creation should still work
+- the response should report that Telegram is not configured
+
+If Telegram is configured:
+- incident creation should send one outbound notification
+- the response should include notification status
 
 ## Useful Manual Checks
 
@@ -283,6 +295,7 @@ Expected behavior:
   - target identity
   - collected evidence
   - final model answer
+  - `notification_status`
 - the returned `incident_id` can be fetched later from `/incidents/{incident_id}`
 
 Alertmanager webhook test:
@@ -309,6 +322,21 @@ Expected behavior:
 - the webhook resolves the target from alert labels
 - the response includes the same investigation payload shape as `/investigate`
 - the response contains `"source": "alertmanager"`
+
+Optional Telegram notification test:
+
+Set:
+
+```bash
+export TELEGRAM_BOT_TOKEN=...
+export TELEGRAM_CHAT_ID=...
+```
+
+Then call `/investigate` or `/webhooks/alertmanager`.
+
+Expected behavior:
+- the response includes `notification_status`
+- a Telegram message is sent to the configured chat
 
 Incident lookup test:
 

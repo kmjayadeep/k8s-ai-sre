@@ -2,7 +2,9 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from incident_store import create_incident, get_incident
 from investigate import investigate_target
+from notifier import send_telegram_notification
 
 
 class InvestigateRequest(BaseModel):
@@ -32,7 +34,10 @@ async def healthz() -> dict[str, str]:
 async def investigate(request: InvestigateRequest) -> dict[str, str]:
     if not all([request.kind, request.namespace, request.name]):
         raise HTTPException(status_code=400, detail="kind, namespace, and name are required")
-    return await investigate_target(request.kind, request.namespace, request.name, emit_progress=False)
+    result = await investigate_target(request.kind, request.namespace, request.name, emit_progress=False)
+    incident = create_incident(result)
+    incident["notification_status"] = send_telegram_notification(incident)
+    return incident
 
 
 def _resolve_alert_target(payload: AlertmanagerWebhook) -> tuple[str, str, str]:
@@ -55,7 +60,17 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, str]:
     kind, namespace, name = _resolve_alert_target(payload)
     result = await investigate_target(kind, namespace, name, emit_progress=False)
     result["source"] = "alertmanager"
-    return result
+    incident = create_incident(result)
+    incident["notification_status"] = send_telegram_notification(incident)
+    return incident
+
+
+@app.get("/incidents/{incident_id}")
+async def read_incident(incident_id: str) -> dict[str, str]:
+    incident = get_incident(incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="incident not found")
+    return incident
 
 
 def run_server(port: int = 8080) -> None:
