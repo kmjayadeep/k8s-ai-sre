@@ -1,428 +1,203 @@
-# Incremental Build Plan
-
-This project will be built in small, locally testable steps. The goal is to avoid large jumps in complexity and keep every stage understandable and runnable.
+# k8s-ai-sre Plan
 
 ## Goal
 
-Build from the current boilerplate to an AI Kubernetes SRE agent in controlled layers:
+Finish the project as a working end-to-end AI Kubernetes SRE flow:
 
-1. local single-tool agent with real cluster reads
-2. local multi-tool investigator with real evidence
-3. local operator workflow with approvals
-4. webhook-driven service
-5. Telegram integration
-6. in-cluster deployment
+1. Alert arrives.
+2. Agent investigates with real cluster evidence.
+3. Agent proposes guarded remediation actions as pending approvals.
+4. User approves or rejects from Telegram.
+5. Approved action executes through the existing guardrails.
 
-## Rules For Implementation
+## Current Status
 
-- Add one new concept at a time.
-- Each step must remain runnable locally.
-- Each step must have a simple manual verification path.
-- Keep the code small until the behavior is proven.
-- Prefer read-only integrations first, then add approvals, then add write actions.
-- Prefer generic Kubernetes resource interfaces over resource-specific tool APIs where possible, so custom resources can fit naturally later.
-- Use the local `kubectl` context as the first real integration path before introducing in-cluster auth or larger client abstractions.
+### Already Done
 
-## Tool Design Principle
+- Real `kubectl`-backed Kubernetes reads are in place.
+- Generic resource lookup works for built-ins and CRD-shaped access patterns.
+- Evidence collection includes resource details, events, workload pods, logs, and optional Prometheus data.
+- The agent synthesizes evidence into an investigation answer.
+- Guarded write actions exist for `delete-pod`, `rollout-restart`, `scale`, and `rollout-undo`.
+- Local action approval storage exists with expiry handling.
+- FastAPI service exists with `/healthz`, `/investigate`, `/webhooks/alertmanager`, and `/incidents/{id}`.
+- Alertmanager webhooks trigger investigations.
+- Incident state is persisted in a local JSON store.
+- Telegram notifications are sent for incidents.
+- Telegram supports `/incident`, `/status`, `/approve`, and `/reject`.
+- Write namespaces and allowed Telegram chat IDs can be restricted.
+- Structured logging is in place.
+- Container build, GHCR publishing, and Kubernetes deployment manifests are in place.
 
-The long-term tool interface should be generic enough to support both built-in Kubernetes resources and CRDs.
+### Not Done Yet
 
-Preferred shape:
+- The agent cannot create pending actions itself.
+- Proposed actions are only plain text in the investigation answer.
+- Incidents do not store structured action proposals.
+- Telegram notifications do not include agent-generated action IDs.
+- Telegram approval only works for actions created manually through the CLI.
+- The full alert -> investigate -> propose -> notify -> approve -> execute loop is not complete.
 
-- `get_k8s_resource(api_version, kind, namespace, name)`
-- `list_k8s_resources(api_version, kind, namespace=None, label_selector=None)`
-- `get_k8s_resource_events(kind, namespace, name)`
-- `get_pod_logs(namespace, pod_name, container=None)`
+## Design Rules
 
-Notes:
-- `api_version + kind + namespace + name` should be the core resource identity model.
-- This keeps the interface compatible with custom resources such as Argo Rollouts, CertManager resources, Crossplane resources, and operator-managed objects.
-- Pod logs remain a special-case tool because log access is not a generic resource capability.
-- Resource-specific helper tools can still exist later, but they should be wrappers around the generic resource access layer rather than the primary design.
+- Keep the model read-only with respect to execution.
+- Give the model proposal tools, not execution tools.
+- Keep approval and execution outside the model.
+- Prefer generic Kubernetes resource access where possible.
+- Keep each new step locally testable before moving on.
 
-## Step 0: Freeze The Baseline
+## Next Steps
 
-Current state:
-- `main.py` runs a toy assistant
-- `model_factory.py` creates the model
-- one demo tool exists
+### 1. Refactor File Structure
 
-Verification:
-- `uv run main.py`
-
-## Step 1: Replace Weather With One Real Pod Read Tool
-
-Change:
-- remove the weather tool
-- add `get_pod_status(namespace: str, pod_name: str) -> str`
-- implement it using local `kubectl`
-- return a compact summary containing:
-  - phase
-  - restart count
-  - waiting or terminated reason if present
-  - node name if present
-
-Implementation note:
-- use `subprocess` to call `kubectl get pod -n <namespace> <pod_name> -o json`
-- do not introduce a full Kubernetes Python client yet
+- Reduce the current ad hoc module layout into clearer boundaries such as:
+  - `app/investigate.py`
+  - `app/actions.py`
+  - `app/store.py`
+  - `app/telegram.py`
+  - `app/http.py`
+  - `app/tools/k8s.py`
+  - `app/tools/actions.py`
+- Keep the refactor small and mechanical.
 
 Goal:
-- prove the agent can read real cluster state immediately
+- make the codebase easier to navigate before adding more features
 
-Verification:
-- `uv run main.py`
-- investigate one real pod from your cluster
+### 2. Refactor CLI Logic
 
-## Step 2: Make The Agent An SRE Investigator
-
-Change:
-- rename the agent to reflect SRE behavior
-- update instructions so it:
-  - gathers evidence from tools
-  - explains likely causes
-  - proposes next actions
+- Move CLI argument handling out of `main.py`.
+- Decide whether the manual CLI action commands should remain.
+- Once tests cover the behavior, consider removing most of the manual CLI approval commands if they are no longer needed.
 
 Goal:
-- make the behavior incident-focused instead of generic assistant behavior
+- stop using `main.py` as the central control plane
 
-Verification:
-- inspect the output format and confirm it includes summary, likely cause, and next steps
+### 3. Add Agent Proposal Tools
 
-## Step 3: Introduce A Generic Real Kubernetes Resource Tool
-
-Change:
-- add a generic tool:
-  - `get_k8s_resource(api_version, kind, namespace, name) -> str`
-- implement it with `kubectl get`
-- support at least:
-  - `Pod`
-  - `Deployment`
-  - one real CRD if your cluster has one
-- keep `get_pod_status(...)` as a thin wrapper over the generic path where practical
-
-Goal:
-- establish a CRD-friendly tool interface using real cluster access
-
-Verification:
-- investigate one built-in resource
-- investigate one custom resource if available
-
-## Step 4: Add Real Evidence Tools
-
-Change:
-- add:
-  - `list_k8s_resources`
-  - `get_k8s_resource_events`
-  - `get_pod_logs`
-- implement each with `kubectl`
+- Add tool functions for:
+  - `propose_delete_pod(namespace, pod_name)`
+  - `propose_rollout_restart(namespace, deployment_name)`
+  - `propose_scale(namespace, deployment_name, replicas)`
+  - `propose_rollout_undo(namespace, deployment_name)`
+- Each tool should create a pending action in `action_store.py`.
+- Each tool should return structured approval details:
+  - action ID
+  - target
+  - params
+  - expiry
+  - approval and rejection commands
 
 Goal:
-- let the agent combine multiple real evidence sources
+- let the LLM propose real guarded actions without executing them
 
-Verification:
-- investigate a real failing pod or workload and confirm the agent uses more than one tool
+### 4. Update Agent Prompt And Result Contract
 
-## Step 5: Refactor Into Small Modules
-
-Change:
-- split into a minimal file layout:
-  - `main.py`
-  - `model_factory.py`
-  - `tools.py`
-  - optional `prompts.py`
+- Change the prompt so the agent investigates first and proposes actions through tools when justified.
+- Stop relying on plain-text “Proposed actions” only.
+- Make the final answer reference concrete action IDs when proposals exist.
 
 Goal:
-- improve readability without introducing service complexity
+- make the LLM output actionable and traceable
 
-Verification:
-- `uv run main.py`
+### 5. Persist Structured Proposed Actions In Incidents
 
-## Step 6: Add A Configurable Local Investigation Target
-
-Change:
-- allow the target namespace and resource name to be passed in more easily
-- simplest options:
-  - constants at the top of `main.py`
-  - or CLI arguments
+- Extend incident records with:
+  - `proposed_actions`
+  - `action_ids`
+- Tie each created action to an `incident_id`.
 
 Goal:
-- test against real cluster objects without editing deeper code paths every time
+- allow later retrieval and approval from incident context
 
-Verification:
-- investigate multiple real resources in separate runs
+### 6. Improve Telegram Incident Notifications
 
-## Step 7: Add Workload-Level Reads
-
-Change:
-- add tools for:
-  - deployment or statefulset status
-  - listing related pods
-  - rollout condition inspection
-- support CRDs later through the generic resource path
+- Include proposed action IDs in the initial Telegram message.
+- Include approval instructions in the message.
+- Keep the message concise and operator-friendly.
 
 Goal:
-- support deployment-level investigation instead of only pod-level investigation
+- make the operator able to act directly from the incident notification
 
-Verification:
-- investigate one unhealthy deployment
+### 7. Improve Telegram Incident Views
 
-## Step 8: Add Prometheus Reads
-
-Change:
-- add one Prometheus client
-- start with a small set of fixed queries, such as:
-  - restart increase
-  - unready pods
+- Update `/incident <id>` and `/status <id>` to show pending actions tied to the incident.
+- Make approval and rejection messages include the originating incident when available.
 
 Goal:
-- combine metrics with Kubernetes state
+- make Telegram the real approval surface for agent-proposed actions
 
-Verification:
-- run one scenario where metrics improve the diagnosis
+### 8. Verify The Full End-To-End Flow
 
-## Step 9: Add A Python Investigation Orchestrator
-
-Change:
-- add a function like `investigate_workload(namespace, workload)`
-- collect evidence in Python first
-- send the structured evidence bundle to the model afterward
-
-Goal:
-- make the behavior easier to reason about than fully agent-driven tool selection
-
-Verification:
-- print or inspect the evidence bundle before synthesis
-
-## Step 10: Add A Local Interactive CLI
-
-Change:
-- replace the one hardcoded prompt with a small input loop
-- support commands like:
-  - `investigate pod <namespace> <pod>`
-  - `investigate deploy <namespace> <name>`
-  - `investigate resource <api_version> <kind> <namespace> <name>`
-  - `ask <question>`
+- Trigger a sample Alertmanager webhook.
+- Confirm the investigation runs.
+- Confirm the agent creates at least one pending action through a proposal tool.
+- Confirm the incident record stores the proposed action.
+- Confirm Telegram notification includes the action ID.
+- Approve the action from Telegram.
+- Confirm the action executes and status updates correctly.
 
 Goal:
-- allow repeated local testing without editing code
+- prove the core product loop actually works
 
-Verification:
-- run multiple investigations in one session
+## Cleanup And Hardening After The Core Loop Works
 
-## Step 11: Add Remediation Proposals Only
+### 9. Add Tests
 
-Change:
-- return:
-  - likely cause
-  - confidence
-  - recommended next actions
-- still no write execution
-
-Goal:
-- separate diagnosis from action
-
-Verification:
-- confirm recommendations are concrete and evidence-based
-
-## Step 12: Add One Local Guarded Action
-
-Change:
-- add exactly one write action, likely:
-  - `delete_pod`
-  or
-  - `rollout_restart`
-- execute it through `kubectl`
-- require explicit local confirmation before execution
+- Add unit tests for:
+  - action proposal creation
+  - incident persistence with action IDs
+  - Telegram command formatting
+  - approval and expiry behavior
+- Add HTTP tests for:
+  - `/investigate`
+  - `/webhooks/alertmanager`
+  - `/incidents/{id}`
 
 Goal:
-- introduce human-in-the-loop remediation with minimal risk
+- cover the core control flow before more refactors
 
-Verification:
-- propose action, confirm locally, execute against a safe target
+### 10. Add Integration Tests
 
-## Step 13: Add Local Approval Flow
-
-Change:
-- assign action IDs
-- add local commands:
-  - `approve <action-id>`
-  - `reject <action-id>`
+- Add integration-style tests around:
+  - alert ingestion
+  - investigation result persistence
+  - Telegram message formatting
+  - action approval flow
+- Mock `kubectl`, Telegram API, and model calls where needed.
 
 Goal:
-- stabilize the approval model before Telegram integration
+- verify module interaction, not just isolated functions
 
-Verification:
-- confirm approvals and rejections update action state correctly
+### 11. Run A Real Full End-To-End Test
 
-## Step 14: Add A Minimal HTTP Server
-
-Change:
-- add a very small service with:
-  - `GET /healthz`
-  - `POST /investigate`
-
-Goal:
-- run the agent as a service before adding alert-specific behavior
-
-Verification:
-- `curl` a request and receive an investigation response
-
-## Step 15: Add Alertmanager Webhook Support
-
-Change:
-- add `POST /webhooks/alertmanager`
-- parse only the alert fields needed for v1
+- Use kind.
+- Deploy the app.
+- Send a real webhook payload.
+- Confirm Telegram notification.
+- Approve from Telegram.
+- Confirm the Kubernetes action runs.
 
 Goal:
-- make investigations event-driven
+- validate production-like behavior, not just local mocks
 
-Verification:
-- send a saved sample Alertmanager payload locally
+### 12. Rewrite `TESTING.md`
 
-## Step 16: Add Incident State Storage
-
-Change:
-- add a store abstraction
-- start with in-memory
-- later add Redis behind the same interface
+- Replace the long historical checklist with a few short, current examples:
+  - local investigation
+  - local server + webhook
+  - Telegram approval flow
+  - in-cluster deploy smoke test
 
 Goal:
-- keep incident and report state available after investigation starts
+- make testing instructions usable by humans
 
-Verification:
-- trigger an alert, then fetch or inspect stored incident data
+### 13. Rewrite `README.md`
 
-## Step 17: Add Telegram Notifications Only
-
-Change:
-- send summaries to Telegram
-- no commands yet
-
-Goal:
-- establish outbound operator communication first
-
-Verification:
-- trigger an alert and confirm the Telegram message arrives
-
-## Step 18: Add Read-Only Telegram Commands
-
-Change:
-- support commands such as:
-  - `/incident <id>`
-  - `/ask <id> <question>`
+- Add a short project overview.
+- Add a quick start for new users.
+- Add a minimal local run path.
+- Add a minimal kind deploy path.
+- Link to `TESTING.md` for deeper verification instead of duplicating too much detail.
 
 Goal:
-- let operators inspect and ask follow-up questions from chat
-
-Verification:
-- retrieve an incident report and ask a follow-up question
-
-## Step 19: Add Telegram Approval For One Action
-
-Change:
-- support:
-  - `/approve <incident_id> <action_id>`
-
-Goal:
-- complete the chat-based human approval loop
-
-Verification:
-- receive an action proposal in Telegram and approve it successfully
-
-## Step 20: Add Safety Controls
-
-Change:
-- enforce:
-  - allowed write namespaces
-  - allowed Telegram users or chats
-  - action expiry
-  - allowed action kinds only
-
-Goal:
-- fail closed before cluster deployment
-
-Verification:
-- confirm disallowed requests are rejected cleanly
-
-## Step 21: Add Container And Kubernetes Manifests
-
-Change:
-- add:
-  - Dockerfile
-  - Deployment
-  - ServiceAccount
-  - RBAC
-
-Goal:
-- move from local tool to cluster service
-
-Verification:
-- deploy to a dev cluster and check health endpoints
-
-## Step 22: Support Local And In-Cluster Auth
-
-Change:
-- use local `kubectl` or kubeconfig for development
-- use service account credentials in-cluster
-- centralize config handling
-
-Goal:
-- run the same app in both environments with config changes only
-
-Verification:
-- run locally and in-cluster without code changes
-
-## Step 23: Add Service Observability
-
-Change:
-- add structured logs for:
-  - alert received
-  - investigation started
-  - investigation completed
-  - action approved
-  - action executed
-  - action failed
-
-Goal:
-- make the agent itself debuggable and operable
-
-Verification:
-- inspect logs for one full incident flow
-
-## Step 24: Expand The Action Set Carefully
-
-Only after the first action is stable, add more:
-- `rollout_restart`
-- `scale`
-- optionally `rollout_undo`
-
-Goal:
-- expand usefulness without taking on too much operational risk too early
-
-Verification:
-- test each new action independently in a safe environment
-
-## Milestone Grouping
-
-### Milestone 1: Real Cluster Read Prototype
-- Steps 1 to 6
-
-### Milestone 2: Real Read-Only Cluster Investigator
-- Steps 7 to 11
-
-### Milestone 3: Local Operator Workflow
-- Steps 12 to 13
-
-### Milestone 4: Service, Alerts, And Chat
-- Steps 14 to 19
-
-### Milestone 5: Safety And Deployment
-- Steps 20 to 24
-
-## Recommended Next Step
-
-Implement only Step 1 next:
-- replace the weather tool with a real `get_pod_status` tool
-- read pod data using local `kubectl`
-- keep everything else unchanged
-- verify locally with `uv run main.py`
+- make the repo understandable to a new reader in a few minutes
