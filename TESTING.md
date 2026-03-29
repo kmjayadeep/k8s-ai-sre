@@ -16,6 +16,7 @@ The app currently supports:
 - one guarded local action: `delete-pod`
 - one additional guarded local action: `rollout-restart`
 - one additional guarded local action: `scale`
+- one additional guarded local action: `rollout-undo`
 - a local approval flow with action IDs for pod deletion
 - a minimal local HTTP server with `/healthz` and `/investigate`
 - an Alertmanager-compatible webhook endpoint
@@ -166,6 +167,7 @@ Guarded action format:
 uv run main.py delete-pod <namespace> <pod-name> --confirm
 uv run main.py rollout-restart <namespace> <deployment-name> --confirm
 uv run main.py scale <namespace> <deployment-name> <replicas> --confirm
+uv run main.py rollout-undo <namespace> <deployment-name> --confirm
 ```
 
 Approval flow:
@@ -174,6 +176,7 @@ Approval flow:
 uv run main.py propose-delete-pod <namespace> <pod-name>
 uv run main.py propose-rollout-restart <namespace> <deployment-name>
 uv run main.py propose-scale <namespace> <deployment-name> <replicas>
+uv run main.py propose-rollout-undo <namespace> <deployment-name>
 uv run main.py approve <action-id>
 uv run main.py reject <action-id>
 ```
@@ -219,6 +222,7 @@ For the current implementation, verify:
 - pod deletion requires explicit `--confirm`
 - rollout restart requires explicit `--confirm`
 - scale requires explicit `--confirm`
+- rollout undo requires explicit `--confirm`
 - approval commands should work with generated action IDs
 - the HTTP server should answer `GET /healthz`
 - the HTTP server should accept `POST /investigate`
@@ -309,6 +313,18 @@ Expected behavior:
 - without `--confirm`, scale is refused
 - with `--confirm`, the deployment replica count changes
 
+Guarded rollout undo test:
+
+```bash
+uv run main.py rollout-undo ai-sre-demo bad-deploy
+uv run main.py rollout-undo ai-sre-demo bad-deploy --confirm
+kubectl rollout history deployment/bad-deploy -n ai-sre-demo
+```
+
+Expected behavior:
+- without `--confirm`, undo is refused
+- with `--confirm`, Kubernetes attempts to roll back to the previous revision
+
 Approval flow test:
 
 ```bash
@@ -347,6 +363,18 @@ kubectl get deployment bad-deploy -n ai-sre-demo
 Expected behavior:
 - `propose-scale` prints an action ID
 - `approve` executes the scale action
+
+Rollout undo approval test:
+
+```bash
+uv run main.py propose-rollout-undo ai-sre-demo bad-deploy
+uv run main.py approve <action-id>
+kubectl rollout history deployment/bad-deploy -n ai-sre-demo
+```
+
+Expected behavior:
+- `propose-rollout-undo` prints an action ID
+- `approve` executes the rollout undo
 
 For the deployment scenario:
 

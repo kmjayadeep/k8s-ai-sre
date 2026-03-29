@@ -8,7 +8,7 @@ from pathlib import Path
 from action_store import get_action, is_action_expired, update_action_status
 from incident_store import get_incident
 from logger import log_event
-from tools import delete_pod, rollout_restart_deployment, scale_deployment
+from tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
@@ -108,6 +108,10 @@ def _handle_command(text: str) -> str:
         if action.get("type") == "scale":
             replicas = int(action.get("params", {}).get("replicas", 1))
             result = scale_deployment(action["namespace"], action["name"], replicas, confirm=True)
+            update_action_status(argument, "approved")
+            return result
+        if action.get("type") == "rollout-undo":
+            result = rollout_undo_deployment(action["namespace"], action["name"], confirm=True)
             update_action_status(argument, "approved")
             return result
         return f"Unsupported action type: {action.get('type')}."
