@@ -14,11 +14,11 @@ from app.tools.k8s import (
     query_prometheus,
 )
 from app.tools.proposals import propose_delete_pod, propose_rollout_restart, propose_rollout_undo, propose_scale
-from model_factory import create_groq_model
+from model_factory import create_model
 
 
 def create_agent() -> Agent:
-    model = create_groq_model()
+    model = create_model()
     return Agent(
         name="K8s SRE Investigator",
         instructions=AGENT_INSTRUCTIONS,
