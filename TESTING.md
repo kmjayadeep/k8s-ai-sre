@@ -23,6 +23,7 @@ The app currently supports:
 - Telegram approval and rejection for existing action IDs
 - basic safety controls for writes and Telegram access
 - a container image and Kubernetes deployment manifest
+- structured JSON logs for key lifecycle events via `loguru`
 - the image includes `kubectl` so the same kubectl-backed runtime can work in-cluster
 - a GitHub Actions workflow to build and push the image to GHCR
 - a small module layout:
@@ -33,6 +34,7 @@ The app currently supports:
   - `telegram_bot.py`
   - `notifier.py`
   - `action_store.py`
+  - `logger.py`
   - `tools.py`
   - `prompts.py`
   - `Dockerfile`
@@ -223,6 +225,7 @@ For the current implementation, verify:
 - Telegram command handling should ignore unauthorized chat IDs when configured
 - the app should be buildable into a container image
 - the app should be deployable to the cluster with the provided manifest
+- the app should emit structured logs for key events
 - local execution should use your kubeconfig-backed `kubectl`
 - in-cluster execution should use service-account-backed `kubectl`
 - pushes to `main` should build and publish the image to GHCR
@@ -484,6 +487,27 @@ Expected behavior:
 - the service is created
 - the pod can read cluster data and, if configured, delete pods only in `ai-sre-demo`
 - the container image contains `kubectl`
+
+Logging check:
+
+Run any of these:
+
+```bash
+uv run main.py deployment ai-sre-demo bad-deploy
+uv run main.py propose-delete-pod ai-sre-demo crashy
+uv run main.py serve
+```
+
+Expected behavior:
+- logs are JSON lines
+- events include items such as:
+  - `investigation_started`
+  - `investigation_completed`
+  - `action_proposed`
+  - `action_approved`
+  - `action_rejected`
+  - `alertmanager_webhook_received`
+  - `telegram_poll_processed`
 
 GitHub Actions GHCR test:
 

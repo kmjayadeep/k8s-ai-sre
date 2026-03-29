@@ -7,6 +7,7 @@ from pathlib import Path
 
 from action_store import get_action, is_action_expired, update_action_status
 from incident_store import get_incident
+from logger import log_event
 from tools import delete_pod
 
 
@@ -145,8 +146,10 @@ def poll_telegram_updates_once() -> str:
             continue
         if not chat_id or not text.startswith("/"):
             continue
+        log_event("telegram_command_received", chat_id=chat_id, text=text)
         reply = _handle_command(text)
         _send_message(chat_id, reply)
         handled += 1
 
+    log_event("telegram_poll_processed", handled=handled)
     return f"Processed {handled} Telegram command(s)."

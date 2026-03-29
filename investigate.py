@@ -1,5 +1,6 @@
 from agents import Agent, Runner
 
+from logger import log_event
 from model_factory import create_groq_model
 from prompts import AGENT_INSTRUCTIONS, build_demo_prompt
 from tools import (
@@ -33,6 +34,7 @@ def create_agent() -> Agent:
 
 
 async def investigate_target(kind: str, namespace: str, name: str, emit_progress: bool = True) -> dict[str, str]:
+    log_event("investigation_started", kind=kind, namespace=namespace, name=name)
     agent = create_agent()
     evidence = collect_investigation_evidence(kind, namespace, name)
     if emit_progress:
@@ -51,6 +53,7 @@ async def investigate_target(kind: str, namespace: str, name: str, emit_progress
         "evidence": evidence,
         "answer": result.final_output,
     }
+    log_event("investigation_completed", kind=kind, namespace=namespace, name=name)
     if emit_progress:
         print(f"Agent: {result.final_output}")
     return response

@@ -4,6 +4,7 @@ import sys
 from agents import set_tracing_disabled
 from action_store import create_action, get_action, is_action_expired, update_action_status
 from investigate import investigate_target
+from logger import log_event
 from server import run_server
 from telegram_bot import poll_telegram_updates_once
 from tools import delete_pod
@@ -57,12 +58,15 @@ def is_telegram_poll_command() -> bool:
 
 async def main():
     if is_telegram_poll_command():
+        log_event("telegram_poll_started")
         print(poll_telegram_updates_once())
+        log_event("telegram_poll_completed")
         return
 
     if is_propose_delete_pod_command():
         namespace, pod_name = sys.argv[2], sys.argv[3]
         action = create_action("delete-pod", namespace, pod_name)
+        log_event("action_proposed", action_id=action["id"], action_type="delete-pod", namespace=namespace, name=pod_name)
         print(
             f"Created action {action['id']} to delete pod {pod_name} in namespace {namespace}.\n"
             f"Approve with: uv run main.py approve {action['id']}\n"
@@ -81,11 +85,13 @@ async def main():
             return
         if is_action_expired(action):
             update_action_status(action_id, "expired")
+            log_event("action_expired", action_id=action_id)
             print(f"Action {action_id} has expired.")
             return
         if action["type"] == "delete-pod":
             result = delete_pod(action["namespace"], action["name"], confirm=True)
             update_action_status(action_id, "approved")
+            log_event("action_approved", action_id=action_id, action_type=action["type"], namespace=action["namespace"], name=action["name"])
             print(result)
             return
         print(f"Unsupported action type: {action['type']}")
@@ -97,6 +103,7 @@ async def main():
         if action is None:
             print(f"Action {action_id} not found.")
             return
+        log_event("action_rejected", action_id=action_id)
         print(f"Rejected action {action_id}.")
         return
 
