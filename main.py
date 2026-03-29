@@ -1,21 +1,11 @@
 import asyncio
 import sys
 
-from agents import Agent, Runner, set_tracing_disabled
+from agents import set_tracing_disabled
 from action_store import create_action, get_action, update_action_status
-from model_factory import create_groq_model
-from prompts import AGENT_INSTRUCTIONS, build_demo_prompt
-from tools import (
-    collect_investigation_evidence,
-    delete_pod,
-    get_k8s_resource,
-    get_k8s_resource_events,
-    get_pod_logs,
-    get_pod_status,
-    get_workload_pods,
-    list_k8s_resources,
-    query_prometheus,
-)
+from investigate import investigate_target
+from server import run_server
+from tools import delete_pod
 
 set_tracing_disabled(True)
 
@@ -50,35 +40,15 @@ def is_reject_command() -> bool:
     return len(sys.argv) == 3 and sys.argv[1] == "reject"
 
 
-def create_agent() -> Agent:
-    model = create_groq_model()
-    return Agent(
-        name="K8s SRE Investigator",
-        instructions=AGENT_INSTRUCTIONS,
-        model=model,
-        tools=[
-            get_k8s_resource,
-            get_pod_status,
-            list_k8s_resources,
-            get_workload_pods,
-            get_k8s_resource_events,
-            get_pod_logs,
-            query_prometheus,
-        ],
-    )
+def is_serve_command() -> bool:
+    return len(sys.argv) >= 2 and sys.argv[1] == "serve"
 
 
-async def run_investigation(agent: Agent, kind: str, namespace: str, name: str) -> None:
-    print("Agent: Processing request...")
-    evidence = collect_investigation_evidence(kind, namespace, name)
-    print("Collected evidence:")
-    print(evidence)
-    result = await Runner.run(
-        agent,
-        build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence,
-    )
+def get_serve_port() -> int:
+    if len(sys.argv) >= 3:
+        return int(sys.argv[2])
+    return 8080
 
-    print(f"Agent: {result.final_output}")
 
 async def main():
     if is_propose_delete_pod_command():
@@ -122,8 +92,11 @@ async def main():
         print(delete_pod(namespace, pod_name, confirm))
         return
 
-    agent = create_agent()
-    await run_investigation(agent, *get_target_from_args())
+    kind, namespace, name = get_target_from_args()
+    await investigate_target(kind, namespace, name)
 
 if __name__ == "__main__":
+    if is_serve_command():
+        run_server(get_serve_port())
+        raise SystemExit(0)
     asyncio.run(main())

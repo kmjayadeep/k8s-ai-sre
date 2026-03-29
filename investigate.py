@@ -1,0 +1,56 @@
+from agents import Agent, Runner
+
+from model_factory import create_groq_model
+from prompts import AGENT_INSTRUCTIONS, build_demo_prompt
+from tools import (
+    collect_investigation_evidence,
+    get_k8s_resource,
+    get_k8s_resource_events,
+    get_pod_logs,
+    get_pod_status,
+    get_workload_pods,
+    list_k8s_resources,
+    query_prometheus,
+)
+
+
+def create_agent() -> Agent:
+    model = create_groq_model()
+    return Agent(
+        name="K8s SRE Investigator",
+        instructions=AGENT_INSTRUCTIONS,
+        model=model,
+        tools=[
+            get_k8s_resource,
+            get_pod_status,
+            list_k8s_resources,
+            get_workload_pods,
+            get_k8s_resource_events,
+            get_pod_logs,
+            query_prometheus,
+        ],
+    )
+
+
+async def investigate_target(kind: str, namespace: str, name: str, emit_progress: bool = True) -> dict[str, str]:
+    agent = create_agent()
+    evidence = collect_investigation_evidence(kind, namespace, name)
+    if emit_progress:
+        print("Agent: Processing request...")
+        print("Collected evidence:")
+        print(evidence)
+
+    result = await Runner.run(
+        agent,
+        build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence,
+    )
+    response = {
+        "kind": kind,
+        "namespace": namespace,
+        "name": name,
+        "evidence": evidence,
+        "answer": result.final_output,
+    }
+    if emit_progress:
+        print(f"Agent: {result.final_output}")
+    return response

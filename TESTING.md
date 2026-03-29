@@ -15,8 +15,11 @@ The app currently supports:
 - a Python evidence collection step before the model response
 - one guarded local action: `delete-pod`
 - a local approval flow with action IDs for pod deletion
+- a minimal local HTTP server with `/healthz` and `/investigate`
 - a small module layout:
   - `main.py`
+  - `investigate.py`
+  - `server.py`
   - `action_store.py`
   - `tools.py`
   - `prompts.py`
@@ -149,6 +152,13 @@ uv run main.py approve <action-id>
 uv run main.py reject <action-id>
 ```
 
+HTTP server:
+
+```bash
+uv sync
+uv run main.py serve
+```
+
 ## What To Verify
 
 For the current implementation, verify:
@@ -176,6 +186,8 @@ For the current implementation, verify:
 - proposed actions should be concrete operator actions, not vague advice
 - pod deletion requires explicit `--confirm`
 - approval commands should work with generated action IDs
+- the HTTP server should answer `GET /healthz`
+- the HTTP server should accept `POST /investigate`
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -239,6 +251,31 @@ Optional Prometheus-enabled run:
 export PROMETHEUS_BASE_URL=http://localhost:9090
 uv run main.py deployment ai-sre-demo bad-deploy
 ```
+
+HTTP server test:
+
+Start the server:
+
+```bash
+uv sync
+uv run main.py serve
+```
+
+Then in another terminal:
+
+```bash
+curl http://127.0.0.1:8080/healthz
+curl -X POST http://127.0.0.1:8080/investigate \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"bad-deploy"}'
+```
+
+Expected behavior:
+- `/healthz` returns an `ok` status payload
+- `/investigate` returns JSON with:
+  - target identity
+  - collected evidence
+  - final model answer
 
 ## Cleanup
 
