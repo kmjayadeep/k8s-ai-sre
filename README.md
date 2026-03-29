@@ -70,3 +70,10 @@ The expected auth path is:
 This keeps one execution model:
 - local: kubeconfig-backed `kubectl`
 - cluster: service-account-backed `kubectl`
+
+The current write Role in `ai-sre-demo` is intended to cover:
+
+- pod deletion
+- deployment rollout restart
+- deployment scaling
+- deployment rollout undo

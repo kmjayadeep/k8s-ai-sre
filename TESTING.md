@@ -241,6 +241,7 @@ For the current implementation, verify:
 - local execution should use your kubeconfig-backed `kubectl`
 - in-cluster execution should use service-account-backed `kubectl`
 - pushes to `main` should build and publish the image to GHCR
+- in-cluster RBAC should cover the currently supported deployment actions
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -571,6 +572,7 @@ Expected behavior:
 - the service is created
 - the pod can read cluster data and, if configured, delete pods only in `ai-sre-demo`
 - the container image contains `kubectl`
+- the write Role allows deployment restart, scale, and undo in `ai-sre-demo`
 
 Logging check:
 
