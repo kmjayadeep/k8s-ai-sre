@@ -27,3 +27,14 @@ def create_incident(payload: dict[str, str]) -> dict[str, str]:
 
 def get_incident(incident_id: str) -> dict[str, str] | None:
     return _load_incidents().get(incident_id)
+
+
+def update_incident(incident_id: str, updates: dict[str, object]) -> dict[str, object] | None:
+    incidents = _load_incidents()
+    incident = incidents.get(incident_id)
+    if incident is None:
+        return None
+    incident.update(updates)
+    incidents[incident_id] = incident
+    _save_incidents(incidents)
+    return incident

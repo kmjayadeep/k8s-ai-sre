@@ -6,7 +6,7 @@ from app.actions import attach_actions_to_incident
 from app.investigate import investigate_target
 from app.log import log_event
 from app.notifier import send_telegram_notification
-from app.stores import create_incident, get_incident
+from app.stores import create_incident, get_incident, update_incident
 
 
 class InvestigateRequest(BaseModel):
@@ -41,6 +41,7 @@ async def investigate(request: InvestigateRequest) -> dict[str, str]:
     incident = create_incident(result)
     attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"])
     incident["notification_status"] = send_telegram_notification(incident)
+    update_incident(incident["incident_id"], {"notification_status": incident["notification_status"]})
     log_event(
         "http_investigate_completed",
         incident_id=incident["incident_id"],
@@ -75,6 +76,7 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, str]:
     incident = create_incident(result)
     attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"])
     incident["notification_status"] = send_telegram_notification(incident)
+    update_incident(incident["incident_id"], {"source": "alertmanager", "notification_status": incident["notification_status"]})
     log_event("alertmanager_webhook_completed", incident_id=incident["incident_id"], kind=kind, namespace=namespace, name=name)
     return incident
 

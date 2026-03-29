@@ -86,6 +86,15 @@ def execute_action(action: dict) -> str:
     return f"Unsupported action type: {action['type']}"
 
 
+def _action_execution_succeeded(result: str) -> bool:
+    failure_prefixes = (
+        "Failed to ",
+        "Refusing to ",
+        "Unsupported action type:",
+    )
+    return not result.startswith(failure_prefixes)
+
+
 def approve_action(action_id: str) -> str:
     action = get_action(action_id)
     if action is None:
@@ -98,15 +107,17 @@ def approve_action(action_id: str) -> str:
         return _action_result_prefix(action) + f"Action {action_id} has expired."
 
     result = execute_action(action)
-    update_action_status(action_id, "approved")
+    new_status = "approved" if _action_execution_succeeded(result) else "failed"
+    update_action_status(action_id, new_status)
     log_fields = {
         "action_id": action_id,
         "action_type": action["type"],
         "namespace": action["namespace"],
         "name": action["name"],
+        "status": new_status,
     }
     log_fields.update(action.get("params", {}))
-    log_event("action_approved", **log_fields)
+    log_event("action_approved" if new_status == "approved" else "action_failed", **log_fields)
     return _action_result_prefix(action) + result
 
 
