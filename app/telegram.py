@@ -53,19 +53,32 @@ def _send_message(chat_id: str, text: str) -> str:
 
 
 def _format_incident(incident: dict[str, str]) -> str:
-    return (
-        f"Incident {incident.get('incident_id', 'unknown')}\n"
-        f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}\n"
-        f"Answer:\n{incident.get('answer', 'No answer stored.')[:3000]}"
-    )
+    lines = [
+        f"Incident {incident.get('incident_id', 'unknown')}",
+        f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}",
+        f"Answer:\n{incident.get('answer', 'No answer stored.')[:2400]}",
+    ]
+    proposed_actions = incident.get("proposed_actions", [])
+    if proposed_actions:
+        lines.append("Actions:")
+        for action in proposed_actions[:4]:
+            if not isinstance(action, dict):
+                continue
+            lines.append(f"- {action.get('action_id')}: {action.get('action_type')} {action.get('namespace')}/{action.get('name')}")
+    else:
+        lines.append("Actions:\n- none")
+    return "\n".join(lines)
 
 
 def _format_status(incident: dict[str, str]) -> str:
+    action_ids = incident.get("action_ids", [])
+    action_summary = ", ".join(action_ids[:5]) if action_ids else "none"
     return (
         f"Incident {incident.get('incident_id', 'unknown')}\n"
         f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}\n"
         f"Source: {incident.get('source', 'manual')}\n"
-        f"Notification: {incident.get('notification_status', 'unknown')}"
+        f"Notification: {incident.get('notification_status', 'unknown')}\n"
+        f"Action IDs: {action_summary}"
     )
 
 

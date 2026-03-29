@@ -34,6 +34,13 @@ def format_action_metadata(action: dict) -> str:
     return json.dumps(action_metadata(action), sort_keys=True)
 
 
+def _action_result_prefix(action: dict) -> str:
+    incident_id = action.get("incident_id")
+    if incident_id:
+        return f"Incident {incident_id}\n"
+    return ""
+
+
 def begin_proposal_capture() -> Token:
     return _proposal_buffer.set([])
 
@@ -84,11 +91,11 @@ def approve_action(action_id: str) -> str:
     if action is None:
         return f"Action {action_id} not found."
     if action["status"] != "pending":
-        return f"Action {action_id} is already {action['status']}."
+        return _action_result_prefix(action) + f"Action {action_id} is already {action['status']}."
     if is_action_expired(action):
         update_action_status(action_id, "expired")
         log_event("action_expired", action_id=action_id)
-        return f"Action {action_id} has expired."
+        return _action_result_prefix(action) + f"Action {action_id} has expired."
 
     result = execute_action(action)
     update_action_status(action_id, "approved")
@@ -100,12 +107,15 @@ def approve_action(action_id: str) -> str:
     }
     log_fields.update(action.get("params", {}))
     log_event("action_approved", **log_fields)
-    return result
+    return _action_result_prefix(action) + result
 
 
 def reject_action(action_id: str) -> str:
-    action = update_action_status(action_id, "rejected")
+    action = get_action(action_id)
+    if action is None:
+        return f"Action {action_id} not found."
+    update_action_status(action_id, "rejected")
     if action is None:
         return f"Action {action_id} not found."
     log_event("action_rejected", action_id=action_id)
-    return f"Rejected action {action_id}."
+    return _action_result_prefix(action) + f"Rejected action {action_id}."
