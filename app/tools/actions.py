@@ -21,10 +21,7 @@ def delete_pod(namespace: str, pod_name: str, confirm: bool) -> str:
     if not _allowed_to_write(namespace):
         return f"Refusing to delete pod {pod_name} in namespace {namespace}: namespace is not in WRITE_ALLOWED_NAMESPACES."
     if not confirm:
-        return (
-            f"Refusing to delete pod {pod_name} in namespace {namespace} without --confirm. "
-            f"Re-run with: uv run main.py delete-pod {namespace} {pod_name} --confirm"
-        )
+        return f"Refusing to delete pod {pod_name} in namespace {namespace} without explicit approval."
 
     ok, output = _run_kubectl(["kubectl", "delete", "pod", pod_name, "-n", namespace])
     if not ok:
@@ -39,10 +36,7 @@ def rollout_restart_deployment(namespace: str, deployment_name: str, confirm: bo
             f"namespace is not in WRITE_ALLOWED_NAMESPACES."
         )
     if not confirm:
-        return (
-            f"Refusing to restart deployment {deployment_name} in namespace {namespace} without --confirm. "
-            f"Re-run with: uv run main.py rollout-restart {namespace} {deployment_name} --confirm"
-        )
+        return f"Refusing to restart deployment {deployment_name} in namespace {namespace} without explicit approval."
 
     ok, output = _run_kubectl(["kubectl", "rollout", "restart", f"deployment/{deployment_name}", "-n", namespace])
     if not ok:
@@ -57,10 +51,7 @@ def scale_deployment(namespace: str, deployment_name: str, replicas: int, confir
             f"namespace is not in WRITE_ALLOWED_NAMESPACES."
         )
     if not confirm:
-        return (
-            f"Refusing to scale deployment {deployment_name} in namespace {namespace} to {replicas} replicas without --confirm. "
-            f"Re-run with: uv run main.py scale {namespace} {deployment_name} {replicas} --confirm"
-        )
+        return f"Refusing to scale deployment {deployment_name} in namespace {namespace} to {replicas} replicas without explicit approval."
 
     ok, output = _run_kubectl(
         ["kubectl", "scale", f"deployment/{deployment_name}", "-n", namespace, f"--replicas={replicas}"]
@@ -77,10 +68,7 @@ def rollout_undo_deployment(namespace: str, deployment_name: str, confirm: bool)
             f"namespace is not in WRITE_ALLOWED_NAMESPACES."
         )
     if not confirm:
-        return (
-            f"Refusing to undo deployment {deployment_name} in namespace {namespace} without --confirm. "
-            f"Re-run with: uv run main.py rollout-undo {namespace} {deployment_name} --confirm"
-        )
+        return f"Refusing to undo deployment {deployment_name} in namespace {namespace} without explicit approval."
 
     ok, output = _run_kubectl(["kubectl", "rollout", "undo", f"deployment/{deployment_name}", "-n", namespace])
     if not ok:

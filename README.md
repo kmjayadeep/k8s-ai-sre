@@ -23,7 +23,7 @@ The intended loop is:
 
 ```mermaid
 flowchart TD
-    A[Alertmanager or CLI] --> B[FastAPI / CLI entrypoint]
+    A[Alertmanager or manual API call] --> B[FastAPI entrypoint]
     B --> C[Investigation flow]
     C --> D[Kubernetes tools]
     C --> E[Prometheus tool]
@@ -41,7 +41,7 @@ flowchart TD
 
 Component guide:
 
-- [main.py](main.py): local entrypoint
+- [main.py](main.py): server entrypoint
 - [app/http.py](app/http.py): HTTP endpoints for investigations and Alertmanager webhooks
 - [app/investigate.py](app/investigate.py): agent orchestration
 - [app/tools/k8s.py](app/tools/k8s.py): Kubernetes and Prometheus read helpers
@@ -84,19 +84,21 @@ kubectl create namespace ai-sre-demo --dry-run=client -o yaml | kubectl apply -f
 kubectl apply -f examples/kind-bad-deploy.yaml
 ```
 
-### 4. Run A Local Investigation
+### 4. Run The Service
 
 ```bash
-uv run main.py deployment ai-sre-demo bad-deploy
+uv run main.py
 ```
 
-### 5. Run The HTTP Service
+### 5. Trigger An Investigation
 
 ```bash
-uv run main.py serve
+curl -X POST http://127.0.0.1:8080/investigate \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"bad-deploy"}'
 ```
 
-Then send a sample webhook:
+Or send a sample webhook:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
@@ -124,11 +126,7 @@ Supported commands:
 - `/approve <action-id>`
 - `/reject <action-id>`
 
-To poll Telegram locally:
-
-```bash
-uv run main.py telegram-poll
-```
+The server starts the Telegram polling loop automatically when `TELEGRAM_BOT_TOKEN` is configured.
 
 ## Guarded Actions
 

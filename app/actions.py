@@ -1,4 +1,3 @@
-import json
 from contextvars import ContextVar, Token
 
 from app.log import log_event
@@ -6,14 +5,6 @@ from app.stores import create_action, get_action, is_action_expired, update_acti
 from app.tools.actions import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
 
 _proposal_buffer: ContextVar[list[dict[str, object]] | None] = ContextVar("proposal_buffer", default=None)
-
-
-def format_action_created(action: dict, description: str) -> str:
-    return (
-        f"Created action {action['id']} to {description}.\n"
-        f"Approve with: uv run main.py approve {action['id']}\n"
-        f"Reject with: uv run main.py reject {action['id']}"
-    )
 
 
 def action_metadata(action: dict) -> dict[str, object]:
@@ -25,13 +16,9 @@ def action_metadata(action: dict) -> dict[str, object]:
         "name": action["name"],
         "params": action.get("params", {}),
         "expires_at": action["expires_at"],
-        "approve_command": f"uv run main.py approve {action_id}",
-        "reject_command": f"uv run main.py reject {action_id}",
+        "approve_command": f"/approve {action_id}",
+        "reject_command": f"/reject {action_id}",
     }
-
-
-def format_action_metadata(action: dict) -> str:
-    return json.dumps(action_metadata(action), sort_keys=True)
 
 
 def _action_result_prefix(action: dict) -> str:

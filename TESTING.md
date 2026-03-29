@@ -16,7 +16,7 @@ kubectl get nodes
 .venv/bin/python -m unittest discover -s tests
 ```
 
-## Example 1: Local Investigation
+## Example 1: Local Service And Investigation
 
 Create the demo namespace and a broken deployment:
 
@@ -25,24 +25,32 @@ kubectl create namespace ai-sre-demo --dry-run=client -o yaml | kubectl apply -f
 kubectl apply -f examples/kind-bad-deploy.yaml
 ```
 
-Run a one-shot investigation:
+Start the service:
 
 ```bash
-uv run main.py deployment ai-sre-demo bad-deploy
+uv run main.py
+```
+
+Trigger an investigation:
+
+```bash
+curl -X POST http://127.0.0.1:8080/investigate \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"bad-deploy"}'
 ```
 
 What to verify:
 
-- evidence is printed before the final answer
-- the answer uses the `Summary`, `Most likely cause`, `Confidence`, and `Proposed actions` sections
-- if the model proposes a guarded action, the answer includes an action ID
+- the response includes `incident_id`
+- the response includes `answer`
+- the response includes `action_ids` and `proposed_actions` when the model used proposal tools
 
 ## Example 2: Local Server And Webhook
 
 Start the HTTP service:
 
 ```bash
-uv run main.py serve
+uv run main.py
 ```
 
 In another terminal, send an Alertmanager-style payload:
@@ -76,11 +84,9 @@ export TELEGRAM_CHAT_ID=...
 export TELEGRAM_ALLOWED_CHAT_IDS=...
 ```
 
-Create an incident through `/investigate` or `/webhooks/alertmanager`, then poll updates:
+Create an incident through `/investigate` or `/webhooks/alertmanager`.
 
-```bash
-uv run main.py telegram-poll
-```
+The server polls Telegram automatically when `TELEGRAM_BOT_TOKEN` is configured.
 
 From Telegram:
 
