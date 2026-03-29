@@ -22,6 +22,8 @@ The app currently supports:
 - read-only Telegram commands via `telegram-poll`
 - Telegram approval and rejection for existing action IDs
 - basic safety controls for writes and Telegram access
+- a container image and Kubernetes deployment manifest
+- a GitHub Actions workflow to build and push the image to GHCR
 - a small module layout:
   - `main.py`
   - `investigate.py`
@@ -32,6 +34,9 @@ The app currently supports:
   - `action_store.py`
   - `tools.py`
   - `prompts.py`
+  - `Dockerfile`
+  - `.github/workflows/container.yml`
+  - `deploy/k8s-ai-sre.yaml`
 
 The default demo investigation target is:
 - `Deployment bad-deploy` in namespace `ai-sre-demo`
@@ -215,6 +220,9 @@ For the current implementation, verify:
 - write actions should fail closed outside allowed namespaces
 - actions should expire after a short time
 - Telegram command handling should ignore unauthorized chat IDs when configured
+- the app should be buildable into a container image
+- the app should be deployable to the cluster with the provided manifest
+- pushes to `main` should build and publish the image to GHCR
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -450,6 +458,41 @@ Expected behavior:
 - returns the stored incident payload
 - returns `404` for an unknown incident ID
 - incident records persist in `/tmp/k8s-ai-sre-incidents.json`
+
+Container build and deploy test:
+
+Build the image:
+
+```bash
+docker build -t k8s-ai-sre:dev .
+kind load docker-image k8s-ai-sre:dev
+```
+
+Deploy:
+
+```bash
+kubectl apply -f deploy/k8s-ai-sre.yaml
+kubectl get pods -n ai-sre-system
+kubectl get svc -n ai-sre-system
+```
+
+Expected behavior:
+- the deployment pod starts in `ai-sre-system`
+- the service is created
+- the pod can read cluster data and, if configured, delete pods only in `ai-sre-demo`
+
+GitHub Actions GHCR test:
+
+Workflow file:
+
+```text
+.github/workflows/container.yml
+```
+
+Expected behavior:
+- pull requests build the container but do not push
+- pushes to `main` build and push to `ghcr.io/kmjayadeep/k8s-ai-sre`
+- tags like `v1.0.0` also publish tagged images
 
 ## Cleanup
 
