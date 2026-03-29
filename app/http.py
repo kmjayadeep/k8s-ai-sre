@@ -2,6 +2,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from app.actions import attach_actions_to_incident
 from app.investigate import investigate_target
 from app.log import log_event
 from app.notifier import send_telegram_notification
@@ -38,6 +39,7 @@ async def investigate(request: InvestigateRequest) -> dict[str, str]:
     log_event("http_investigate_received", kind=request.kind, namespace=request.namespace, name=request.name)
     result = await investigate_target(request.kind, request.namespace, request.name, emit_progress=False)
     incident = create_incident(result)
+    attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"])
     incident["notification_status"] = send_telegram_notification(incident)
     log_event(
         "http_investigate_completed",
@@ -71,6 +73,7 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, str]:
     result = await investigate_target(kind, namespace, name, emit_progress=False)
     result["source"] = "alertmanager"
     incident = create_incident(result)
+    attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"])
     incident["notification_status"] = send_telegram_notification(incident)
     log_event("alertmanager_webhook_completed", incident_id=incident["incident_id"], kind=kind, namespace=namespace, name=name)
     return incident

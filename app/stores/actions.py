@@ -49,6 +49,17 @@ def update_action_status(action_id: str, status: str) -> dict | None:
     return action
 
 
+def update_action(action_id: str, updates: dict[str, object]) -> dict | None:
+    actions = _load_actions()
+    action = actions.get(action_id)
+    if action is None:
+        return None
+    action.update(updates)
+    actions[action_id] = action
+    _save_actions(actions)
+    return action
+
+
 def is_action_expired(action: dict) -> bool:
     expires_at = action.get("expires_at")
     if not expires_at:

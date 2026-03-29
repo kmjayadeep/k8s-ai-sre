@@ -1,8 +1,11 @@
 import json
+from contextvars import ContextVar, Token
 
 from app.log import log_event
-from app.stores import create_action, get_action, is_action_expired, update_action_status
+from app.stores import create_action, get_action, is_action_expired, update_action, update_action_status
 from app.tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
+
+_proposal_buffer: ContextVar[list[dict[str, object]] | None] = ContextVar("proposal_buffer", default=None)
 
 
 def format_action_created(action: dict, description: str) -> str:
@@ -31,6 +34,21 @@ def format_action_metadata(action: dict) -> str:
     return json.dumps(action_metadata(action), sort_keys=True)
 
 
+def begin_proposal_capture() -> Token:
+    return _proposal_buffer.set([])
+
+
+def finish_proposal_capture(token: Token) -> list[dict[str, object]]:
+    proposals = _proposal_buffer.get() or []
+    _proposal_buffer.reset(token)
+    return proposals
+
+
+def attach_actions_to_incident(action_ids: list[str], incident_id: str) -> None:
+    for action_id in action_ids:
+        update_action(action_id, {"incident_id": incident_id})
+
+
 def propose_action(action_type: str, namespace: str, name: str, params: dict | None = None) -> dict:
     action = create_action(action_type, namespace, name, params)
     log_fields = {
@@ -42,6 +60,9 @@ def propose_action(action_type: str, namespace: str, name: str, params: dict | N
     if params:
         log_fields.update(params)
     log_event("action_proposed", **log_fields)
+    captured = _proposal_buffer.get()
+    if captured is not None:
+        captured.append(action_metadata(action))
     return action
 
 

@@ -1,5 +1,6 @@
 from agents import Agent, Runner
 
+from app.actions import begin_proposal_capture, finish_proposal_capture
 from app.log import log_event
 from app.prompts import AGENT_INSTRUCTIONS, build_demo_prompt
 from app.tools import (
@@ -50,16 +51,17 @@ async def investigate_target(kind: str, namespace: str, name: str, emit_progress
         print("Collected evidence:")
         print(evidence)
 
-    result = await Runner.run(
-        agent,
-        build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence,
-    )
+    capture_token = begin_proposal_capture()
+    result = await Runner.run(agent, build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence)
+    proposed_actions = finish_proposal_capture(capture_token)
     response = {
         "kind": kind,
         "namespace": namespace,
         "name": name,
         "evidence": evidence,
         "answer": result.final_output,
+        "proposed_actions": proposed_actions,
+        "action_ids": [str(item["action_id"]) for item in proposed_actions],
     }
     log_event("investigation_completed", kind=kind, namespace=namespace, name=name)
     if emit_progress:
