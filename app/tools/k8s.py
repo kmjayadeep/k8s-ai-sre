@@ -49,107 +49,6 @@ def _list_resource_items(kind: str, namespace: str, label_selector: str = "") ->
     return json.loads(output).get("items", [])
 
 
-def delete_pod(namespace: str, pod_name: str, confirm: bool) -> str:
-    """Deletes a pod only when explicit confirmation is provided."""
-    allowed_namespaces = {
-        item.strip()
-        for item in os.getenv("WRITE_ALLOWED_NAMESPACES", "").split(",")
-        if item.strip()
-    }
-    if allowed_namespaces and namespace not in allowed_namespaces:
-        return f"Refusing to delete pod {pod_name} in namespace {namespace}: namespace is not in WRITE_ALLOWED_NAMESPACES."
-
-    if not confirm:
-        return (
-            f"Refusing to delete pod {pod_name} in namespace {namespace} without --confirm. "
-            f"Re-run with: uv run main.py delete-pod {namespace} {pod_name} --confirm"
-        )
-
-    command = ["kubectl", "delete", "pod", pod_name, "-n", namespace]
-    ok, output = _run_kubectl(command)
-    if not ok:
-        return f"Failed to delete pod {pod_name} in namespace {namespace}: {output}"
-    return output
-
-
-def rollout_restart_deployment(namespace: str, deployment_name: str, confirm: bool) -> str:
-    """Restarts a deployment rollout only when explicit confirmation is provided."""
-    allowed_namespaces = {
-        item.strip()
-        for item in os.getenv("WRITE_ALLOWED_NAMESPACES", "").split(",")
-        if item.strip()
-    }
-    if allowed_namespaces and namespace not in allowed_namespaces:
-        return (
-            f"Refusing to restart deployment {deployment_name} in namespace {namespace}: "
-            f"namespace is not in WRITE_ALLOWED_NAMESPACES."
-        )
-
-    if not confirm:
-        return (
-            f"Refusing to restart deployment {deployment_name} in namespace {namespace} without --confirm. "
-            f"Re-run with: uv run main.py rollout-restart {namespace} {deployment_name} --confirm"
-        )
-
-    command = ["kubectl", "rollout", "restart", f"deployment/{deployment_name}", "-n", namespace]
-    ok, output = _run_kubectl(command)
-    if not ok:
-        return f"Failed to restart deployment {deployment_name} in namespace {namespace}: {output}"
-    return output
-
-
-def scale_deployment(namespace: str, deployment_name: str, replicas: int, confirm: bool) -> str:
-    """Scales a deployment only when explicit confirmation is provided."""
-    allowed_namespaces = {
-        item.strip()
-        for item in os.getenv("WRITE_ALLOWED_NAMESPACES", "").split(",")
-        if item.strip()
-    }
-    if allowed_namespaces and namespace not in allowed_namespaces:
-        return (
-            f"Refusing to scale deployment {deployment_name} in namespace {namespace}: "
-            f"namespace is not in WRITE_ALLOWED_NAMESPACES."
-        )
-
-    if not confirm:
-        return (
-            f"Refusing to scale deployment {deployment_name} in namespace {namespace} to {replicas} replicas without --confirm. "
-            f"Re-run with: uv run main.py scale {namespace} {deployment_name} {replicas} --confirm"
-        )
-
-    command = ["kubectl", "scale", f"deployment/{deployment_name}", "-n", namespace, f"--replicas={replicas}"]
-    ok, output = _run_kubectl(command)
-    if not ok:
-        return f"Failed to scale deployment {deployment_name} in namespace {namespace}: {output}"
-    return output
-
-
-def rollout_undo_deployment(namespace: str, deployment_name: str, confirm: bool) -> str:
-    """Undoes a deployment rollout only when explicit confirmation is provided."""
-    allowed_namespaces = {
-        item.strip()
-        for item in os.getenv("WRITE_ALLOWED_NAMESPACES", "").split(",")
-        if item.strip()
-    }
-    if allowed_namespaces and namespace not in allowed_namespaces:
-        return (
-            f"Refusing to undo deployment {deployment_name} in namespace {namespace}: "
-            f"namespace is not in WRITE_ALLOWED_NAMESPACES."
-        )
-
-    if not confirm:
-        return (
-            f"Refusing to undo deployment {deployment_name} in namespace {namespace} without --confirm. "
-            f"Re-run with: uv run main.py rollout-undo {namespace} {deployment_name} --confirm"
-        )
-
-    command = ["kubectl", "rollout", "undo", f"deployment/{deployment_name}", "-n", namespace]
-    ok, output = _run_kubectl(command)
-    if not ok:
-        return f"Failed to undo deployment {deployment_name} in namespace {namespace}: {output}"
-    return output
-
-
 def _summarize_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
     resource = _kubectl_get_json(kind.lower(), namespace, name)
     if resource is None:
@@ -317,7 +216,6 @@ def _summarize_workload_pods(namespace: str, workload_kind: str, workload_name: 
 
 
 def collect_investigation_evidence(kind: str, namespace: str, name: str) -> str:
-    """Collects a small evidence bundle in Python before handing off to the model."""
     normalized_kind = kind.capitalize()
     sections = [
         f"Target: {normalized_kind} {name} in namespace {namespace}",
@@ -334,7 +232,8 @@ def collect_investigation_evidence(kind: str, namespace: str, name: str) -> str:
             sections.append(f"First pod events: {_summarize_resource_events('Pod', namespace, first_pod)}")
             sections.append(f"First pod logs: {_summarize_pod_logs(namespace, first_pod)}")
         sections.append(
-            "Metrics: " + _query_prometheus(f'kube_deployment_status_replicas_unavailable{{namespace="{namespace}",deployment="{name}"}}')
+            "Metrics: "
+            + _query_prometheus(f'kube_deployment_status_replicas_unavailable{{namespace="{namespace}",deployment="{name}"}}')
         )
 
     if normalized_kind == "Pod":
@@ -345,19 +244,16 @@ def collect_investigation_evidence(kind: str, namespace: str, name: str) -> str:
 
 @function_tool
 def get_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
-    """Returns a compact real Kubernetes resource summary using kubectl."""
     return _summarize_k8s_resource(api_version, kind, namespace, name)
 
 
 @function_tool
 def get_pod_status(namespace: str, pod_name: str) -> str:
-    """Returns real pod status data from kubectl for local testing."""
     return _summarize_k8s_resource("v1", "Pod", namespace, pod_name)
 
 
 @function_tool
 def list_k8s_resources(api_version: str, kind: str, namespace: str, label_selector: str = "") -> str:
-    """Lists Kubernetes resources using kubectl."""
     items = _list_resource_items(kind, namespace, label_selector)
     if not items:
         return f"No {kind} resources found in namespace {namespace}."
@@ -368,23 +264,19 @@ def list_k8s_resources(api_version: str, kind: str, namespace: str, label_select
 
 @function_tool
 def get_workload_pods(namespace: str, workload_kind: str, workload_name: str) -> str:
-    """Lists pods selected by a workload, currently supporting Deployments."""
     return _summarize_workload_pods(namespace, workload_kind, workload_name)
 
 
 @function_tool
 def get_k8s_resource_events(kind: str, namespace: str, name: str) -> str:
-    """Fetches recent events for a Kubernetes object."""
     return _summarize_resource_events(kind, namespace, name)
 
 
 @function_tool
 def get_pod_logs(namespace: str, pod_name: str, container: str = "") -> str:
-    """Fetches recent logs for a pod."""
     return _summarize_pod_logs(namespace, pod_name, container)
 
 
 @function_tool
 def query_prometheus(query: str) -> str:
-    """Runs a Prometheus instant query if PROMETHEUS_BASE_URL is configured."""
     return _query_prometheus(query)

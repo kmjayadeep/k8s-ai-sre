@@ -1,14 +1,12 @@
 import json
 import os
-import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from action_store import get_action, is_action_expired, update_action_status
-from incident_store import get_incident
-from logger import log_event
-from tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
+from app.log import log_event
+from app.stores import get_action, get_incident, is_action_expired, update_action_status
+from app.tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")

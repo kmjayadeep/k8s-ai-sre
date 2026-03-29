@@ -2,10 +2,10 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from incident_store import create_incident, get_incident
-from investigate import investigate_target
-from logger import log_event
-from notifier import send_telegram_notification
+from app.investigate import investigate_target
+from app.log import log_event
+from app.notifier import send_telegram_notification
+from app.stores import create_incident, get_incident
 
 
 class InvestigateRequest(BaseModel):
@@ -39,7 +39,13 @@ async def investigate(request: InvestigateRequest) -> dict[str, str]:
     result = await investigate_target(request.kind, request.namespace, request.name, emit_progress=False)
     incident = create_incident(result)
     incident["notification_status"] = send_telegram_notification(incident)
-    log_event("http_investigate_completed", incident_id=incident["incident_id"], kind=request.kind, namespace=request.namespace, name=request.name)
+    log_event(
+        "http_investigate_completed",
+        incident_id=incident["incident_id"],
+        kind=request.kind,
+        namespace=request.namespace,
+        name=request.name,
+    )
     return incident
 
 

@@ -2,12 +2,12 @@ import asyncio
 import sys
 
 from agents import set_tracing_disabled
-from action_store import create_action, get_action, is_action_expired, update_action_status
-from investigate import investigate_target
-from logger import log_event
-from server import run_server
-from telegram_bot import poll_telegram_updates_once
-from tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
+from app.http import run_server
+from app.investigate import investigate_target
+from app.log import log_event
+from app.stores import create_action, get_action, is_action_expired, update_action_status
+from app.telegram import poll_telegram_updates_once
+from app.tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
 
 set_tracing_disabled(True)
 

@@ -1,9 +1,8 @@
 from agents import Agent, Runner
 
-from logger import log_event
-from model_factory import create_groq_model
-from prompts import AGENT_INSTRUCTIONS, build_demo_prompt
-from tools import (
+from app.log import log_event
+from app.prompts import AGENT_INSTRUCTIONS, build_demo_prompt
+from app.tools import (
     collect_investigation_evidence,
     get_k8s_resource,
     get_k8s_resource_events,
@@ -13,6 +12,7 @@ from tools import (
     list_k8s_resources,
     query_prometheus,
 )
+from model_factory import create_groq_model
 
 
 def create_agent() -> Agent:
