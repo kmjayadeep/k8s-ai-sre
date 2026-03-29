@@ -3,7 +3,7 @@ from contextvars import ContextVar, Token
 
 from app.log import log_event
 from app.stores import create_action, get_action, is_action_expired, update_action, update_action_status
-from app.tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
+from app.tools.actions import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
 
 _proposal_buffer: ContextVar[list[dict[str, object]] | None] = ContextVar("proposal_buffer", default=None)
 

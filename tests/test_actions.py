@@ -1,0 +1,53 @@
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import app.actions as action_service
+import app.stores.actions as action_store
+
+
+class ActionServiceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tempdir.cleanup)
+        self.store_path = Path(self.tempdir.name) / "actions.json"
+        self.path_patch = patch.object(action_store, "ACTION_STORE_PATH", self.store_path)
+        self.path_patch.start()
+        self.addCleanup(self.path_patch.stop)
+
+    def test_proposal_capture_records_action_metadata(self) -> None:
+        token = action_service.begin_proposal_capture()
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        proposals = action_service.finish_proposal_capture(token)
+
+        self.assertEqual([action["id"]], [item["action_id"] for item in proposals])
+        self.assertEqual("delete-pod", proposals[0]["action_type"])
+
+    def test_attach_actions_to_incident_updates_store(self) -> None:
+        action = action_service.propose_action("rollout-restart", "ai-sre-demo", "bad-deploy")
+
+        action_service.attach_actions_to_incident([action["id"]], "incident-123")
+
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("incident-123", stored["incident_id"])
+
+    def test_approve_action_marks_failed_when_execution_fails(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch("app.actions.delete_pod", return_value="Failed to delete pod crashy in namespace ai-sre-demo: boom"):
+            result = action_service.approve_action(action["id"])
+
+        self.assertIn("Failed to delete pod", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("failed", stored["status"])
+
+    def test_approve_action_marks_approved_when_execution_succeeds(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch("app.actions.delete_pod", return_value='pod "crashy" deleted'):
+            result = action_service.approve_action(action["id"])
+
+        self.assertIn('pod "crashy" deleted', result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("approved", stored["status"])

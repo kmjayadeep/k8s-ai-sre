@@ -8,7 +8,7 @@ from app.http import run_server
 from app.investigate import investigate_target
 from app.log import log_event
 from app.telegram import poll_telegram_updates_once
-from app.tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
+from app.tools.actions import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
 
 set_tracing_disabled(True)
 
