@@ -5,7 +5,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from action_store import get_action, update_action_status
 from incident_store import get_incident
+from tools import delete_pod
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
@@ -81,7 +83,25 @@ def _handle_command(text: str) -> str:
             return f"Incident {argument} not found."
         return _format_status(incident)
 
-    return "Commands: /incident <incident-id>, /status <incident-id>"
+    if command == "/approve" and argument:
+        action = get_action(argument)
+        if action is None:
+            return f"Action {argument} not found."
+        if action.get("status") != "pending":
+            return f"Action {argument} is already {action.get('status')}."
+        if action.get("type") == "delete-pod":
+            result = delete_pod(action["namespace"], action["name"], confirm=True)
+            update_action_status(argument, "approved")
+            return result
+        return f"Unsupported action type: {action.get('type')}."
+
+    if command == "/reject" and argument:
+        action = update_action_status(argument, "rejected")
+        if action is None:
+            return f"Action {argument} not found."
+        return f"Rejected action {argument}."
+
+    return "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
 
 
 def poll_telegram_updates_once() -> str:

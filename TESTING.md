@@ -20,6 +20,7 @@ The app currently supports:
 - a JSON-backed local incident store with `GET /incidents/{incident_id}`
 - optional outbound Telegram notifications on new incidents
 - read-only Telegram commands via `telegram-poll`
+- Telegram approval and rejection for existing action IDs
 - a small module layout:
   - `main.py`
   - `investigate.py`
@@ -207,6 +208,7 @@ For the current implementation, verify:
 - incident data should be written to `/tmp/k8s-ai-sre-incidents.json`
 - if Telegram is configured, new incidents should send one outbound notification
 - read-only Telegram commands should reply with stored incident data
+- Telegram should support `/approve <action-id>` and `/reject <action-id>` for existing pending actions
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -225,6 +227,8 @@ If Telegram is configured:
 - the response should include notification status
 - `/incident <incident-id>` should return the stored answer
 - `/status <incident-id>` should return basic stored metadata
+- `/approve <action-id>` should execute a pending delete-pod action
+- `/reject <action-id>` should reject a pending action
 
 ## Useful Manual Checks
 
@@ -368,6 +372,32 @@ uv run main.py telegram-poll
 Expected behavior:
 - the bot replies in Telegram with incident details
 - repeated polls do not reprocess the same update because the offset is stored in `/tmp/k8s-ai-sre-telegram-offset.json`
+
+Telegram approval test:
+
+1. Create a pending action:
+
+```bash
+uv run main.py propose-delete-pod ai-sre-demo crashy
+```
+
+2. Send one of these commands to the bot:
+
+```text
+/approve <action-id>
+/reject <action-id>
+```
+
+3. Poll once:
+
+```bash
+uv run main.py telegram-poll
+```
+
+Expected behavior:
+- `/approve` executes the pending delete-pod action
+- `/reject` marks the action as rejected
+- repeated `/approve` for the same action should report that it is no longer pending
 
 Incident lookup test:
 
