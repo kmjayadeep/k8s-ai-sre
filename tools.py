@@ -72,6 +72,32 @@ def delete_pod(namespace: str, pod_name: str, confirm: bool) -> str:
     return output
 
 
+def rollout_restart_deployment(namespace: str, deployment_name: str, confirm: bool) -> str:
+    """Restarts a deployment rollout only when explicit confirmation is provided."""
+    allowed_namespaces = {
+        item.strip()
+        for item in os.getenv("WRITE_ALLOWED_NAMESPACES", "").split(",")
+        if item.strip()
+    }
+    if allowed_namespaces and namespace not in allowed_namespaces:
+        return (
+            f"Refusing to restart deployment {deployment_name} in namespace {namespace}: "
+            f"namespace is not in WRITE_ALLOWED_NAMESPACES."
+        )
+
+    if not confirm:
+        return (
+            f"Refusing to restart deployment {deployment_name} in namespace {namespace} without --confirm. "
+            f"Re-run with: uv run main.py rollout-restart {namespace} {deployment_name} --confirm"
+        )
+
+    command = ["kubectl", "rollout", "restart", f"deployment/{deployment_name}", "-n", namespace]
+    ok, output = _run_kubectl(command)
+    if not ok:
+        return f"Failed to restart deployment {deployment_name} in namespace {namespace}: {output}"
+    return output
+
+
 def _summarize_k8s_resource(api_version: str, kind: str, namespace: str, name: str) -> str:
     resource = _kubectl_get_json(kind.lower(), namespace, name)
     if resource is None:

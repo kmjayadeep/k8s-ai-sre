@@ -7,7 +7,7 @@ from investigate import investigate_target
 from logger import log_event
 from server import run_server
 from telegram_bot import poll_telegram_updates_once
-from tools import delete_pod
+from tools import delete_pod, rollout_restart_deployment
 
 set_tracing_disabled(True)
 
@@ -23,6 +23,10 @@ def is_delete_pod_command() -> bool:
     return len(sys.argv) >= 4 and sys.argv[1] == "delete-pod"
 
 
+def is_rollout_restart_command() -> bool:
+    return len(sys.argv) >= 4 and sys.argv[1] == "rollout-restart"
+
+
 def get_delete_pod_args() -> tuple[str, str, bool]:
     namespace = sys.argv[2]
     pod_name = sys.argv[3]
@@ -30,8 +34,19 @@ def get_delete_pod_args() -> tuple[str, str, bool]:
     return namespace, pod_name, confirm
 
 
+def get_rollout_restart_args() -> tuple[str, str, bool]:
+    namespace = sys.argv[2]
+    deployment_name = sys.argv[3]
+    confirm = len(sys.argv) >= 5 and sys.argv[4] == "--confirm"
+    return namespace, deployment_name, confirm
+
+
 def is_propose_delete_pod_command() -> bool:
     return len(sys.argv) == 4 and sys.argv[1] == "propose-delete-pod"
+
+
+def is_propose_rollout_restart_command() -> bool:
+    return len(sys.argv) == 4 and sys.argv[1] == "propose-rollout-restart"
 
 
 def is_approve_command() -> bool:
@@ -74,6 +89,17 @@ async def main():
         )
         return
 
+    if is_propose_rollout_restart_command():
+        namespace, deployment_name = sys.argv[2], sys.argv[3]
+        action = create_action("rollout-restart", namespace, deployment_name)
+        log_event("action_proposed", action_id=action["id"], action_type="rollout-restart", namespace=namespace, name=deployment_name)
+        print(
+            f"Created action {action['id']} to restart deployment {deployment_name} in namespace {namespace}.\n"
+            f"Approve with: uv run main.py approve {action['id']}\n"
+            f"Reject with: uv run main.py reject {action['id']}"
+        )
+        return
+
     if is_approve_command():
         action_id = sys.argv[2]
         action = get_action(action_id)
@@ -94,6 +120,12 @@ async def main():
             log_event("action_approved", action_id=action_id, action_type=action["type"], namespace=action["namespace"], name=action["name"])
             print(result)
             return
+        if action["type"] == "rollout-restart":
+            result = rollout_restart_deployment(action["namespace"], action["name"], confirm=True)
+            update_action_status(action_id, "approved")
+            log_event("action_approved", action_id=action_id, action_type=action["type"], namespace=action["namespace"], name=action["name"])
+            print(result)
+            return
         print(f"Unsupported action type: {action['type']}")
         return
 
@@ -110,6 +142,11 @@ async def main():
     if is_delete_pod_command():
         namespace, pod_name, confirm = get_delete_pod_args()
         print(delete_pod(namespace, pod_name, confirm))
+        return
+
+    if is_rollout_restart_command():
+        namespace, deployment_name, confirm = get_rollout_restart_args()
+        print(rollout_restart_deployment(namespace, deployment_name, confirm))
         return
 
     kind, namespace, name = get_target_from_args()

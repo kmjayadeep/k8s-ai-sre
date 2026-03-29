@@ -8,7 +8,7 @@ from pathlib import Path
 from action_store import get_action, is_action_expired, update_action_status
 from incident_store import get_incident
 from logger import log_event
-from tools import delete_pod
+from tools import delete_pod, rollout_restart_deployment
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
@@ -99,6 +99,10 @@ def _handle_command(text: str) -> str:
             return f"Action {argument} has expired."
         if action.get("type") == "delete-pod":
             result = delete_pod(action["namespace"], action["name"], confirm=True)
+            update_action_status(argument, "approved")
+            return result
+        if action.get("type") == "rollout-restart":
+            result = rollout_restart_deployment(action["namespace"], action["name"], confirm=True)
             update_action_status(argument, "approved")
             return result
         return f"Unsupported action type: {action.get('type')}."

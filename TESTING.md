@@ -14,6 +14,7 @@ The app currently supports:
 - CLI target selection in the form `<kind> <namespace> <name>`
 - a Python evidence collection step before the model response
 - one guarded local action: `delete-pod`
+- one additional guarded local action: `rollout-restart`
 - a local approval flow with action IDs for pod deletion
 - a minimal local HTTP server with `/healthz` and `/investigate`
 - an Alertmanager-compatible webhook endpoint
@@ -162,12 +163,14 @@ Guarded action format:
 
 ```bash
 uv run main.py delete-pod <namespace> <pod-name> --confirm
+uv run main.py rollout-restart <namespace> <deployment-name> --confirm
 ```
 
 Approval flow:
 
 ```bash
 uv run main.py propose-delete-pod <namespace> <pod-name>
+uv run main.py propose-rollout-restart <namespace> <deployment-name>
 uv run main.py approve <action-id>
 uv run main.py reject <action-id>
 ```
@@ -211,6 +214,7 @@ For the current implementation, verify:
 - the answer must not claim it already executed a remediation
 - proposed actions should be concrete operator actions, not vague advice
 - pod deletion requires explicit `--confirm`
+- rollout restart requires explicit `--confirm`
 - approval commands should work with generated action IDs
 - the HTTP server should answer `GET /healthz`
 - the HTTP server should accept `POST /investigate`
@@ -277,6 +281,18 @@ Expected behavior:
 - without `--confirm`, deletion is refused
 - with `--confirm`, the pod is deleted and Kubernetes recreates it only if a controller owns it
 
+Guarded rollout restart test:
+
+```bash
+uv run main.py rollout-restart ai-sre-demo bad-deploy
+uv run main.py rollout-restart ai-sre-demo bad-deploy --confirm
+kubectl rollout status deployment/bad-deploy -n ai-sre-demo
+```
+
+Expected behavior:
+- without `--confirm`, restart is refused
+- with `--confirm`, the deployment rollout is restarted
+
 Approval flow test:
 
 ```bash
@@ -291,6 +307,18 @@ Expected behavior:
 - `propose-delete-pod` prints an action ID
 - `reject` marks the action as rejected
 - `approve` executes the deletion
+
+Rollout restart approval test:
+
+```bash
+uv run main.py propose-rollout-restart ai-sre-demo bad-deploy
+uv run main.py approve <action-id>
+kubectl rollout status deployment/bad-deploy -n ai-sre-demo
+```
+
+Expected behavior:
+- `propose-rollout-restart` prints an action ID
+- `approve` executes the rollout restart
 
 For the deployment scenario:
 
