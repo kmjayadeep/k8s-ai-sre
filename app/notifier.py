@@ -5,6 +5,25 @@ import urllib.parse
 import urllib.request
 
 
+def _format_proposed_actions(incident: dict[str, object]) -> str:
+    proposed_actions = incident.get("proposed_actions", [])
+    if not proposed_actions:
+        return "Proposed actions:\n- none"
+
+    lines = ["Proposed actions:"]
+    for action in proposed_actions[:4]:
+        if not isinstance(action, dict):
+            continue
+        action_id = action.get("action_id", "unknown")
+        action_type = action.get("action_type", "unknown")
+        namespace = action.get("namespace", "unknown")
+        name = action.get("name", "unknown")
+        lines.append(f"- {action_id}: {action_type} {namespace}/{name}")
+        lines.append(f"  approve: /approve {action_id}")
+        lines.append(f"  reject: /reject {action_id}")
+    return "\n".join(lines)
+
+
 def send_telegram_notification(incident: dict[str, str]) -> str:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
@@ -14,7 +33,8 @@ def send_telegram_notification(incident: dict[str, str]) -> str:
     message = (
         f"Incident {incident.get('incident_id', 'unknown')}\n"
         f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}\n"
-        f"Answer:\n{incident.get('answer', '')[:3000]}"
+        f"Answer:\n{incident.get('answer', '')[:2200]}\n\n"
+        f"{_format_proposed_actions(incident)}"
     )
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = urllib.parse.urlencode({"chat_id": chat_id, "text": message}).encode("utf-8")
