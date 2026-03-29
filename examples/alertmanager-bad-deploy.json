@@ -1,0 +1,13 @@
+{
+  "commonLabels": {
+    "namespace": "ai-sre-demo",
+    "deployment": "bad-deploy"
+  },
+  "alerts": [
+    {
+      "labels": {
+        "alertname": "DeploymentNotHealthy"
+      }
+    }
+  ]
+}
