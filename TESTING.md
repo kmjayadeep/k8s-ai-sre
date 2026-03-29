@@ -16,6 +16,7 @@ The app currently supports:
 - one guarded local action: `delete-pod`
 - a local approval flow with action IDs for pod deletion
 - a minimal local HTTP server with `/healthz` and `/investigate`
+- an Alertmanager-compatible webhook endpoint
 - a small module layout:
   - `main.py`
   - `investigate.py`
@@ -188,6 +189,7 @@ For the current implementation, verify:
 - approval commands should work with generated action IDs
 - the HTTP server should answer `GET /healthz`
 - the HTTP server should accept `POST /investigate`
+- the HTTP server should accept `POST /webhooks/alertmanager`
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -276,6 +278,31 @@ Expected behavior:
   - target identity
   - collected evidence
   - final model answer
+
+Alertmanager webhook test:
+
+```bash
+curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "commonLabels": {
+      "namespace": "ai-sre-demo",
+      "deployment": "bad-deploy"
+    },
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "DeploymentNotHealthy"
+        }
+      }
+    ]
+  }'
+```
+
+Expected behavior:
+- the webhook resolves the target from alert labels
+- the response includes the same investigation payload shape as `/investigate`
+- the response contains `"source": "alertmanager"`
 
 ## Cleanup
 
