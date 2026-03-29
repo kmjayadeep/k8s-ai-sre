@@ -14,8 +14,10 @@ The app currently supports:
 - CLI target selection in the form `<kind> <namespace> <name>`
 - a Python evidence collection step before the model response
 - one guarded local action: `delete-pod`
+- a local approval flow with action IDs for pod deletion
 - a small module layout:
   - `main.py`
+  - `action_store.py`
   - `tools.py`
   - `prompts.py`
 
@@ -139,6 +141,14 @@ Guarded action format:
 uv run main.py delete-pod <namespace> <pod-name> --confirm
 ```
 
+Approval flow:
+
+```bash
+uv run main.py propose-delete-pod <namespace> <pod-name>
+uv run main.py approve <action-id>
+uv run main.py reject <action-id>
+```
+
 ## What To Verify
 
 For the current implementation, verify:
@@ -165,6 +175,7 @@ For the current implementation, verify:
 - the answer must not claim it already executed a remediation
 - proposed actions should be concrete operator actions, not vague advice
 - pod deletion requires explicit `--confirm`
+- approval commands should work with generated action IDs
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -196,6 +207,21 @@ kubectl get pod crashy -n ai-sre-demo
 Expected behavior:
 - without `--confirm`, deletion is refused
 - with `--confirm`, the pod is deleted and Kubernetes recreates it only if a controller owns it
+
+Approval flow test:
+
+```bash
+uv run main.py propose-delete-pod ai-sre-demo crashy
+uv run main.py reject <action-id>
+uv run main.py propose-delete-pod ai-sre-demo crashy
+uv run main.py approve <action-id>
+kubectl get pod crashy -n ai-sre-demo
+```
+
+Expected behavior:
+- `propose-delete-pod` prints an action ID
+- `reject` marks the action as rejected
+- `approve` executes the deletion
 
 For the deployment scenario:
 
