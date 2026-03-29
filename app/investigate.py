@@ -10,6 +10,10 @@ from app.tools import (
     get_pod_status,
     get_workload_pods,
     list_k8s_resources,
+    propose_delete_pod,
+    propose_rollout_restart,
+    propose_rollout_undo,
+    propose_scale,
     query_prometheus,
 )
 from model_factory import create_groq_model
@@ -28,6 +32,10 @@ def create_agent() -> Agent:
             get_workload_pods,
             get_k8s_resource_events,
             get_pod_logs,
+            propose_delete_pod,
+            propose_rollout_restart,
+            propose_scale,
+            propose_rollout_undo,
             query_prometheus,
         ],
     )

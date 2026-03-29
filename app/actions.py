@@ -1,3 +1,5 @@
+import json
+
 from app.log import log_event
 from app.stores import create_action, get_action, is_action_expired, update_action_status
 from app.tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
@@ -9,6 +11,24 @@ def format_action_created(action: dict, description: str) -> str:
         f"Approve with: uv run main.py approve {action['id']}\n"
         f"Reject with: uv run main.py reject {action['id']}"
     )
+
+
+def action_metadata(action: dict) -> dict[str, object]:
+    action_id = action["id"]
+    return {
+        "action_id": action_id,
+        "action_type": action["type"],
+        "namespace": action["namespace"],
+        "name": action["name"],
+        "params": action.get("params", {}),
+        "expires_at": action["expires_at"],
+        "approve_command": f"uv run main.py approve {action_id}",
+        "reject_command": f"uv run main.py reject {action_id}",
+    }
+
+
+def format_action_metadata(action: dict) -> str:
+    return json.dumps(action_metadata(action), sort_keys=True)
 
 
 def propose_action(action_type: str, namespace: str, name: str, params: dict | None = None) -> dict:
