@@ -4,9 +4,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from app.actions import approve_action, reject_action
 from app.log import log_event
-from app.stores import get_action, get_incident, is_action_expired, update_action_status
-from app.tools import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
+from app.stores import get_incident
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
@@ -87,38 +87,10 @@ def _handle_command(text: str) -> str:
         return _format_status(incident)
 
     if command == "/approve" and argument:
-        action = get_action(argument)
-        if action is None:
-            return f"Action {argument} not found."
-        if action.get("status") != "pending":
-            return f"Action {argument} is already {action.get('status')}."
-        if is_action_expired(action):
-            update_action_status(argument, "expired")
-            return f"Action {argument} has expired."
-        if action.get("type") == "delete-pod":
-            result = delete_pod(action["namespace"], action["name"], confirm=True)
-            update_action_status(argument, "approved")
-            return result
-        if action.get("type") == "rollout-restart":
-            result = rollout_restart_deployment(action["namespace"], action["name"], confirm=True)
-            update_action_status(argument, "approved")
-            return result
-        if action.get("type") == "scale":
-            replicas = int(action.get("params", {}).get("replicas", 1))
-            result = scale_deployment(action["namespace"], action["name"], replicas, confirm=True)
-            update_action_status(argument, "approved")
-            return result
-        if action.get("type") == "rollout-undo":
-            result = rollout_undo_deployment(action["namespace"], action["name"], confirm=True)
-            update_action_status(argument, "approved")
-            return result
-        return f"Unsupported action type: {action.get('type')}."
+        return approve_action(argument)
 
     if command == "/reject" and argument:
-        action = update_action_status(argument, "rejected")
-        if action is None:
-            return f"Action {argument} not found."
-        return f"Rejected action {argument}."
+        return reject_action(argument)
 
     return "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
 
