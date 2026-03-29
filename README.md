@@ -41,3 +41,32 @@ kubectl apply -f deploy/k8s-ai-sre.yaml
 kubectl get pods -n ai-sre-system
 kubectl get svc -n ai-sre-system
 ```
+
+## Auth Model
+
+The current implementation uses `kubectl` for cluster reads and guarded writes.
+
+### Local Development
+
+Locally, the app uses your current kube context:
+
+```bash
+kubectl config current-context
+uv run main.py deployment ai-sre-demo bad-deploy
+```
+
+That means local auth comes from your existing kubeconfig and `kubectl` setup.
+
+### In-Cluster Runtime
+
+In Kubernetes, the container now includes `kubectl`, and the pod runs with the `k8s-ai-sre` `ServiceAccount`.
+
+The expected auth path is:
+
+- `kubectl` runs inside the container
+- Kubernetes mounts the service account token into the pod
+- RBAC from [deploy/k8s-ai-sre.yaml](/home/jayadeep/workspace/projects/k8s-ai-sre/deploy/k8s-ai-sre.yaml) controls what the app can read and write
+
+This keeps one execution model:
+- local: kubeconfig-backed `kubectl`
+- cluster: service-account-backed `kubectl`

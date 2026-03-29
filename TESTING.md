@@ -23,6 +23,7 @@ The app currently supports:
 - Telegram approval and rejection for existing action IDs
 - basic safety controls for writes and Telegram access
 - a container image and Kubernetes deployment manifest
+- the image includes `kubectl` so the same kubectl-backed runtime can work in-cluster
 - a GitHub Actions workflow to build and push the image to GHCR
 - a small module layout:
   - `main.py`
@@ -222,6 +223,8 @@ For the current implementation, verify:
 - Telegram command handling should ignore unauthorized chat IDs when configured
 - the app should be buildable into a container image
 - the app should be deployable to the cluster with the provided manifest
+- local execution should use your kubeconfig-backed `kubectl`
+- in-cluster execution should use service-account-backed `kubectl`
 - pushes to `main` should build and publish the image to GHCR
 
 If Prometheus is not configured:
@@ -480,6 +483,7 @@ Expected behavior:
 - the deployment pod starts in `ai-sre-system`
 - the service is created
 - the pod can read cluster data and, if configured, delete pods only in `ai-sre-demo`
+- the container image contains `kubectl`
 
 GitHub Actions GHCR test:
 
