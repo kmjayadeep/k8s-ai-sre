@@ -5,6 +5,7 @@ from agents import set_tracing_disabled
 from action_store import create_action, get_action, update_action_status
 from investigate import investigate_target
 from server import run_server
+from telegram_bot import poll_telegram_updates_once
 from tools import delete_pod
 
 set_tracing_disabled(True)
@@ -50,7 +51,15 @@ def get_serve_port() -> int:
     return 8080
 
 
+def is_telegram_poll_command() -> bool:
+    return len(sys.argv) >= 2 and sys.argv[1] == "telegram-poll"
+
+
 async def main():
+    if is_telegram_poll_command():
+        print(poll_telegram_updates_once())
+        return
+
     if is_propose_delete_pod_command():
         namespace, pod_name = sys.argv[2], sys.argv[3]
         action = create_action("delete-pod", namespace, pod_name)

@@ -19,11 +19,13 @@ The app currently supports:
 - an Alertmanager-compatible webhook endpoint
 - a JSON-backed local incident store with `GET /incidents/{incident_id}`
 - optional outbound Telegram notifications on new incidents
+- read-only Telegram commands via `telegram-poll`
 - a small module layout:
   - `main.py`
   - `investigate.py`
   - `server.py`
   - `incident_store.py`
+  - `telegram_bot.py`
   - `notifier.py`
   - `action_store.py`
   - `tools.py`
@@ -165,6 +167,12 @@ uv sync
 uv run main.py serve
 ```
 
+Telegram polling:
+
+```bash
+uv run main.py telegram-poll
+```
+
 ## What To Verify
 
 For the current implementation, verify:
@@ -198,6 +206,7 @@ For the current implementation, verify:
 - the HTTP server should allow incident lookup with `GET /incidents/{incident_id}`
 - incident data should be written to `/tmp/k8s-ai-sre-incidents.json`
 - if Telegram is configured, new incidents should send one outbound notification
+- read-only Telegram commands should reply with stored incident data
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -214,6 +223,8 @@ If Telegram is not configured:
 If Telegram is configured:
 - incident creation should send one outbound notification
 - the response should include notification status
+- `/incident <incident-id>` should return the stored answer
+- `/status <incident-id>` should return basic stored metadata
 
 ## Useful Manual Checks
 
@@ -337,6 +348,26 @@ Then call `/investigate` or `/webhooks/alertmanager`.
 Expected behavior:
 - the response includes `notification_status`
 - a Telegram message is sent to the configured chat
+
+Telegram command test:
+
+1. Create an incident through `/investigate` or `/webhooks/alertmanager`
+2. Send one of these commands to the bot in Telegram:
+
+```text
+/incident <incident-id>
+/status <incident-id>
+```
+
+3. Poll once:
+
+```bash
+uv run main.py telegram-poll
+```
+
+Expected behavior:
+- the bot replies in Telegram with incident details
+- repeated polls do not reprocess the same update because the offset is stored in `/tmp/k8s-ai-sre-telegram-offset.json`
 
 Incident lookup test:
 
