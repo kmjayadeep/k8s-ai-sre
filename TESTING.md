@@ -17,10 +17,12 @@ The app currently supports:
 - a local approval flow with action IDs for pod deletion
 - a minimal local HTTP server with `/healthz` and `/investigate`
 - an Alertmanager-compatible webhook endpoint
+- a JSON-backed local incident store with `GET /incidents/{incident_id}`
 - a small module layout:
   - `main.py`
   - `investigate.py`
   - `server.py`
+  - `incident_store.py`
   - `action_store.py`
   - `tools.py`
   - `prompts.py`
@@ -190,6 +192,8 @@ For the current implementation, verify:
 - the HTTP server should answer `GET /healthz`
 - the HTTP server should accept `POST /investigate`
 - the HTTP server should accept `POST /webhooks/alertmanager`
+- the HTTP server should allow incident lookup with `GET /incidents/{incident_id}`
+- incident data should be written to `/tmp/k8s-ai-sre-incidents.json`
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -275,9 +279,11 @@ curl -X POST http://127.0.0.1:8080/investigate \
 Expected behavior:
 - `/healthz` returns an `ok` status payload
 - `/investigate` returns JSON with:
+  - `incident_id`
   - target identity
   - collected evidence
   - final model answer
+- the returned `incident_id` can be fetched later from `/incidents/{incident_id}`
 
 Alertmanager webhook test:
 
@@ -303,6 +309,19 @@ Expected behavior:
 - the webhook resolves the target from alert labels
 - the response includes the same investigation payload shape as `/investigate`
 - the response contains `"source": "alertmanager"`
+
+Incident lookup test:
+
+Use the `incident_id` returned by either `/investigate` or `/webhooks/alertmanager`:
+
+```bash
+curl http://127.0.0.1:8080/incidents/<incident-id>
+```
+
+Expected behavior:
+- returns the stored incident payload
+- returns `404` for an unknown incident ID
+- incident records persist in `/tmp/k8s-ai-sre-incidents.json`
 
 ## Cleanup
 
