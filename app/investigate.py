@@ -39,7 +39,7 @@ def create_agent() -> Agent:
     )
 
 
-async def investigate_target(kind: str, namespace: str, name: str, emit_progress: bool = True) -> dict[str, str]:
+async def investigate_target(kind: str, namespace: str, name: str, emit_progress: bool = True) -> dict[str, object]:
     log_event("investigation_started", kind=kind, namespace=namespace, name=name)
     agent = create_agent()
     evidence = collect_investigation_evidence(kind, namespace, name)

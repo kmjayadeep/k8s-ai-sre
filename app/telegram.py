@@ -43,7 +43,8 @@ def _telegram_api(method: str, data: dict[str, str] | None = None) -> dict:
     if data is not None:
         encoded = urllib.parse.urlencode(data).encode("utf-8")
     request = urllib.request.Request(url, data=encoded, method="POST" if data else "GET")
-    with urllib.request.urlopen(request, timeout=10) as response:
+    timeout_seconds = float(os.getenv("TELEGRAM_HTTP_TIMEOUT_SECONDS", "35"))
+    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -54,7 +55,7 @@ def _send_message(chat_id: str, text: str) -> str:
     return "Telegram reply sent."
 
 
-def _format_incident(incident: dict[str, str]) -> str:
+def _format_incident(incident: dict[str, object]) -> str:
     lines = [
         f"Incident {incident.get('incident_id', 'unknown')}",
         f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}",
@@ -72,7 +73,7 @@ def _format_incident(incident: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def _format_status(incident: dict[str, str]) -> str:
+def _format_status(incident: dict[str, object]) -> str:
     action_ids = incident.get("action_ids", [])
     action_summary = ", ".join(action_ids[:5]) if action_ids else "none"
     return (

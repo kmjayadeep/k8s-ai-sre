@@ -24,7 +24,7 @@ def _format_proposed_actions(incident: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def send_telegram_notification(incident: dict[str, str]) -> str:
+def send_telegram_notification(incident: dict[str, object]) -> str:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
     if not token or not chat_id:

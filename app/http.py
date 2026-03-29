@@ -34,7 +34,7 @@ async def healthz() -> dict[str, str]:
 
 
 @app.post("/investigate")
-async def investigate(request: InvestigateRequest) -> dict[str, str]:
+async def investigate(request: InvestigateRequest) -> dict[str, object]:
     if not all([request.kind, request.namespace, request.name]):
         raise HTTPException(status_code=400, detail="kind, namespace, and name are required")
     log_event("http_investigate_received", kind=request.kind, namespace=request.namespace, name=request.name)
@@ -69,7 +69,7 @@ def _resolve_alert_target(payload: AlertmanagerWebhook) -> tuple[str, str, str]:
 
 
 @app.post("/webhooks/alertmanager")
-async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, str]:
+async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, object]:
     kind, namespace, name = _resolve_alert_target(payload)
     log_event("alertmanager_webhook_received", kind=kind, namespace=namespace, name=name)
     result = await investigate_target(kind, namespace, name, emit_progress=False)
@@ -83,7 +83,7 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, str]:
 
 
 @app.get("/incidents/{incident_id}")
-async def read_incident(incident_id: str) -> dict[str, str]:
+async def read_incident(incident_id: str) -> dict[str, object]:
     incident = get_incident(incident_id)
     if incident is None:
         raise HTTPException(status_code=404, detail="incident not found")
