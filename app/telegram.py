@@ -1,5 +1,7 @@
 import json
 import os
+import threading
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -85,6 +87,8 @@ def _format_status(incident: dict[str, str]) -> str:
 def _handle_command(text: str) -> str:
     parts = text.strip().split(maxsplit=1)
     command = parts[0] if parts else ""
+    if "@" in command:
+        command = command.split("@", 1)[0]
     argument = parts[1] if len(parts) > 1 else ""
 
     if command == "/incident" and argument:
@@ -117,6 +121,7 @@ def poll_telegram_updates_once() -> str:
     query = {}
     if offset is not None:
         query["offset"] = str(offset)
+    query["timeout"] = os.getenv("TELEGRAM_POLL_TIMEOUT_SECONDS", "30")
     url_suffix = "getUpdates"
     if query:
         url_suffix += "?" + urllib.parse.urlencode(query)
@@ -143,9 +148,48 @@ def poll_telegram_updates_once() -> str:
         if not chat_id or not text.startswith("/"):
             continue
         log_event("telegram_command_received", chat_id=chat_id, text=text)
-        reply = _handle_command(text)
+        try:
+            reply = _handle_command(text)
+        except Exception as exc:
+            log_event("telegram_command_failed", chat_id=chat_id, text=text, error=str(exc))
+            reply = f"Command failed: {exc}"
         _send_message(chat_id, reply)
         handled += 1
 
     log_event("telegram_poll_processed", handled=handled)
     return f"Processed {handled} Telegram command(s)."
+
+
+def poll_telegram_updates_forever(stop_event: threading.Event | None = None) -> None:
+    poll_interval = float(os.getenv("TELEGRAM_POLL_INTERVAL_SECONDS", "1"))
+    backoff_seconds = float(os.getenv("TELEGRAM_POLL_BACKOFF_SECONDS", "5"))
+    log_event("telegram_poll_loop_started")
+
+    while stop_event is None or not stop_event.is_set():
+        try:
+            result = poll_telegram_updates_once()
+            log_event("telegram_poll_loop_tick", result=result)
+        except Exception as exc:
+            log_event("telegram_poll_loop_failed", error=str(exc))
+            time.sleep(backoff_seconds)
+            continue
+
+        if stop_event is not None and stop_event.is_set():
+            break
+        time.sleep(poll_interval)
+
+    log_event("telegram_poll_loop_stopped")
+
+
+def start_telegram_polling_thread() -> threading.Thread | None:
+    if not _telegram_token():
+        log_event("telegram_poll_not_started", reason="token_missing")
+        return None
+    if os.getenv("TELEGRAM_POLL_ENABLED", "true").lower() not in {"1", "true", "yes", "on"}:
+        log_event("telegram_poll_not_started", reason="disabled")
+        return None
+
+    thread = threading.Thread(target=poll_telegram_updates_forever, name="telegram-poll", daemon=True)
+    thread.start()
+    log_event("telegram_poll_thread_started")
+    return thread

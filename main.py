@@ -7,7 +7,7 @@ from app.cli import parse_cli_args
 from app.http import run_server
 from app.investigate import investigate_target
 from app.log import log_event
-from app.telegram import poll_telegram_updates_once
+from app.telegram import poll_telegram_updates_forever, poll_telegram_updates_once
 from app.tools.actions import delete_pod, rollout_restart_deployment, rollout_undo_deployment, scale_deployment
 
 set_tracing_disabled(True)
@@ -18,7 +18,11 @@ async def main():
 
     if command.name == "telegram-poll":
         log_event("telegram_poll_started")
-        print(poll_telegram_updates_once())
+        if len(sys.argv) >= 3 and sys.argv[2] == "--once":
+            print(poll_telegram_updates_once())
+            log_event("telegram_poll_completed")
+            return
+        poll_telegram_updates_forever()
         log_event("telegram_poll_completed")
         return
 

@@ -7,6 +7,7 @@ from app.investigate import investigate_target
 from app.log import log_event
 from app.notifier import send_telegram_notification
 from app.stores import create_incident, get_incident, update_incident
+from app.telegram import start_telegram_polling_thread
 
 
 class InvestigateRequest(BaseModel):
@@ -91,4 +92,5 @@ async def read_incident(incident_id: str) -> dict[str, str]:
 
 def run_server(port: int = 8080) -> None:
     log_event("server_starting", port=port)
+    start_telegram_polling_thread()
     uvicorn.run(app, host="0.0.0.0", port=port)
