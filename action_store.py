@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -25,6 +26,7 @@ def create_action(action_type: str, namespace: str, name: str) -> dict:
         "namespace": namespace,
         "name": name,
         "status": "pending",
+        "expires_at": (datetime.now(UTC) + timedelta(minutes=15)).isoformat(),
     }
     actions[action_id] = action
     _save_actions(actions)
@@ -44,3 +46,10 @@ def update_action_status(action_id: str, status: str) -> dict | None:
     actions[action_id] = action
     _save_actions(actions)
     return action
+
+
+def is_action_expired(action: dict) -> bool:
+    expires_at = action.get("expires_at")
+    if not expires_at:
+        return False
+    return datetime.now(UTC) > datetime.fromisoformat(expires_at)

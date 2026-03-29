@@ -21,6 +21,7 @@ The app currently supports:
 - optional outbound Telegram notifications on new incidents
 - read-only Telegram commands via `telegram-poll`
 - Telegram approval and rejection for existing action IDs
+- basic safety controls for writes and Telegram access
 - a small module layout:
   - `main.py`
   - `investigate.py`
@@ -42,6 +43,8 @@ The default demo investigation target is:
 - required model environment variables are available
 - optional: `PROMETHEUS_BASE_URL` if you want metrics queries enabled
 - optional: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` if you want Telegram notifications
+- optional: `WRITE_ALLOWED_NAMESPACES` to restrict write actions
+- optional: `TELEGRAM_ALLOWED_CHAT_IDS` to restrict bot command handling
 
 Check cluster access:
 
@@ -209,6 +212,9 @@ For the current implementation, verify:
 - if Telegram is configured, new incidents should send one outbound notification
 - read-only Telegram commands should reply with stored incident data
 - Telegram should support `/approve <action-id>` and `/reject <action-id>` for existing pending actions
+- write actions should fail closed outside allowed namespaces
+- actions should expire after a short time
+- Telegram command handling should ignore unauthorized chat IDs when configured
 
 If Prometheus is not configured:
 - the app should still run normally
@@ -229,6 +235,10 @@ If Telegram is configured:
 - `/status <incident-id>` should return basic stored metadata
 - `/approve <action-id>` should execute a pending delete-pod action
 - `/reject <action-id>` should reject a pending action
+
+If safety controls are configured:
+- `WRITE_ALLOWED_NAMESPACES` should restrict delete actions
+- `TELEGRAM_ALLOWED_CHAT_IDS` should restrict Telegram command handling
 
 ## Useful Manual Checks
 
@@ -398,6 +408,35 @@ Expected behavior:
 - `/approve` executes the pending delete-pod action
 - `/reject` marks the action as rejected
 - repeated `/approve` for the same action should report that it is no longer pending
+
+Safety control test:
+
+```bash
+export WRITE_ALLOWED_NAMESPACES=default
+uv run main.py delete-pod ai-sre-demo crashy --confirm
+```
+
+Expected behavior:
+- deletion is refused because `ai-sre-demo` is not allowed
+
+Expiry test:
+
+1. Create a pending action:
+
+```bash
+uv run main.py propose-delete-pod ai-sre-demo crashy
+```
+
+2. Edit `/tmp/k8s-ai-sre-actions.json` and set the action `expires_at` to an older timestamp
+3. Run:
+
+```bash
+uv run main.py approve <action-id>
+```
+
+Expected behavior:
+- the action is marked `expired`
+- the delete is not executed
 
 Incident lookup test:
 

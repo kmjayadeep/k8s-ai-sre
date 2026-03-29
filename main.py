@@ -2,7 +2,7 @@ import asyncio
 import sys
 
 from agents import set_tracing_disabled
-from action_store import create_action, get_action, update_action_status
+from action_store import create_action, get_action, is_action_expired, update_action_status
 from investigate import investigate_target
 from server import run_server
 from telegram_bot import poll_telegram_updates_once
@@ -78,6 +78,10 @@ async def main():
             return
         if action["status"] != "pending":
             print(f"Action {action_id} is already {action['status']}.")
+            return
+        if is_action_expired(action):
+            update_action_status(action_id, "expired")
+            print(f"Action {action_id} has expired.")
             return
         if action["type"] == "delete-pod":
             result = delete_pod(action["namespace"], action["name"], confirm=True)

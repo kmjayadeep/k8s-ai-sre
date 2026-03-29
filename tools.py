@@ -51,6 +51,14 @@ def _list_resource_items(kind: str, namespace: str, label_selector: str = "") ->
 
 def delete_pod(namespace: str, pod_name: str, confirm: bool) -> str:
     """Deletes a pod only when explicit confirmation is provided."""
+    allowed_namespaces = {
+        item.strip()
+        for item in os.getenv("WRITE_ALLOWED_NAMESPACES", "").split(",")
+        if item.strip()
+    }
+    if allowed_namespaces and namespace not in allowed_namespaces:
+        return f"Refusing to delete pod {pod_name} in namespace {namespace}: namespace is not in WRITE_ALLOWED_NAMESPACES."
+
     if not confirm:
         return (
             f"Refusing to delete pod {pod_name} in namespace {namespace} without --confirm. "

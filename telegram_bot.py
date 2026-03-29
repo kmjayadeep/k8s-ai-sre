@@ -5,7 +5,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from action_store import get_action, update_action_status
+from action_store import get_action, is_action_expired, update_action_status
 from incident_store import get_incident
 from tools import delete_pod
 
@@ -16,6 +16,10 @@ TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
 def _telegram_token() -> str | None:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     return token or None
+
+
+def _allowed_chat_ids() -> set[str]:
+    return {item.strip() for item in os.getenv("TELEGRAM_ALLOWED_CHAT_IDS", "").split(",") if item.strip()}
 
 
 def _load_offset() -> int | None:
@@ -89,6 +93,9 @@ def _handle_command(text: str) -> str:
             return f"Action {argument} not found."
         if action.get("status") != "pending":
             return f"Action {argument} is already {action.get('status')}."
+        if is_action_expired(action):
+            update_action_status(argument, "expired")
+            return f"Action {argument} has expired."
         if action.get("type") == "delete-pod":
             result = delete_pod(action["namespace"], action["name"], confirm=True)
             update_action_status(argument, "approved")
@@ -133,6 +140,9 @@ def poll_telegram_updates_once() -> str:
         chat = message.get("chat", {})
         text = message.get("text", "").strip()
         chat_id = str(chat.get("id", ""))
+        allowed_chat_ids = _allowed_chat_ids()
+        if allowed_chat_ids and chat_id not in allowed_chat_ids:
+            continue
         if not chat_id or not text.startswith("/"):
             continue
         reply = _handle_command(text)
