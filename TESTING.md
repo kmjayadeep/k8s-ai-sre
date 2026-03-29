@@ -15,6 +15,7 @@ The app currently supports:
 - a Python evidence collection step before the model response
 - one guarded local action: `delete-pod`
 - one additional guarded local action: `rollout-restart`
+- one additional guarded local action: `scale`
 - a local approval flow with action IDs for pod deletion
 - a minimal local HTTP server with `/healthz` and `/investigate`
 - an Alertmanager-compatible webhook endpoint
@@ -164,6 +165,7 @@ Guarded action format:
 ```bash
 uv run main.py delete-pod <namespace> <pod-name> --confirm
 uv run main.py rollout-restart <namespace> <deployment-name> --confirm
+uv run main.py scale <namespace> <deployment-name> <replicas> --confirm
 ```
 
 Approval flow:
@@ -171,6 +173,7 @@ Approval flow:
 ```bash
 uv run main.py propose-delete-pod <namespace> <pod-name>
 uv run main.py propose-rollout-restart <namespace> <deployment-name>
+uv run main.py propose-scale <namespace> <deployment-name> <replicas>
 uv run main.py approve <action-id>
 uv run main.py reject <action-id>
 ```
@@ -215,6 +218,7 @@ For the current implementation, verify:
 - proposed actions should be concrete operator actions, not vague advice
 - pod deletion requires explicit `--confirm`
 - rollout restart requires explicit `--confirm`
+- scale requires explicit `--confirm`
 - approval commands should work with generated action IDs
 - the HTTP server should answer `GET /healthz`
 - the HTTP server should accept `POST /investigate`
@@ -293,6 +297,18 @@ Expected behavior:
 - without `--confirm`, restart is refused
 - with `--confirm`, the deployment rollout is restarted
 
+Guarded scale test:
+
+```bash
+uv run main.py scale ai-sre-demo bad-deploy 2
+uv run main.py scale ai-sre-demo bad-deploy 2 --confirm
+kubectl get deployment bad-deploy -n ai-sre-demo
+```
+
+Expected behavior:
+- without `--confirm`, scale is refused
+- with `--confirm`, the deployment replica count changes
+
 Approval flow test:
 
 ```bash
@@ -319,6 +335,18 @@ kubectl rollout status deployment/bad-deploy -n ai-sre-demo
 Expected behavior:
 - `propose-rollout-restart` prints an action ID
 - `approve` executes the rollout restart
+
+Scale approval test:
+
+```bash
+uv run main.py propose-scale ai-sre-demo bad-deploy 2
+uv run main.py approve <action-id>
+kubectl get deployment bad-deploy -n ai-sre-demo
+```
+
+Expected behavior:
+- `propose-scale` prints an action ID
+- `approve` executes the scale action
 
 For the deployment scenario:
 

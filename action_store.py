@@ -17,7 +17,7 @@ def _save_actions(actions: dict[str, dict]) -> None:
     ACTION_STORE_PATH.write_text(json.dumps(actions, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def create_action(action_type: str, namespace: str, name: str) -> dict:
+def create_action(action_type: str, namespace: str, name: str, params: dict | None = None) -> dict:
     actions = _load_actions()
     action_id = uuid4().hex[:8]
     action = {
@@ -25,6 +25,7 @@ def create_action(action_type: str, namespace: str, name: str) -> dict:
         "type": action_type,
         "namespace": namespace,
         "name": name,
+        "params": params or {},
         "status": "pending",
         "expires_at": (datetime.now(UTC) + timedelta(minutes=15)).isoformat(),
     }
