@@ -36,6 +36,37 @@ def _allowed_chat_ids() -> set[str]:
     return {item.strip() for item in os.getenv("TELEGRAM_ALLOWED_CHAT_IDS", "").split(",") if item.strip()}
 
 
+def _positive_float_from_env(name: str, default: float) -> float:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    if value <= 0:
+        return default
+    return value
+
+
+def _poll_timeout_seconds() -> float:
+    return _positive_float_from_env("TELEGRAM_POLL_TIMEOUT_SECONDS", 30.0)
+
+
+def _http_timeout_seconds(poll_timeout_seconds: float | None = None) -> float:
+    poll_timeout = poll_timeout_seconds if poll_timeout_seconds is not None else _poll_timeout_seconds()
+    http_timeout = _positive_float_from_env("TELEGRAM_HTTP_TIMEOUT_SECONDS", 35.0)
+    if http_timeout > poll_timeout:
+        return http_timeout
+    return max(35.0, poll_timeout + 5.0)
+
+
+def _timeout_text(value: float) -> str:
+    if value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def _load_offset() -> int | None:
     if not TELEGRAM_OFFSET_PATH.exists():
         return None
@@ -56,7 +87,7 @@ def _telegram_api(method: str, data: dict[str, str] | None = None) -> dict:
     if data is not None:
         encoded = urllib.parse.urlencode(data).encode("utf-8")
     request = urllib.request.Request(url, data=encoded, method="POST" if data else "GET")
-    timeout_seconds = float(os.getenv("TELEGRAM_HTTP_TIMEOUT_SECONDS", "35"))
+    timeout_seconds = _http_timeout_seconds()
     with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -143,7 +174,7 @@ def poll_telegram_updates_once() -> str:
     query = {}
     if offset is not None:
         query["offset"] = str(offset)
-    query["timeout"] = os.getenv("TELEGRAM_POLL_TIMEOUT_SECONDS", "30")
+    query["timeout"] = _timeout_text(_poll_timeout_seconds())
     url_suffix = "getUpdates"
     if query:
         url_suffix += "?" + urllib.parse.urlencode(query)

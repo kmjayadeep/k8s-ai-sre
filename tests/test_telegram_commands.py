@@ -1,4 +1,5 @@
 import unittest
+from os import environ
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -83,3 +84,50 @@ class TelegramCommandParsingTests(unittest.TestCase):
             "123",
             "Command failed due to an internal error. Please retry and check service logs.",
         )
+
+    def test_poll_updates_uses_numeric_poll_timeout_override(self) -> None:
+        with patch.dict(environ, {"TELEGRAM_POLL_TIMEOUT_SECONDS": "42"}, clear=False):
+            with patch("app.telegram._telegram_token", return_value="token"):
+                with patch("app.telegram._load_offset", return_value=None):
+                    with patch("app.telegram._telegram_api", return_value={"ok": True, "result": []}) as telegram_api:
+                        result = telegram.poll_telegram_updates_once()
+
+        self.assertEqual("No new Telegram updates.", result)
+        telegram_api.assert_called_once_with("getUpdates?timeout=42")
+
+    def test_telegram_api_raises_http_timeout_when_configured_below_poll_timeout(self) -> None:
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b'{"ok": true, "result": []}'
+
+        with patch.dict(
+            environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "token",
+                "TELEGRAM_POLL_TIMEOUT_SECONDS": "30",
+                "TELEGRAM_HTTP_TIMEOUT_SECONDS": "20",
+            },
+            clear=False,
+        ):
+            with patch("app.telegram.urllib.request.urlopen", return_value=FakeResponse()) as urlopen:
+                telegram._telegram_api("getUpdates")
+
+        self.assertEqual(35.0, urlopen.call_args.kwargs["timeout"])
+
+    def test_timeout_parsing_falls_back_to_defaults_on_invalid_values(self) -> None:
+        with patch.dict(
+            environ,
+            {
+                "TELEGRAM_POLL_TIMEOUT_SECONDS": "abc",
+                "TELEGRAM_HTTP_TIMEOUT_SECONDS": "-1",
+            },
+            clear=False,
+        ):
+            self.assertEqual(30.0, telegram._poll_timeout_seconds())
+            self.assertEqual(35.0, telegram._http_timeout_seconds())
