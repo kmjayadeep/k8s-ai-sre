@@ -102,7 +102,19 @@ def execute_action(action: dict) -> str:
     if action["type"] == "rollout-restart":
         return rollout_restart_deployment(action["namespace"], action["name"], confirm=True)
     if action["type"] == "scale":
-        replicas = int(action.get("params", {}).get("replicas", 1))
+        raw_replicas = action.get("params", {}).get("replicas", 1)
+        try:
+            replicas = int(raw_replicas)
+        except (TypeError, ValueError):
+            return (
+                f"Refusing to scale deployment {action['name']} in namespace {action['namespace']}: "
+                f"invalid replicas value {raw_replicas!r}."
+            )
+        if replicas < 0:
+            return (
+                f"Refusing to scale deployment {action['name']} in namespace {action['namespace']}: "
+                "replicas must be >= 0."
+            )
         return scale_deployment(action["namespace"], action["name"], replicas, confirm=True)
     if action["type"] == "rollout-undo":
         return rollout_undo_deployment(action["namespace"], action["name"], confirm=True)

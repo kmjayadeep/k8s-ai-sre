@@ -52,6 +52,8 @@ def scale_deployment(namespace: str, deployment_name: str, replicas: int, confir
         )
     if not confirm:
         return f"Refusing to scale deployment {deployment_name} in namespace {namespace} to {replicas} replicas without explicit approval."
+    if replicas < 0:
+        return f"Refusing to scale deployment {deployment_name} in namespace {namespace}: replicas must be >= 0."
 
     ok, output = _run_kubectl(
         ["kubectl", "scale", f"deployment/{deployment_name}", "-n", namespace, f"--replicas={replicas}"]

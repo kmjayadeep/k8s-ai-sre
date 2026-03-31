@@ -78,3 +78,33 @@ class ActionServiceTests(unittest.TestCase):
         self.assertIn("Rejected action", result)
         synced_incident = incident_store.get_incident(incident["incident_id"])
         self.assertEqual("rejected", synced_incident["actions"][0]["status"])
+
+    def test_approve_scale_action_fails_closed_on_non_numeric_replicas(self) -> None:
+        action = action_service.propose_action("scale", "ai-sre-demo", "bad-deploy", {"replicas": "two"})
+        incident = incident_store.create_incident({"kind": "deployment", "namespace": "ai-sre-demo", "name": "bad-deploy"})
+        action_service.attach_actions_to_incident([action["id"]], incident["incident_id"])
+
+        with patch("app.actions.scale_deployment") as scale_deployment:
+            result = action_service.approve_action(action["id"])
+
+        self.assertIn("invalid replicas value", result)
+        scale_deployment.assert_not_called()
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("failed", stored["status"])
+        synced_incident = incident_store.get_incident(incident["incident_id"])
+        self.assertEqual("failed", synced_incident["actions"][0]["status"])
+
+    def test_approve_scale_action_fails_closed_on_negative_replicas(self) -> None:
+        action = action_service.propose_action("scale", "ai-sre-demo", "bad-deploy", {"replicas": -1})
+        incident = incident_store.create_incident({"kind": "deployment", "namespace": "ai-sre-demo", "name": "bad-deploy"})
+        action_service.attach_actions_to_incident([action["id"]], incident["incident_id"])
+
+        with patch("app.actions.scale_deployment") as scale_deployment:
+            result = action_service.approve_action(action["id"])
+
+        self.assertIn("replicas must be >= 0", result)
+        scale_deployment.assert_not_called()
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("failed", stored["status"])
+        synced_incident = incident_store.get_incident(incident["incident_id"])
+        self.assertEqual("failed", synced_incident["actions"][0]["status"])

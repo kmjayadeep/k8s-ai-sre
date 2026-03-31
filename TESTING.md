@@ -102,6 +102,7 @@ What to verify:
 - incident messages show action IDs when proposals exist
 - `/approve` executes the guarded action
 - `/reject` updates the action state without execution
+- invalid `scale` approvals fail closed with an operator-facing error and mark the action as failed
 
 ## Example 4: Kind End-To-End Exercise
 

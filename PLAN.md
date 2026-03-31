@@ -42,6 +42,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - Telegram incident and status views now show live action state instead of stale proposal snapshots
 - incident payloads now keep current action summaries in sync as actions are attached, approved, rejected, or fail
+- scale approvals now fail closed for invalid or negative replica values instead of raising execution-time errors
 - the testing-only CLI command surface has been removed
 
 ## What Still Needs Real Validation
@@ -97,7 +98,7 @@ Goal:
 
 - add explicit action failure states and operator-facing error formatting where missing
 - verify write actions fail closed in all unsupported cases
-- review whether `scale` and `rollout-undo` need additional target validation
+- review whether `rollout-undo` needs additional target validation
 
 Goal:
 - make the action path operationally safer before broader usage
