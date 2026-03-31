@@ -41,6 +41,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
+- integration coverage now includes an alertmanager webhook -> pending action -> approval execution path with incident/action linkage validation
 
 ## What Still Needs Real Validation
 
@@ -122,7 +123,7 @@ Goal:
 ### 8. Expand Test Coverage Around Live Edge Cases
 
 - add tests for long-poll timeout configuration
-- add tests for action execution failures and retry-safe approval behavior
+- add tests for action execution failures and retry-safe approval behavior beyond the current webhook-to-approve coverage
 - add tests for unauthorized Telegram chats and expired actions in the service path
 
 Goal:
