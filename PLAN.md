@@ -42,6 +42,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - Telegram incident and status views now show live action state instead of stale proposal snapshots
 - incident payloads now keep current action summaries in sync as actions are attached, approved, rejected, or fail
+- deployment manifests now include explicit Telegram polling env defaults for timeout, interval, backoff, and enablement
 - the testing-only CLI command surface has been removed
 
 ## What Still Needs Real Validation
@@ -105,7 +106,6 @@ Goal:
 ### 6. Improve Deployment Readiness
 
 - verify secret configuration and env docs against the current deployment manifests
-- consider dedicated config for Telegram polling knobs
 - verify probe behavior and startup timing in-cluster
 
 Goal:

@@ -21,6 +21,17 @@ spec:
           envFrom:
             - secretRef:
                 name: k8s-ai-sre-env
+          env:
+            - name: TELEGRAM_POLL_ENABLED
+              value: "true"
+            - name: TELEGRAM_POLL_TIMEOUT_SECONDS
+              value: "30"
+            - name: TELEGRAM_HTTP_TIMEOUT_SECONDS
+              value: "35"
+            - name: TELEGRAM_POLL_INTERVAL_SECONDS
+              value: "1"
+            - name: TELEGRAM_POLL_BACKOFF_SECONDS
+              value: "5"
           ports:
             - containerPort: 8080
           readinessProbe:

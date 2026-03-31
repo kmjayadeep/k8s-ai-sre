@@ -128,6 +128,14 @@ Supported commands:
 
 The server starts the Telegram polling loop automatically when `TELEGRAM_BOT_TOKEN` is configured.
 
+Optional Telegram polling knobs (with current defaults):
+
+- `TELEGRAM_POLL_ENABLED=true`
+- `TELEGRAM_POLL_TIMEOUT_SECONDS=30`
+- `TELEGRAM_HTTP_TIMEOUT_SECONDS=35`
+- `TELEGRAM_POLL_INTERVAL_SECONDS=1`
+- `TELEGRAM_POLL_BACKOFF_SECONDS=5`
+
 ## Guarded Actions
 
 The current guarded actions are:

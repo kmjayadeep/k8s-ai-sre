@@ -82,6 +82,11 @@ Required environment:
 export TELEGRAM_BOT_TOKEN=...
 export TELEGRAM_CHAT_ID=...
 export TELEGRAM_ALLOWED_CHAT_IDS=...
+# optional poll tuning
+export TELEGRAM_POLL_TIMEOUT_SECONDS=30
+export TELEGRAM_HTTP_TIMEOUT_SECONDS=35
+export TELEGRAM_POLL_INTERVAL_SECONDS=1
+export TELEGRAM_POLL_BACKOFF_SECONDS=5
 ```
 
 Create an incident through `/investigate` or `/webhooks/alertmanager`.
