@@ -155,6 +155,9 @@ The current guarded actions are:
 - `rollout-undo`
 
 They are namespace-restricted through `WRITE_ALLOWED_NAMESPACES` and require explicit approval before execution.
+Additional guardrails:
+- `scale` refuses negative replica values.
+- `scale` and `rollout-undo` verify the target deployment exists before mutating state.
 
 ## Deployment
 

@@ -17,6 +17,10 @@ def _allowed_to_write(namespace: str) -> bool:
     return not allowed_namespaces or namespace in allowed_namespaces
 
 
+def _deployment_exists(namespace: str, deployment_name: str) -> tuple[bool, str]:
+    return _run_kubectl(["kubectl", "get", "deployment", deployment_name, "-n", namespace])
+
+
 def delete_pod(namespace: str, pod_name: str, confirm: bool) -> str:
     if not _allowed_to_write(namespace):
         return f"Refusing to delete pod {pod_name} in namespace {namespace}: namespace is not in WRITE_ALLOWED_NAMESPACES."
@@ -52,6 +56,12 @@ def scale_deployment(namespace: str, deployment_name: str, replicas: int, confir
         )
     if not confirm:
         return f"Refusing to scale deployment {deployment_name} in namespace {namespace} to {replicas} replicas without explicit approval."
+    if replicas < 0:
+        return f"Refusing to scale deployment {deployment_name} in namespace {namespace}: replicas must be >= 0."
+
+    exists, output = _deployment_exists(namespace, deployment_name)
+    if not exists:
+        return f"Refusing to scale deployment {deployment_name} in namespace {namespace}: deployment was not found or not readable ({output})."
 
     ok, output = _run_kubectl(
         ["kubectl", "scale", f"deployment/{deployment_name}", "-n", namespace, f"--replicas={replicas}"]
@@ -69,6 +79,10 @@ def rollout_undo_deployment(namespace: str, deployment_name: str, confirm: bool)
         )
     if not confirm:
         return f"Refusing to undo deployment {deployment_name} in namespace {namespace} without explicit approval."
+
+    exists, output = _deployment_exists(namespace, deployment_name)
+    if not exists:
+        return f"Refusing to undo deployment {deployment_name} in namespace {namespace}: deployment was not found or not readable ({output})."
 
     ok, output = _run_kubectl(["kubectl", "rollout", "undo", f"deployment/{deployment_name}", "-n", namespace])
     if not ok:
