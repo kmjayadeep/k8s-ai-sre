@@ -38,3 +38,28 @@ class IncidentStoreTests(unittest.TestCase):
 
         stored = incident_store.get_incident(incident["incident_id"])
         self.assertEqual("Telegram notification sent.", stored["notification_status"])
+
+    def test_create_incident_backfills_action_ids_from_proposed_actions(self) -> None:
+        incident = incident_store.create_incident(
+            {
+                "kind": "deployment",
+                "namespace": "ai-sre-demo",
+                "name": "bad-deploy",
+                "proposed_actions": [{"action_id": "abc12345", "action_type": "rollout-restart"}],
+            }
+        )
+
+        self.assertEqual(["abc12345"], incident["action_ids"])
+        self.assertEqual("/approve abc12345", incident["proposed_actions"][0]["approve_command"])
+
+    def test_get_incident_normalizes_legacy_payload_from_disk(self) -> None:
+        self.store_path.write_text(
+            '{"legacy12345": {"incident_id": "legacy12345", "kind": "pod", "namespace": "default", "name": "x"}}',
+            encoding="utf-8",
+        )
+
+        stored = incident_store.get_incident("legacy12345")
+
+        self.assertEqual("", stored["answer"])
+        self.assertEqual("manual", stored["source"])
+        self.assertEqual([], stored["action_ids"])

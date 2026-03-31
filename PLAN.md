@@ -37,7 +37,8 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 ### Recent Fixes Reflected In Code
 
 - model selection is configurable through environment variables in `model_factory.py`
-- FastAPI response typing now accepts structured incident payloads
+- FastAPI now uses explicit response models for `/healthz`, `/investigate`, `/webhooks/alertmanager`, and `/incidents/{incident_id}`
+- incident payloads are normalized in the store layer so legacy or sparse records resolve to a stable shape (`source`, `answer`, `evidence`, `action_ids`, and normalized proposed action metadata)
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
@@ -67,8 +68,6 @@ Goal:
 
 ### 2. Tighten The HTTP And Telegram Contract
 
-- add explicit response models for incidents and health responses
-- normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
 - make Telegram error replies more operator-friendly
 
 Goal:

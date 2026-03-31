@@ -35,10 +35,10 @@ class HttpIntegrationTests(unittest.TestCase):
             with patch("app.http.send_telegram_notification", return_value="Telegram notification sent."):
                 body = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy")))
 
-        self.assertEqual("Telegram notification sent.", body["notification_status"])
-        stored = run(read_incident(body["incident_id"]))
-        self.assertEqual(["abc12345"], stored["action_ids"])
-        self.assertEqual("Telegram notification sent.", stored["notification_status"])
+        self.assertEqual("Telegram notification sent.", body.notification_status)
+        stored = run(read_incident(body.incident_id))
+        self.assertEqual(["abc12345"], stored.action_ids)
+        self.assertEqual("Telegram notification sent.", stored.notification_status)
 
     def test_alertmanager_webhook_resolves_target_and_persists_source(self) -> None:
         result = {
@@ -57,6 +57,22 @@ class HttpIntegrationTests(unittest.TestCase):
                     )
                 )
 
-        self.assertEqual("alertmanager", body["source"])
-        stored = run(read_incident(body["incident_id"]))
-        self.assertEqual("alertmanager", stored["source"])
+        self.assertEqual("alertmanager", body.source)
+        stored = run(read_incident(body.incident_id))
+        self.assertEqual("alertmanager", stored.source)
+
+    def test_read_incident_normalizes_legacy_payload(self) -> None:
+        incident = incident_store.create_incident(
+            {
+                "kind": "pod",
+                "namespace": "ai-sre-demo",
+                "name": "crashy",
+                "proposed_actions": [{"action_id": "f314980d", "action_type": "delete-pod"}],
+            }
+        )
+
+        body = run(read_incident(incident["incident_id"]))
+
+        self.assertEqual("manual", body.source)
+        self.assertEqual(["f314980d"], body.action_ids)
+        self.assertEqual("/approve f314980d", body.proposed_actions[0].approve_command)
