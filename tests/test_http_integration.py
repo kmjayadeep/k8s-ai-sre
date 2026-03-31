@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import app.stores.actions as action_store
 import app.stores.incidents as incident_store
+from app.stores import create_incident
 from app.http import AlertmanagerWebhook, InvestigateRequest, alertmanager_webhook, investigate, read_incident
 
 
@@ -35,10 +36,10 @@ class HttpIntegrationTests(unittest.TestCase):
             with patch("app.http.send_telegram_notification", return_value="Telegram notification sent."):
                 body = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy")))
 
-        self.assertEqual("Telegram notification sent.", body["notification_status"])
-        stored = run(read_incident(body["incident_id"]))
-        self.assertEqual(["abc12345"], stored["action_ids"])
-        self.assertEqual("Telegram notification sent.", stored["notification_status"])
+        self.assertEqual("Telegram notification sent.", body.notification_status)
+        stored = run(read_incident(body.incident_id))
+        self.assertEqual(["abc12345"], stored.action_ids)
+        self.assertEqual("Telegram notification sent.", stored.notification_status)
 
     def test_alertmanager_webhook_resolves_target_and_persists_source(self) -> None:
         result = {
@@ -57,6 +58,26 @@ class HttpIntegrationTests(unittest.TestCase):
                     )
                 )
 
-        self.assertEqual("alertmanager", body["source"])
-        stored = run(read_incident(body["incident_id"]))
-        self.assertEqual("alertmanager", stored["source"])
+        self.assertEqual("alertmanager", body.source)
+        stored = run(read_incident(body.incident_id))
+        self.assertEqual("alertmanager", stored.source)
+
+    def test_read_incident_normalizes_missing_optional_fields(self) -> None:
+        incident = create_incident({"kind": "pod", "namespace": "default", "name": "api-0", "answer": "ok"})
+
+        body = run(read_incident(incident["incident_id"]))
+
+        self.assertEqual([], body.proposed_actions)
+        self.assertEqual([], body.action_ids)
+        self.assertEqual("manual", body.source)
+        self.assertEqual("", body.notification_status)
+        self.assertEqual("", body.evidence)
+
+    def test_alertmanager_webhook_model_defaults_do_not_leak_between_instances(self) -> None:
+        first = AlertmanagerWebhook()
+        second = AlertmanagerWebhook()
+        first.commonLabels["deployment"] = "bad-deploy"
+        first.alerts.append({"labels": {"namespace": "ai-sre-demo"}})
+
+        self.assertEqual({}, second.commonLabels)
+        self.assertEqual([], second.alerts)

@@ -38,6 +38,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 
 - model selection is configurable through environment variables in `model_factory.py`
 - FastAPI response typing now accepts structured incident payloads
+- HTTP endpoints now use explicit response models for health and incident payloads, and incident responses are normalized so API/store shape drift fails closed
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
@@ -67,8 +68,8 @@ Goal:
 
 ### 2. Tighten The HTTP And Telegram Contract
 
-- add explicit response models for incidents and health responses
-- normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
+- keep explicit response models for incidents and health responses current as fields evolve
+- continue normalizing incident payload shape so HTTP, store, and Telegram all use the same fields
 - make Telegram error replies more operator-friendly
 
 Goal:
