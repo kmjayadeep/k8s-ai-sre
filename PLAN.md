@@ -42,6 +42,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - Telegram incident and status views now show live action state instead of stale proposal snapshots
 - incident payloads now keep current action summaries in sync as actions are attached, approved, rejected, or fail
+- incident store now normalizes `actions`, `proposed_actions`, and `action_ids` so Telegram and HTTP see a consistent action payload shape
 - the testing-only CLI command surface has been removed
 
 ## What Still Needs Real Validation
@@ -70,7 +71,6 @@ Goal:
 ### 2. Tighten The HTTP And Telegram Contract
 
 - add explicit response models for incidents and health responses
-- normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
 - make Telegram error replies more operator-friendly
 
 Goal:

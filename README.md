@@ -10,6 +10,7 @@ Today it can:
 - persist incidents and pending actions locally
 - notify and approve actions through Telegram
 - execute guarded actions only after explicit approval
+- keep incident action payloads normalized (`actions`, `action_ids`, and `proposed_actions`)
 
 The intended loop is:
 

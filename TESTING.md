@@ -44,6 +44,7 @@ What to verify:
 - the response includes `incident_id`
 - the response includes `answer`
 - the response includes `action_ids` and `proposed_actions` when the model used proposal tools
+- `GET /incidents/<incident-id>` shows a normalized action payload (`actions`, `action_ids`, and `proposed_actions`)
 
 ## Example 2: Local Server And Webhook
 

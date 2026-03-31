@@ -73,3 +73,28 @@ class TelegramIntegrationTests(unittest.TestCase):
 
         self.assertIn(action["id"], reply)
         self.assertIn("[rejected]", reply)
+
+    def test_incident_command_falls_back_to_incident_actions_when_store_is_empty(self) -> None:
+        incident = incident_store.create_incident(
+            {
+                "kind": "deployment",
+                "namespace": "ai-sre-demo",
+                "name": "bad-deploy",
+                "answer": "Summary: image pull failure",
+                "actions": [
+                    {
+                        "action_id": "abc12345",
+                        "action_type": "rollout-restart",
+                        "namespace": "ai-sre-demo",
+                        "name": "bad-deploy",
+                        "status": "approved",
+                    }
+                ],
+                "proposed_actions": [],
+            }
+        )
+
+        reply = telegram._handle_command(f"/incident {incident['incident_id']}")
+
+        self.assertIn("abc12345", reply)
+        self.assertIn("[approved]", reply)

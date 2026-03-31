@@ -99,8 +99,27 @@ def _incident_actions(incident: dict[str, object]) -> list[dict[str, object]]:
     if live_actions:
         return sorted(live_actions, key=lambda action: str(action.get("id", "")))
 
-    proposed_actions = incident.get("proposed_actions", [])
+    incident_actions = incident.get("actions", [])
     fallback_actions: list[dict[str, object]] = []
+    if isinstance(incident_actions, list):
+        for action in incident_actions:
+            if not isinstance(action, dict):
+                continue
+            fallback_actions.append(
+                {
+                    "id": action.get("action_id", action.get("id", "unknown")),
+                    "type": action.get("action_type", action.get("type", "unknown")),
+                    "namespace": action.get("namespace", "unknown"),
+                    "name": action.get("name", "unknown"),
+                    "status": action.get("status", "pending"),
+                    "expires_at": action.get("expires_at"),
+                }
+            )
+    if fallback_actions:
+        return sorted(fallback_actions, key=lambda action: str(action.get("id", "")))
+
+    proposed_actions = incident.get("proposed_actions", [])
+    fallback_actions = []
     for action in proposed_actions:
         if not isinstance(action, dict):
             continue

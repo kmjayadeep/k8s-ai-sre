@@ -60,3 +60,25 @@ class IncidentStoreTests(unittest.TestCase):
 
         stored = incident_store.get_incident(incident["incident_id"])
         self.assertEqual("Telegram notification sent.", stored["notification_status"])
+
+    def test_create_incident_derives_action_ids_from_action_summaries(self) -> None:
+        incident = incident_store.create_incident(
+            {
+                "kind": "deployment",
+                "namespace": "ai-sre-demo",
+                "name": "bad-deploy",
+                "actions": [
+                    {
+                        "action_id": "abc12345",
+                        "action_type": "rollout-restart",
+                        "namespace": "ai-sre-demo",
+                        "name": "bad-deploy",
+                        "status": "pending",
+                    }
+                ],
+            }
+        )
+
+        stored = incident_store.get_incident(incident["incident_id"])
+        self.assertEqual(["abc12345"], stored["action_ids"])
+        self.assertEqual("rollout-restart", stored["proposed_actions"][0]["action_type"])
