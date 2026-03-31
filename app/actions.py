@@ -112,8 +112,14 @@ def reject_action(action_id: str) -> str:
     action = get_action(action_id)
     if action is None:
         return f"Action {action_id} not found."
+
+    if action["status"] != "pending":
+        return _action_result_prefix(action) + f"Action {action_id} is already {action['status']}."
+    if is_action_expired(action):
+        update_action_status(action_id, "expired")
+        log_event("action_expired", action_id=action_id)
+        return _action_result_prefix(action) + f"Action {action_id} has expired."
+
     update_action_status(action_id, "rejected")
-    if action is None:
-        return f"Action {action_id} not found."
     log_event("action_rejected", action_id=action_id)
     return _action_result_prefix(action) + f"Rejected action {action_id}."
