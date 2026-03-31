@@ -26,6 +26,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - actions are persisted in a local JSON store with expiry handling
 - Telegram notifications include proposed action IDs and approval commands
 - Telegram supports `/incident`, `/status`, `/approve`, and `/reject`
+- Telegram incident and status views resolve live action state from the action store
 - approved actions execute through guarded action helpers
 - write namespaces are constrained with `WRITE_ALLOWED_NAMESPACES`
 - allowed Telegram chats are constrained with `TELEGRAM_ALLOWED_CHAT_IDS`
@@ -38,6 +39,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - model selection is configurable through environment variables in `model_factory.py`
 - FastAPI response typing now accepts structured incident payloads
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
+- Telegram incident and status views now show live action state instead of stale proposal snapshots
 - the testing-only CLI command surface has been removed
 
 ## What Still Needs Real Validation
@@ -67,12 +69,21 @@ Goal:
 
 - add explicit response models for incidents and health responses
 - normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
+- persist current action state back into the incident payload, not only the action store
 - make Telegram error replies more operator-friendly
 
 Goal:
 - reduce ambiguity in service behavior and make future refactors safer
 
-### 3. Replace Ad Hoc Persistence With A Clear Store Layer
+### 3. Add CI Test Coverage
+
+- add a workflow that runs the unit and integration test suite on pull requests and pushes
+- keep the existing container publishing workflow separate from test verification
+
+Goal:
+- catch regressions in the approval loop before image publication
+
+### 4. Replace Ad Hoc Persistence With A Clear Store Layer
 
 - keep the current JSON stores for local development
 - define a cleaner abstraction for incidents and actions
@@ -81,7 +92,7 @@ Goal:
 Goal:
 - make persistence easier to reason about and easier to replace
 
-### 4. Strengthen Runtime Safety
+### 5. Strengthen Runtime Safety
 
 - add explicit action failure states and operator-facing error formatting where missing
 - verify write actions fail closed in all unsupported cases
@@ -90,7 +101,7 @@ Goal:
 Goal:
 - make the action path operationally safer before broader usage
 
-### 5. Improve Deployment Readiness
+### 6. Improve Deployment Readiness
 
 - verify secret configuration and env docs against the current deployment manifests
 - consider dedicated config for Telegram polling knobs
@@ -101,7 +112,7 @@ Goal:
 
 ## Medium-Term Cleanup
 
-### 6. Introduce Typed Models For Incidents And Actions
+### 7. Introduce Typed Models For Incidents And Actions
 
 - replace loosely typed dict payloads with explicit Pydantic models or dataclasses
 - use those models across HTTP, Telegram, store, and notifier paths
@@ -109,7 +120,7 @@ Goal:
 Goal:
 - reduce bugs caused by payload-shape drift
 
-### 7. Refine The File Layout Further
+### 8. Refine The File Layout Further
 
 - keep the current `app/` structure
 - consider pulling incident formatting, Telegram message formatting, and response shaping into smaller dedicated modules
@@ -117,7 +128,7 @@ Goal:
 Goal:
 - make the codebase easier to review as the service grows
 
-### 8. Expand Test Coverage Around Live Edge Cases
+### 9. Expand Test Coverage Around Live Edge Cases
 
 - add tests for long-poll timeout configuration
 - add tests for action execution failures and retry-safe approval behavior
@@ -128,7 +139,7 @@ Goal:
 
 ## Documentation Work
 
-### 9. Keep `TESTING.md` Current
+### 10. Keep `TESTING.md` Current
 
 - keep it short
 - keep it focused on the current service-first flow
@@ -137,7 +148,7 @@ Goal:
 Goal:
 - make validation instructions match the actual product shape
 
-### 10. Keep `README.md` Aligned With Runtime Reality
+### 11. Keep `README.md` Aligned With Runtime Reality
 
 - keep FastAPI as the primary interface in the docs
 - keep Telegram documented as a complementary interface

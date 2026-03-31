@@ -1,4 +1,12 @@
-from app.stores.actions import ACTION_STORE_PATH, create_action, get_action, is_action_expired, update_action, update_action_status
+from app.stores.actions import (
+    ACTION_STORE_PATH,
+    create_action,
+    get_action,
+    is_action_expired,
+    list_actions_for_incident,
+    update_action,
+    update_action_status,
+)
 from app.stores.incidents import INCIDENT_STORE_PATH, create_incident, get_incident, update_incident
 
 __all__ = [
@@ -7,6 +15,7 @@ __all__ = [
     "create_action",
     "get_action",
     "is_action_expired",
+    "list_actions_for_incident",
     "update_action",
     "update_action_status",
     "create_incident",

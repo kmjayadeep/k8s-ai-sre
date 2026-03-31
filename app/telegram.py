@@ -8,7 +8,7 @@ from pathlib import Path
 
 from app.actions import approve_action, reject_action
 from app.log import log_event
-from app.stores import get_incident
+from app.stores import get_incident, is_action_expired, list_actions_for_incident
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
@@ -61,28 +61,66 @@ def _format_incident(incident: dict[str, object]) -> str:
         f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}",
         f"Answer:\n{incident.get('answer', 'No answer stored.')[:2400]}",
     ]
-    proposed_actions = incident.get("proposed_actions", [])
-    if proposed_actions:
+    actions = _incident_actions(incident)
+    if actions:
         lines.append("Actions:")
-        for action in proposed_actions[:4]:
-            if not isinstance(action, dict):
-                continue
-            lines.append(f"- {action.get('action_id')}: {action.get('action_type')} {action.get('namespace')}/{action.get('name')}")
+        for action in actions[:4]:
+            lines.append(_format_action_line(action))
+            if action.get("status") == "pending" and not is_action_expired(action):
+                lines.append(f"  approve: /approve {action.get('id')}")
+                lines.append(f"  reject: /reject {action.get('id')}")
     else:
         lines.append("Actions:\n- none")
     return "\n".join(lines)
 
 
 def _format_status(incident: dict[str, object]) -> str:
-    action_ids = incident.get("action_ids", [])
-    action_summary = ", ".join(action_ids[:5]) if action_ids else "none"
-    return (
+    lines = [
         f"Incident {incident.get('incident_id', 'unknown')}\n"
         f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}\n"
         f"Source: {incident.get('source', 'manual')}\n"
-        f"Notification: {incident.get('notification_status', 'unknown')}\n"
-        f"Action IDs: {action_summary}"
-    )
+        f"Notification: {incident.get('notification_status', 'unknown')}"
+    ]
+    actions = _incident_actions(incident)
+    if actions:
+        lines.append("Actions:")
+        lines.extend(_format_action_line(action) for action in actions[:5])
+    else:
+        lines.append("Actions: none")
+    return "\n".join(lines)
+
+
+def _incident_actions(incident: dict[str, object]) -> list[dict[str, object]]:
+    incident_id = str(incident.get("incident_id", "")).strip()
+    if not incident_id:
+        return []
+
+    live_actions = list_actions_for_incident(incident_id)
+    if live_actions:
+        return sorted(live_actions, key=lambda action: str(action.get("id", "")))
+
+    proposed_actions = incident.get("proposed_actions", [])
+    fallback_actions: list[dict[str, object]] = []
+    for action in proposed_actions:
+        if not isinstance(action, dict):
+            continue
+        fallback_actions.append(
+            {
+                "id": action.get("action_id", "unknown"),
+                "type": action.get("action_type", "unknown"),
+                "namespace": action.get("namespace", "unknown"),
+                "name": action.get("name", "unknown"),
+                "status": "pending",
+            }
+        )
+    return fallback_actions
+
+
+def _format_action_line(action: dict[str, object]) -> str:
+    status = str(action.get("status", "unknown"))
+    if status == "pending" and is_action_expired(action):
+        status = "expired"
+    return f"- {action.get('id')}: {action.get('type')} {action.get('namespace')}/{action.get('name')} [{status}]"
 
 
 def _handle_command(text: str) -> str:

@@ -38,6 +38,11 @@ def get_action(action_id: str) -> dict | None:
     return _load_actions().get(action_id)
 
 
+def list_actions_for_incident(incident_id: str) -> list[dict]:
+    actions = _load_actions().values()
+    return [action for action in actions if action.get("incident_id") == incident_id]
+
+
 def update_action_status(action_id: str, status: str) -> dict | None:
     actions = _load_actions()
     action = actions.get(action_id)

@@ -13,7 +13,7 @@ Useful checks:
 ```bash
 kubectl config current-context
 kubectl get nodes
-.venv/bin/python -m unittest discover -s tests
+uv run --isolated --with fastapi --with loguru --with uvicorn --with groq --with openai --with openai-agents --with portkey-ai python -m unittest discover -s tests
 ```
 
 ## Example 1: Local Service And Investigation

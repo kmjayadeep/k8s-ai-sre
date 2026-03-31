@@ -23,21 +23,24 @@ class TelegramIntegrationTests(unittest.TestCase):
         self.addCleanup(self.action_patch.stop)
 
     def test_incident_command_includes_action_ids(self) -> None:
+        action = action_service.propose_action("rollout-restart", "ai-sre-demo", "bad-deploy")
         incident = incident_store.create_incident(
             {
                 "kind": "deployment",
                 "namespace": "ai-sre-demo",
                 "name": "bad-deploy",
                 "answer": "Summary: image pull failure",
-                "proposed_actions": [{"action_id": "abc12345", "action_type": "rollout-restart", "namespace": "ai-sre-demo", "name": "bad-deploy"}],
-                "action_ids": ["abc12345"],
+                "proposed_actions": [{"action_id": action["id"], "action_type": "rollout-restart", "namespace": "ai-sre-demo", "name": "bad-deploy"}],
+                "action_ids": [action["id"]],
             }
         )
+        action_service.attach_actions_to_incident([action["id"]], incident["incident_id"])
 
         reply = telegram._handle_command(f"/incident {incident['incident_id']}")
 
         self.assertIn("Actions:", reply)
-        self.assertIn("abc12345", reply)
+        self.assertIn(action["id"], reply)
+        self.assertIn("[pending]", reply)
 
     def test_approve_command_executes_pending_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
@@ -50,3 +53,23 @@ class TelegramIntegrationTests(unittest.TestCase):
         self.assertIn('pod "crashy" deleted', reply)
         stored = action_store.get_action(action["id"])
         self.assertEqual("approved", stored["status"])
+
+    def test_status_command_shows_live_action_statuses_for_incident(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        incident = incident_store.create_incident(
+            {
+                "kind": "pod",
+                "namespace": "ai-sre-demo",
+                "name": "crashy",
+                "answer": "Summary: CrashLoopBackOff",
+                "proposed_actions": [{"action_id": action["id"], "action_type": "delete-pod", "namespace": "ai-sre-demo", "name": "crashy"}],
+                "action_ids": [action["id"]],
+            }
+        )
+        action_service.attach_actions_to_incident([action["id"]], incident["incident_id"])
+        action_store.update_action_status(action["id"], "rejected")
+
+        reply = telegram._handle_command(f"/status {incident['incident_id']}")
+
+        self.assertIn(action["id"], reply)
+        self.assertIn("[rejected]", reply)
