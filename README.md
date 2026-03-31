@@ -50,6 +50,8 @@ Component guide:
 - [app/stores](app/stores): local JSON stores for incidents and actions
 - [model_factory.py](model_factory.py): model selection and client configuration
 
+HTTP responses for `/healthz`, `/investigate`, `/webhooks/alertmanager`, and `/incidents/{incident_id}` use explicit FastAPI response models for a stable operator contract.
+
 ## Quick Start
 
 ### 1. Install Dependencies

@@ -1,6 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.actions import attach_actions_to_incident
 from app.investigate import investigate_target
@@ -17,24 +17,63 @@ class InvestigateRequest(BaseModel):
 
 
 class AlertmanagerAlert(BaseModel):
-    labels: dict[str, str] = {}
+    labels: dict[str, str] = Field(default_factory=dict)
 
 
 class AlertmanagerWebhook(BaseModel):
-    commonLabels: dict[str, str] = {}
-    alerts: list[AlertmanagerAlert] = []
+    commonLabels: dict[str, str] = Field(default_factory=dict)
+    alerts: list[AlertmanagerAlert] = Field(default_factory=list)
+
+
+class HealthResponse(BaseModel):
+    status: str
+
+
+class ProposedActionResponse(BaseModel):
+    action_id: str
+    action_type: str
+    namespace: str
+    name: str
+    params: dict[str, object] = Field(default_factory=dict)
+    expires_at: str | None = None
+    approve_command: str | None = None
+    reject_command: str | None = None
+
+
+class IncidentActionSummaryResponse(BaseModel):
+    action_id: str
+    action_type: str
+    namespace: str
+    name: str
+    params: dict[str, object] = Field(default_factory=dict)
+    status: str = "pending"
+    expires_at: str | None = None
+
+
+class IncidentResponse(BaseModel):
+    incident_id: str
+    kind: str
+    namespace: str
+    name: str
+    evidence: str | None = None
+    answer: str | None = None
+    action_ids: list[str] = Field(default_factory=list)
+    proposed_actions: list[ProposedActionResponse] = Field(default_factory=list)
+    actions: list[IncidentActionSummaryResponse] = Field(default_factory=list)
+    source: str | None = None
+    notification_status: str | None = None
 
 
 app = FastAPI()
 
 
-@app.get("/healthz")
-async def healthz() -> dict[str, str]:
+@app.get("/healthz", response_model=HealthResponse)
+async def healthz() -> HealthResponse:
     return {"status": "ok"}
 
 
-@app.post("/investigate")
-async def investigate(request: InvestigateRequest) -> dict[str, object]:
+@app.post("/investigate", response_model=IncidentResponse)
+async def investigate(request: InvestigateRequest) -> IncidentResponse:
     if not all([request.kind, request.namespace, request.name]):
         raise HTTPException(status_code=400, detail="kind, namespace, and name are required")
     log_event("http_investigate_received", kind=request.kind, namespace=request.namespace, name=request.name)
@@ -68,8 +107,8 @@ def _resolve_alert_target(payload: AlertmanagerWebhook) -> tuple[str, str, str]:
     raise HTTPException(status_code=400, detail="could not resolve alert target from labels")
 
 
-@app.post("/webhooks/alertmanager")
-async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, object]:
+@app.post("/webhooks/alertmanager", response_model=IncidentResponse)
+async def alertmanager_webhook(payload: AlertmanagerWebhook) -> IncidentResponse:
     kind, namespace, name = _resolve_alert_target(payload)
     log_event("alertmanager_webhook_received", kind=kind, namespace=namespace, name=name)
     result = await investigate_target(kind, namespace, name, emit_progress=False)
@@ -82,8 +121,8 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, object
     return incident
 
 
-@app.get("/incidents/{incident_id}")
-async def read_incident(incident_id: str) -> dict[str, object]:
+@app.get("/incidents/{incident_id}", response_model=IncidentResponse)
+async def read_incident(incident_id: str) -> IncidentResponse:
     incident = get_incident(incident_id)
     if incident is None:
         raise HTTPException(status_code=404, detail="incident not found")

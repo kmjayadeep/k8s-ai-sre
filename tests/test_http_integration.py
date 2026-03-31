@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import app.stores.actions as action_store
 import app.stores.incidents as incident_store
-from app.http import AlertmanagerWebhook, InvestigateRequest, alertmanager_webhook, investigate, read_incident
+from app.http import AlertmanagerAlert, AlertmanagerWebhook, InvestigateRequest, alertmanager_webhook, investigate, read_incident
 
 
 class HttpIntegrationTests(unittest.TestCase):
@@ -62,3 +62,12 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual("alertmanager", body["source"])
         stored = run(read_incident(body["incident_id"]))
         self.assertEqual("alertmanager", stored["source"])
+
+    def test_alertmanager_webhook_defaults_are_isolated_per_instance(self) -> None:
+        first = AlertmanagerWebhook()
+        second = AlertmanagerWebhook()
+        first.alerts.append(AlertmanagerAlert(labels={"pod": "p1"}))
+        first.commonLabels["namespace"] = "ns1"
+
+        self.assertEqual([], second.alerts)
+        self.assertEqual({}, second.commonLabels)

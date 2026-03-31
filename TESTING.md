@@ -31,6 +31,12 @@ Start the service:
 uv run main.py
 ```
 
+Check service health:
+
+```bash
+curl http://127.0.0.1:8080/healthz
+```
+
 Trigger an investigation:
 
 ```bash
@@ -41,6 +47,7 @@ curl -X POST http://127.0.0.1:8080/investigate \
 
 What to verify:
 
+- `/healthz` returns `{"status":"ok"}`
 - the response includes `incident_id`
 - the response includes `answer`
 - the response includes `action_ids` and `proposed_actions` when the model used proposal tools
