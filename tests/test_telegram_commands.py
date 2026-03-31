@@ -35,3 +35,19 @@ class TelegramCommandParsingTests(unittest.TestCase):
         self.assertIs(thread, fake_thread)
         thread_cls.assert_called_once()
         fake_thread.start.assert_called_once()
+
+    def test_approve_command_requires_action_id(self) -> None:
+        reply = telegram._handle_command("/approve")
+
+        self.assertEqual("Usage: /approve <action-id>", reply)
+
+    def test_incident_command_rejects_extra_arguments(self) -> None:
+        reply = telegram._handle_command("/incident abc def")
+
+        self.assertEqual("Usage: /incident <incident-id>", reply)
+
+    def test_unknown_command_returns_operator_help(self) -> None:
+        reply = telegram._handle_command("/foobar")
+
+        self.assertIn("Unknown command: /foobar", reply)
+        self.assertIn("/incident <incident-id>", reply)

@@ -127,6 +127,7 @@ Supported commands:
 - `/reject <action-id>`
 
 The server starts the Telegram polling loop automatically when `TELEGRAM_BOT_TOKEN` is configured.
+Missing or malformed command arguments now return explicit usage messages in chat.
 
 ## Guarded Actions
 

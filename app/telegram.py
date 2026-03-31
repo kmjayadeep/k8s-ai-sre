@@ -12,6 +12,7 @@ from app.stores import get_incident, is_action_expired, list_actions_for_inciden
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
+COMMAND_HELP = "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
 
 
 def _telegram_token() -> str | None:
@@ -124,31 +125,44 @@ def _format_action_line(action: dict[str, object]) -> str:
 
 
 def _handle_command(text: str) -> str:
-    parts = text.strip().split(maxsplit=1)
+    parts = text.strip().split()
     command = parts[0] if parts else ""
     if "@" in command:
         command = command.split("@", 1)[0]
-    argument = parts[1] if len(parts) > 1 else ""
+    args = parts[1:]
 
-    if command == "/incident" and argument:
-        incident = get_incident(argument)
+    if command == "/incident":
+        if len(args) != 1:
+            return "Usage: /incident <incident-id>"
+        incident_id = args[0]
+        incident = get_incident(incident_id)
         if incident is None:
-            return f"Incident {argument} not found."
+            return f"Incident {incident_id} not found."
         return _format_incident(incident)
 
-    if command == "/status" and argument:
-        incident = get_incident(argument)
+    if command == "/status":
+        if len(args) != 1:
+            return "Usage: /status <incident-id>"
+        incident_id = args[0]
+        incident = get_incident(incident_id)
         if incident is None:
-            return f"Incident {argument} not found."
+            return f"Incident {incident_id} not found."
         return _format_status(incident)
 
-    if command == "/approve" and argument:
-        return approve_action(argument)
+    if command == "/approve":
+        if len(args) != 1:
+            return "Usage: /approve <action-id>"
+        return approve_action(args[0])
 
-    if command == "/reject" and argument:
-        return reject_action(argument)
+    if command == "/reject":
+        if len(args) != 1:
+            return "Usage: /reject <action-id>"
+        return reject_action(args[0])
 
-    return "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
+    if command.startswith("/"):
+        return f"Unknown command: {command}\n{COMMAND_HELP}"
+
+    return COMMAND_HELP
 
 
 def poll_telegram_updates_once() -> str:
