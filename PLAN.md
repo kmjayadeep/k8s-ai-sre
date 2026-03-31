@@ -2,202 +2,146 @@
 
 ## Goal
 
-Finish the project as a working end-to-end AI Kubernetes SRE flow:
+Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with guarded remediation:
 
-1. Alert arrives.
-2. Agent investigates with real cluster evidence.
-3. Agent proposes guarded remediation actions as pending approvals.
-4. User approves or rejects from Telegram.
-5. Approved action executes through the existing guardrails.
+1. an alert or manual API request targets a resource
+2. the agent investigates with real cluster evidence
+3. the agent creates pending remediation proposals when justified
+4. Telegram is used to review and approve or reject those proposals
+5. approved actions execute through namespace and approval guardrails
 
-## Current Status
+## Current State
 
-### Already Done
+### Implemented
 
-- Real `kubectl`-backed Kubernetes reads are in place.
-- Generic resource lookup works for built-ins and CRD-shaped access patterns.
-- Evidence collection includes resource details, events, workload pods, logs, and optional Prometheus data.
-- The agent synthesizes evidence into an investigation answer.
-- Guarded write actions exist for `delete-pod`, `rollout-restart`, `scale`, and `rollout-undo`.
-- Local action approval storage exists with expiry handling.
-- FastAPI service exists with `/healthz`, `/investigate`, `/webhooks/alertmanager`, and `/incidents/{id}`.
-- Alertmanager webhooks trigger investigations.
-- Incident state is persisted in a local JSON store.
-- Telegram notifications are sent for incidents.
-- Telegram supports `/incident`, `/status`, `/approve`, and `/reject`.
-- Write namespaces and allowed Telegram chat IDs can be restricted.
-- Structured logging is in place.
-- Container build, GHCR publishing, and Kubernetes deployment manifests are in place.
+- FastAPI is the primary interface.
+- Telegram runs as a complementary operator interface.
+- `main.py` starts the HTTP service directly.
+- the service starts a real Telegram polling loop when Telegram is configured
+- investigations use real `kubectl` reads
+- evidence includes resource state, events, logs, workload pod lookup, and optional Prometheus queries
+- the agent can call proposal tools for `delete-pod`, `rollout-restart`, `scale`, and `rollout-undo`
+- proposed actions are stored with `action_ids` and `proposed_actions`
+- incidents are persisted in a local JSON store
+- actions are persisted in a local JSON store with expiry handling
+- Telegram notifications include proposed action IDs and approval commands
+- Telegram supports `/incident`, `/status`, `/approve`, and `/reject`
+- approved actions execute through guarded action helpers
+- write namespaces are constrained with `WRITE_ALLOWED_NAMESPACES`
+- allowed Telegram chats are constrained with `TELEGRAM_ALLOWED_CHAT_IDS`
+- structured logging is in place
+- the container image, GHCR publishing flow, and Kubernetes manifests exist
+- unit and integration tests exist for actions, incident persistence, HTTP routes, and Telegram command handling
 
-### Not Done Yet
+### Recent Fixes Reflected In Code
 
-- The agent cannot create pending actions itself.
-- Proposed actions are only plain text in the investigation answer.
-- Incidents do not store structured action proposals.
-- Telegram notifications do not include agent-generated action IDs.
-- Telegram approval only works for actions created manually through the CLI.
-- The full alert -> investigate -> propose -> notify -> approve -> execute loop is not complete.
+- model selection is configurable through environment variables in `model_factory.py`
+- FastAPI response typing now accepts structured incident payloads
+- Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
+- the testing-only CLI command surface has been removed
 
-## Design Rules
+## What Still Needs Real Validation
 
-- Keep the model read-only with respect to execution.
-- Give the model proposal tools, not execution tools.
-- Keep approval and execution outside the model.
-- Prefer generic Kubernetes resource access where possible.
-- Keep each new step locally testable before moving on.
+These are code-complete or mostly code-complete, but still need live proof:
 
-## Next Steps
+- full alert -> investigate -> propose -> notify -> approve -> execute flow in a real cluster
+- Telegram polling and approval behavior in the deployed pod, not just locally
+- model behavior on real incidents: whether it proposes the expected actions consistently
+- write RBAC coverage for the currently supported guarded actions in-cluster
 
-### 1. Refactor File Structure
+## Highest-Value Next Steps
 
-- Reduce the current ad hoc module layout into clearer boundaries such as:
-  - `app/investigate.py`
-  - `app/actions.py`
-  - `app/store.py`
-  - `app/telegram.py`
-  - `app/http.py`
-  - `app/tools/k8s.py`
-  - `app/tools/actions.py`
-- Keep the refactor small and mechanical.
+### 1. Run One Real End-To-End Validation
 
-Goal:
-- make the codebase easier to navigate before adding more features
-
-### 2. Refactor CLI Logic
-
-- Move CLI argument handling out of `main.py`.
-- Decide whether the manual CLI action commands should remain.
-- Once tests cover the behavior, consider removing most of the manual CLI approval commands if they are no longer needed.
+- deploy the current service to a dev or kind cluster
+- send a real Alertmanager-style payload
+- confirm the agent creates at least one pending action
+- confirm Telegram receives the incident with action IDs
+- approve from Telegram
+- confirm the action executes and the cluster state changes as expected
 
 Goal:
-- stop using `main.py` as the central control plane
+- prove the product loop works outside tests and local mocks
 
-### 3. Add Agent Proposal Tools
+### 2. Tighten The HTTP And Telegram Contract
 
-- Add tool functions for:
-  - `propose_delete_pod(namespace, pod_name)`
-  - `propose_rollout_restart(namespace, deployment_name)`
-  - `propose_scale(namespace, deployment_name, replicas)`
-  - `propose_rollout_undo(namespace, deployment_name)`
-- Each tool should create a pending action in `action_store.py`.
-- Each tool should return structured approval details:
-  - action ID
-  - target
-  - params
-  - expiry
-  - approval and rejection commands
+- add explicit response models for incidents and health responses
+- normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
+- make Telegram error replies more operator-friendly
 
 Goal:
-- let the LLM propose real guarded actions without executing them
+- reduce ambiguity in service behavior and make future refactors safer
 
-### 4. Update Agent Prompt And Result Contract
+### 3. Replace Ad Hoc Persistence With A Clear Store Layer
 
-- Change the prompt so the agent investigates first and proposes actions through tools when justified.
-- Stop relying on plain-text “Proposed actions” only.
-- Make the final answer reference concrete action IDs when proposals exist.
-
-Goal:
-- make the LLM output actionable and traceable
-
-### 5. Persist Structured Proposed Actions In Incidents
-
-- Extend incident records with:
-  - `proposed_actions`
-  - `action_ids`
-- Tie each created action to an `incident_id`.
+- keep the current JSON stores for local development
+- define a cleaner abstraction for incidents and actions
+- prepare for a future Redis or database-backed implementation if needed
 
 Goal:
-- allow later retrieval and approval from incident context
+- make persistence easier to reason about and easier to replace
 
-### 6. Improve Telegram Incident Notifications
+### 4. Strengthen Runtime Safety
 
-- Include proposed action IDs in the initial Telegram message.
-- Include approval instructions in the message.
-- Keep the message concise and operator-friendly.
-
-Goal:
-- make the operator able to act directly from the incident notification
-
-### 7. Improve Telegram Incident Views
-
-- Update `/incident <id>` and `/status <id>` to show pending actions tied to the incident.
-- Make approval and rejection messages include the originating incident when available.
+- add explicit action failure states and operator-facing error formatting where missing
+- verify write actions fail closed in all unsupported cases
+- review whether `scale` and `rollout-undo` need additional target validation
 
 Goal:
-- make Telegram the real approval surface for agent-proposed actions
+- make the action path operationally safer before broader usage
 
-### 8. Verify The Full End-To-End Flow
+### 5. Improve Deployment Readiness
 
-- Trigger a sample Alertmanager webhook.
-- Confirm the investigation runs.
-- Confirm the agent creates at least one pending action through a proposal tool.
-- Confirm the incident record stores the proposed action.
-- Confirm Telegram notification includes the action ID.
-- Approve the action from Telegram.
-- Confirm the action executes and status updates correctly.
+- verify secret configuration and env docs against the current deployment manifests
+- consider dedicated config for Telegram polling knobs
+- verify probe behavior and startup timing in-cluster
 
 Goal:
-- prove the core product loop actually works
+- reduce surprises when the service is deployed as a long-running pod
 
-## Cleanup And Hardening After The Core Loop Works
+## Medium-Term Cleanup
 
-### 9. Add Tests
+### 6. Introduce Typed Models For Incidents And Actions
 
-- Add unit tests for:
-  - action proposal creation
-  - incident persistence with action IDs
-  - Telegram command formatting
-  - approval and expiry behavior
-- Add HTTP tests for:
-  - `/investigate`
-  - `/webhooks/alertmanager`
-  - `/incidents/{id}`
+- replace loosely typed dict payloads with explicit Pydantic models or dataclasses
+- use those models across HTTP, Telegram, store, and notifier paths
 
 Goal:
-- cover the core control flow before more refactors
+- reduce bugs caused by payload-shape drift
 
-### 10. Add Integration Tests
+### 7. Refine The File Layout Further
 
-- Add integration-style tests around:
-  - alert ingestion
-  - investigation result persistence
-  - Telegram message formatting
-  - action approval flow
-- Mock `kubectl`, Telegram API, and model calls where needed.
+- keep the current `app/` structure
+- consider pulling incident formatting, Telegram message formatting, and response shaping into smaller dedicated modules
 
 Goal:
-- verify module interaction, not just isolated functions
+- make the codebase easier to review as the service grows
 
-### 11. Run A Real Full End-To-End Test
+### 8. Expand Test Coverage Around Live Edge Cases
 
-- Use kind.
-- Deploy the app.
-- Send a real webhook payload.
-- Confirm Telegram notification.
-- Approve from Telegram.
-- Confirm the Kubernetes action runs.
+- add tests for long-poll timeout configuration
+- add tests for action execution failures and retry-safe approval behavior
+- add tests for unauthorized Telegram chats and expired actions in the service path
 
 Goal:
-- validate production-like behavior, not just local mocks
+- cover the failure modes most likely to break operator trust
 
-### 12. Rewrite `TESTING.md`
+## Documentation Work
 
-- Replace the long historical checklist with a few short, current examples:
-  - local investigation
-  - local server + webhook
-  - Telegram approval flow
-  - in-cluster deploy smoke test
+### 9. Keep `TESTING.md` Current
 
-Goal:
-- make testing instructions usable by humans
-
-### 13. Rewrite `README.md`
-
-- Add a short project overview.
-- Add a quick start for new users.
-- Add a minimal local run path.
-- Add a minimal kind deploy path.
-- Link to `TESTING.md` for deeper verification instead of duplicating too much detail.
+- keep it short
+- keep it focused on the current service-first flow
+- avoid reintroducing historical CLI workflows
 
 Goal:
-- make the repo understandable to a new reader in a few minutes
+- make validation instructions match the actual product shape
+
+### 10. Keep `README.md` Aligned With Runtime Reality
+
+- keep FastAPI as the primary interface in the docs
+- keep Telegram documented as a complementary interface
+- keep the architecture diagram updated when core component flow changes
+
+Goal:
+- ensure new readers understand the current architecture without reading the whole codebase
