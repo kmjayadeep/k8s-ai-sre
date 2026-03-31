@@ -166,6 +166,7 @@ def poll_telegram_updates_once() -> str:
         chat_id = str(chat.get("id", ""))
         allowed_chat_ids = _allowed_chat_ids()
         if allowed_chat_ids and chat_id not in allowed_chat_ids:
+            log_event("telegram_command_ignored_unauthorized", chat_id=chat_id, text=text)
             continue
         if not chat_id or not text.startswith("/"):
             continue
