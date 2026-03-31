@@ -27,6 +27,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram notifications include proposed action IDs and approval commands
 - Telegram supports `/incident`, `/status`, `/approve`, and `/reject`
 - approved actions execute through guarded action helpers
+- action lifecycle transitions are now guarded so non-pending actions cannot be rejected and expired approvals/rejections fail closed
 - write namespaces are constrained with `WRITE_ALLOWED_NAMESPACES`
 - allowed Telegram chats are constrained with `TELEGRAM_ALLOWED_CHAT_IDS`
 - structured logging is in place
@@ -39,6 +40,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - FastAPI response typing now accepts structured incident payloads
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
+- reject handling now preserves terminal action states and marks expired actions consistently
 
 ## What Still Needs Real Validation
 
@@ -83,7 +85,7 @@ Goal:
 
 ### 4. Strengthen Runtime Safety
 
-- add explicit action failure states and operator-facing error formatting where missing
+- improve operator-facing error formatting consistency between HTTP and Telegram responses
 - verify write actions fail closed in all unsupported cases
 - review whether `scale` and `rollout-undo` need additional target validation
 

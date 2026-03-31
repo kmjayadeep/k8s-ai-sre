@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -51,3 +52,26 @@ class ActionServiceTests(unittest.TestCase):
         self.assertIn('pod "crashy" deleted', result)
         stored = action_store.get_action(action["id"])
         self.assertEqual("approved", stored["status"])
+
+    def test_reject_action_does_not_override_non_pending_state(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        action_store.update_action_status(action["id"], "approved")
+
+        result = action_service.reject_action(action["id"])
+
+        self.assertIn(f"Action {action['id']} is already approved.", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("approved", stored["status"])
+
+    def test_reject_action_marks_expired_when_action_is_expired(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        action_store.update_action(
+            action["id"],
+            {"expires_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()},
+        )
+
+        result = action_service.reject_action(action["id"])
+
+        self.assertIn(f"Action {action['id']} has expired.", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("expired", stored["status"])
