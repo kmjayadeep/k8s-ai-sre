@@ -41,6 +41,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
+- approval now fails closed when action execution raises unexpectedly, and transitions action status to `failed`
 
 ## What Still Needs Real Validation
 
@@ -86,7 +87,6 @@ Goal:
 ### 4. Strengthen Runtime Safety
 
 - improve operator-facing error formatting consistency between HTTP and Telegram responses
-- verify write actions fail closed in all unsupported cases
 - review whether `scale` and `rollout-undo` need additional target validation
 
 Goal:
