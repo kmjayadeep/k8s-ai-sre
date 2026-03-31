@@ -119,6 +119,16 @@ export TELEGRAM_ALLOWED_CHAT_IDS=...
 export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
 ```
 
+Optional Telegram polling knobs:
+
+```bash
+export TELEGRAM_POLL_ENABLED=true
+export TELEGRAM_POLL_TIMEOUT_SECONDS=30
+export TELEGRAM_HTTP_TIMEOUT_SECONDS=35
+export TELEGRAM_POLL_INTERVAL_SECONDS=1
+export TELEGRAM_POLL_BACKOFF_SECONDS=5
+```
+
 Supported commands:
 
 - `/incident <incident-id>`
@@ -160,6 +170,11 @@ kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
   --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
   --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" \
   --from-literal=TELEGRAM_ALLOWED_CHAT_IDS="$TELEGRAM_ALLOWED_CHAT_IDS" \
+  --from-literal=TELEGRAM_POLL_ENABLED="${TELEGRAM_POLL_ENABLED:-true}" \
+  --from-literal=TELEGRAM_POLL_TIMEOUT_SECONDS="${TELEGRAM_POLL_TIMEOUT_SECONDS:-30}" \
+  --from-literal=TELEGRAM_HTTP_TIMEOUT_SECONDS="${TELEGRAM_HTTP_TIMEOUT_SECONDS:-35}" \
+  --from-literal=TELEGRAM_POLL_INTERVAL_SECONDS="${TELEGRAM_POLL_INTERVAL_SECONDS:-1}" \
+  --from-literal=TELEGRAM_POLL_BACKOFF_SECONDS="${TELEGRAM_POLL_BACKOFF_SECONDS:-5}" \
   --from-literal=WRITE_ALLOWED_NAMESPACES="$WRITE_ALLOWED_NAMESPACES" \
   --dry-run=client -o yaml | kubectl apply -f -
 ```

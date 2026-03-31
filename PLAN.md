@@ -39,6 +39,8 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - model selection is configurable through environment variables in `model_factory.py`
 - FastAPI response typing now accepts structured incident payloads
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
+- deployment manifest now includes a startup probe so startup latency does not trigger liveness restarts prematurely
+- deployment docs now include Telegram polling configuration knobs in both runtime env guidance and Kubernetes secret setup
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
 
@@ -95,7 +97,6 @@ Goal:
 ### 5. Improve Deployment Readiness
 
 - verify secret configuration and env docs against the current deployment manifests
-- consider dedicated config for Telegram polling knobs
 - verify probe behavior and startup timing in-cluster
 
 Goal:
