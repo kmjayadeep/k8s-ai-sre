@@ -138,6 +138,7 @@ The current guarded actions are:
 - `rollout-undo`
 
 They are namespace-restricted through `WRITE_ALLOWED_NAMESPACES` and require explicit approval before execution.
+`rollout-undo` validates that the deployment target is readable before attempting rollback.
 
 ## Deployment
 

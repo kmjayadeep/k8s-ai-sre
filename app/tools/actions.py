@@ -70,6 +70,13 @@ def rollout_undo_deployment(namespace: str, deployment_name: str, confirm: bool)
     if not confirm:
         return f"Refusing to undo deployment {deployment_name} in namespace {namespace} without explicit approval."
 
+    target_ok, target_output = _run_kubectl(["kubectl", "get", "deployment", deployment_name, "-n", namespace])
+    if not target_ok:
+        return (
+            f"Refusing to undo deployment {deployment_name} in namespace {namespace}: "
+            f"target deployment is not readable or does not exist ({target_output})."
+        )
+
     ok, output = _run_kubectl(["kubectl", "rollout", "undo", f"deployment/{deployment_name}", "-n", namespace])
     if not ok:
         return f"Failed to undo deployment {deployment_name} in namespace {namespace}: {output}"
