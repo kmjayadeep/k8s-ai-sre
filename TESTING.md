@@ -102,6 +102,7 @@ What to verify:
 - incident messages show action IDs when proposals exist
 - `/approve` executes the guarded action
 - `/reject` updates the action state without execution
+- `/reject` does not overwrite already approved, failed, or expired actions
 
 ## Example 4: Kind End-To-End Exercise
 

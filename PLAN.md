@@ -42,6 +42,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - Telegram incident and status views now show live action state instead of stale proposal snapshots
 - incident payloads now keep current action summaries in sync as actions are attached, approved, rejected, or fail
+- reject commands now only apply to pending actions and preserve terminal action states
 - the testing-only CLI command surface has been removed
 
 ## What Still Needs Real Validation
@@ -76,15 +77,7 @@ Goal:
 Goal:
 - reduce ambiguity in service behavior and make future refactors safer
 
-### 3. Add CI Test Coverage
-
-- add a workflow that runs the unit and integration test suite on pull requests and pushes
-- keep the existing container publishing workflow separate from test verification
-
-Goal:
-- catch regressions in the approval loop before image publication
-
-### 4. Replace Ad Hoc Persistence With A Clear Store Layer
+### 3. Replace Ad Hoc Persistence With A Clear Store Layer
 
 - keep the current JSON stores for local development
 - define a cleaner abstraction for incidents and actions
@@ -93,16 +86,17 @@ Goal:
 Goal:
 - make persistence easier to reason about and easier to replace
 
-### 5. Strengthen Runtime Safety
+### 4. Strengthen Runtime Safety
 
 - add explicit action failure states and operator-facing error formatting where missing
 - verify write actions fail closed in all unsupported cases
 - review whether `scale` and `rollout-undo` need additional target validation
+- keep reject/approve semantics idempotent for non-pending actions
 
 Goal:
 - make the action path operationally safer before broader usage
 
-### 6. Improve Deployment Readiness
+### 5. Improve Deployment Readiness
 
 - verify secret configuration and env docs against the current deployment manifests
 - consider dedicated config for Telegram polling knobs
@@ -113,7 +107,7 @@ Goal:
 
 ## Medium-Term Cleanup
 
-### 7. Introduce Typed Models For Incidents And Actions
+### 6. Introduce Typed Models For Incidents And Actions
 
 - replace loosely typed dict payloads with explicit Pydantic models or dataclasses
 - use those models across HTTP, Telegram, store, and notifier paths
@@ -121,7 +115,7 @@ Goal:
 Goal:
 - reduce bugs caused by payload-shape drift
 
-### 8. Refine The File Layout Further
+### 7. Refine The File Layout Further
 
 - keep the current `app/` structure
 - consider pulling incident formatting, Telegram message formatting, and response shaping into smaller dedicated modules
@@ -129,7 +123,7 @@ Goal:
 Goal:
 - make the codebase easier to review as the service grows
 
-### 9. Expand Test Coverage Around Live Edge Cases
+### 8. Expand Test Coverage Around Live Edge Cases
 
 - add tests for long-poll timeout configuration
 - add tests for action execution failures and retry-safe approval behavior

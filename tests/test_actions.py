@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -78,3 +79,32 @@ class ActionServiceTests(unittest.TestCase):
         self.assertIn("Rejected action", result)
         synced_incident = incident_store.get_incident(incident["incident_id"])
         self.assertEqual("rejected", synced_incident["actions"][0]["status"])
+
+    def test_reject_action_does_not_override_approved_status(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        incident = incident_store.create_incident({"kind": "pod", "namespace": "ai-sre-demo", "name": "crashy"})
+        action_service.attach_actions_to_incident([action["id"]], incident["incident_id"])
+        with patch("app.actions.delete_pod", return_value='pod "crashy" deleted'):
+            action_service.approve_action(action["id"])
+
+        result = action_service.reject_action(action["id"])
+
+        self.assertIn("already approved", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("approved", stored["status"])
+        synced_incident = incident_store.get_incident(incident["incident_id"])
+        self.assertEqual("approved", synced_incident["actions"][0]["status"])
+
+    def test_reject_action_marks_expired_when_action_expired(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        incident = incident_store.create_incident({"kind": "pod", "namespace": "ai-sre-demo", "name": "crashy"})
+        action_service.attach_actions_to_incident([action["id"]], incident["incident_id"])
+        action_store.update_action(action["id"], {"expires_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()})
+
+        result = action_service.reject_action(action["id"])
+
+        self.assertIn("has expired", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("expired", stored["status"])
+        synced_incident = incident_store.get_incident(incident["incident_id"])
+        self.assertEqual("expired", synced_incident["actions"][0]["status"])

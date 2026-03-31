@@ -138,6 +138,7 @@ The current guarded actions are:
 - `rollout-undo`
 
 They are namespace-restricted through `WRITE_ALLOWED_NAMESPACES` and require explicit approval before execution.
+Action state transitions are guarded: approve/reject commands only apply to pending actions, and terminal states are preserved.
 
 ## Deployment
 
