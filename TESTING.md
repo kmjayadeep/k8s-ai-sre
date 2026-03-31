@@ -102,6 +102,7 @@ What to verify:
 - incident messages show action IDs when proposals exist
 - `/approve` executes the guarded action
 - `/reject` updates the action state without execution
+- missing command arguments return explicit `Usage: ...` replies (for example `/approve` without an action ID)
 
 ## Example 4: Kind End-To-End Exercise
 

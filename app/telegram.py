@@ -85,6 +85,10 @@ def _format_status(incident: dict[str, object]) -> str:
     )
 
 
+def _usage(command: str, argument: str) -> str:
+    return f"Usage: {command} <{argument}>"
+
+
 def _handle_command(text: str) -> str:
     parts = text.strip().split(maxsplit=1)
     command = parts[0] if parts else ""
@@ -92,22 +96,30 @@ def _handle_command(text: str) -> str:
         command = command.split("@", 1)[0]
     argument = parts[1] if len(parts) > 1 else ""
 
-    if command == "/incident" and argument:
+    if command == "/incident":
+        if not argument:
+            return _usage("/incident", "incident-id")
         incident = get_incident(argument)
         if incident is None:
             return f"Incident {argument} not found."
         return _format_incident(incident)
 
-    if command == "/status" and argument:
+    if command == "/status":
+        if not argument:
+            return _usage("/status", "incident-id")
         incident = get_incident(argument)
         if incident is None:
             return f"Incident {argument} not found."
         return _format_status(incident)
 
-    if command == "/approve" and argument:
+    if command == "/approve":
+        if not argument:
+            return _usage("/approve", "action-id")
         return approve_action(argument)
 
-    if command == "/reject" and argument:
+    if command == "/reject":
+        if not argument:
+            return _usage("/reject", "action-id")
         return reject_action(argument)
 
     return "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
@@ -145,6 +157,7 @@ def poll_telegram_updates_once() -> str:
         chat_id = str(chat.get("id", ""))
         allowed_chat_ids = _allowed_chat_ids()
         if allowed_chat_ids and chat_id not in allowed_chat_ids:
+            log_event("telegram_command_ignored_unauthorized", chat_id=chat_id, text=text)
             continue
         if not chat_id or not text.startswith("/"):
             continue
@@ -153,7 +166,7 @@ def poll_telegram_updates_once() -> str:
             reply = _handle_command(text)
         except Exception as exc:
             log_event("telegram_command_failed", chat_id=chat_id, text=text, error=str(exc))
-            reply = f"Command failed: {exc}"
+            reply = f"Command failed for {text}: {exc}"
         _send_message(chat_id, reply)
         handled += 1
 
