@@ -30,6 +30,28 @@ class IncidentStoreTests(unittest.TestCase):
         stored = incident_store.get_incident(incident["incident_id"])
         self.assertEqual(["abc12345"], stored["action_ids"])
         self.assertEqual("rollout-restart", stored["proposed_actions"][0]["action_type"])
+        self.assertEqual("pending", stored["actions"][0]["status"])
+
+    def test_update_incident_persists_action_summaries(self) -> None:
+        incident = incident_store.create_incident({"kind": "pod", "namespace": "ai-sre-demo", "name": "crashy"})
+
+        incident_store.update_incident(
+            incident["incident_id"],
+            {
+                "actions": [
+                    {
+                        "action_id": "abc12345",
+                        "action_type": "delete-pod",
+                        "namespace": "ai-sre-demo",
+                        "name": "crashy",
+                        "status": "approved",
+                    }
+                ]
+            },
+        )
+
+        stored = incident_store.get_incident(incident["incident_id"])
+        self.assertEqual("approved", stored["actions"][0]["status"])
 
     def test_update_incident_persists_notification_status(self) -> None:
         incident = incident_store.create_incident({"kind": "pod", "namespace": "ai-sre-demo", "name": "crashy"})

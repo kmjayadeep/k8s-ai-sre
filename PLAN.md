@@ -23,6 +23,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - the agent can call proposal tools for `delete-pod`, `rollout-restart`, `scale`, and `rollout-undo`
 - proposed actions are stored with `action_ids` and `proposed_actions`
 - incidents are persisted in a local JSON store
+- incidents now persist an `actions` summary with current action state
 - actions are persisted in a local JSON store with expiry handling
 - Telegram notifications include proposed action IDs and approval commands
 - Telegram supports `/incident`, `/status`, `/approve`, and `/reject`
@@ -40,6 +41,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - FastAPI response typing now accepts structured incident payloads
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - Telegram incident and status views now show live action state instead of stale proposal snapshots
+- incident payloads now keep current action summaries in sync as actions are attached, approved, rejected, or fail
 - the testing-only CLI command surface has been removed
 
 ## What Still Needs Real Validation
@@ -69,7 +71,6 @@ Goal:
 
 - add explicit response models for incidents and health responses
 - normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
-- persist current action state back into the incident payload, not only the action store
 - make Telegram error replies more operator-friendly
 
 Goal:

@@ -40,7 +40,7 @@ async def investigate(request: InvestigateRequest) -> dict[str, object]:
     log_event("http_investigate_received", kind=request.kind, namespace=request.namespace, name=request.name)
     result = await investigate_target(request.kind, request.namespace, request.name, emit_progress=False)
     incident = create_incident(result)
-    attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"])
+    incident = attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"]) or incident
     incident["notification_status"] = send_telegram_notification(incident)
     update_incident(incident["incident_id"], {"notification_status": incident["notification_status"]})
     log_event(
@@ -75,7 +75,7 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, object
     result = await investigate_target(kind, namespace, name, emit_progress=False)
     result["source"] = "alertmanager"
     incident = create_incident(result)
-    attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"])
+    incident = attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"]) or incident
     incident["notification_status"] = send_telegram_notification(incident)
     update_incident(incident["incident_id"], {"source": "alertmanager", "notification_status": incident["notification_status"]})
     log_event("alertmanager_webhook_completed", incident_id=incident["incident_id"], kind=kind, namespace=namespace, name=name)

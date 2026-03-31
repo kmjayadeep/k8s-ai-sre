@@ -36,8 +36,10 @@ class HttpIntegrationTests(unittest.TestCase):
                 body = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy")))
 
         self.assertEqual("Telegram notification sent.", body["notification_status"])
+        self.assertEqual("pending", body["actions"][0]["status"])
         stored = run(read_incident(body["incident_id"]))
         self.assertEqual(["abc12345"], stored["action_ids"])
+        self.assertEqual("pending", stored["actions"][0]["status"])
         self.assertEqual("Telegram notification sent.", stored["notification_status"])
 
     def test_alertmanager_webhook_resolves_target_and_persists_source(self) -> None:

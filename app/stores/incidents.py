@@ -6,6 +6,29 @@ from uuid import uuid4
 INCIDENT_STORE_PATH = Path("/tmp/k8s-ai-sre-incidents.json")
 
 
+def _initial_actions(payload: dict[str, object]) -> list[dict[str, object]]:
+    proposed_actions = payload.get("proposed_actions", [])
+    if not isinstance(proposed_actions, list):
+        return []
+
+    actions: list[dict[str, object]] = []
+    for action in proposed_actions:
+        if not isinstance(action, dict):
+            continue
+        actions.append(
+            {
+                "action_id": action.get("action_id", "unknown"),
+                "action_type": action.get("action_type", "unknown"),
+                "namespace": action.get("namespace", "unknown"),
+                "name": action.get("name", "unknown"),
+                "params": action.get("params", {}),
+                "status": "pending",
+                "expires_at": action.get("expires_at"),
+            }
+        )
+    return actions
+
+
 def _load_incidents() -> dict[str, dict[str, object]]:
     if not INCIDENT_STORE_PATH.exists():
         return {}
@@ -20,6 +43,8 @@ def create_incident(payload: dict[str, object]) -> dict[str, object]:
     incidents = _load_incidents()
     incident_id = uuid4().hex[:10]
     record = {"incident_id": incident_id, **payload}
+    if "actions" not in record:
+        record["actions"] = _initial_actions(record)
     incidents[incident_id] = record
     _save_incidents(incidents)
     return record
