@@ -147,3 +147,26 @@ Goal:
 
 Goal:
 - ensure new readers understand the current architecture without reading the whole codebase
+
+## Merge Queue Execution Snapshot (AIE-10)
+
+Context (2026-04-01):
+- [AIE-3] produced the merge-ready matrix and [AIE-10] is executing that queue in reviewable slices.
+- The queue is split between low-risk single-commit branches (reopened directly) and overlap-heavy branches (kept on consolidation PRs) to reduce duplicate review churn.
+
+Low-risk single-commit queue refreshed:
+- `task/alert-to-approve-loop-integration-test` -> PR #13 reopened
+- `task/deploy-readiness-probes-and-telegram-knobs` -> PR #16 reopened
+- `task/telegram-timeout-guardrails-and-tests` -> PR #17 reopened
+- `task/retry-safe-approval-behavior-tests` -> PR #18 reopened
+- `task/telegram-service-path-edge-coverage` -> PR #19 reopened
+- `task/fail-closed-approve-on-execution-exceptions` -> PR #20 reopened
+
+Handled via consolidation branches already in review:
+- HTTP/store normalization path remains on PR #26 (`quinn/aie-5-contract-consolidation`) instead of reopening overlapping historical PRs.
+- Runtime safety + target validation path remains on PR #27 (`quinn/aie-6-runtime-safety`) instead of reopening overlapping historical PRs.
+- Store abstraction remains on PR #28 (`quinn/aie-7-store-abstraction`).
+- Live e2e validation docs + blocker evidence remains on PR #25 (`quinn/aie-4-live-alert-approval`).
+
+Outstanding blocker outside AIE-10 queue:
+- AIE-9 CI workflow salvage commit is complete locally but push is blocked by missing workflow-scope token permission for `.github/workflows/*`.
