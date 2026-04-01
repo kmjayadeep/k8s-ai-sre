@@ -34,10 +34,10 @@ class HttpIntegrationTests(unittest.TestCase):
         }
         with patch("app.http.investigate_target", new=AsyncMock(return_value=result)):
             with patch("app.http.send_telegram_notification", return_value="Telegram notification sent."):
-                body = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy")))
+                body = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy"))).model_dump()
 
         self.assertEqual("Telegram notification sent.", body["notification_status"])
-        stored = run(read_incident(body["incident_id"]))
+        stored = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual(["abc12345"], stored["action_ids"])
         self.assertEqual("Telegram notification sent.", stored["notification_status"])
 
@@ -56,10 +56,10 @@ class HttpIntegrationTests(unittest.TestCase):
                     alertmanager_webhook(
                         AlertmanagerWebhook(commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"}, alerts=[])
                     )
-                )
+                ).model_dump()
 
         self.assertEqual("alertmanager", body["source"])
-        stored = run(read_incident(body["incident_id"]))
+        stored = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual("alertmanager", stored["source"])
     def test_alertmanager_to_approval_executes_linked_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
@@ -77,9 +77,9 @@ class HttpIntegrationTests(unittest.TestCase):
                     alertmanager_webhook(
                         AlertmanagerWebhook(commonLabels={"namespace": "ai-sre-demo", "pod": "crashy"}, alerts=[])
                     )
-                )
+                ).model_dump()
 
-        stored_incident = run(read_incident(body["incident_id"]))
+        stored_incident = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual([action["id"]], stored_incident["action_ids"])
         self.assertEqual("alertmanager", stored_incident["source"])
 
@@ -104,7 +104,7 @@ class HttpIntegrationTests(unittest.TestCase):
             }
         )
 
-        stored = run(read_incident(incident["incident_id"]))
+        stored = run(read_incident(incident["incident_id"])).model_dump()
         self.assertEqual("manual", stored["source"])
         self.assertEqual(["f314980d"], stored["action_ids"])
         self.assertEqual("/approve f314980d", stored["proposed_actions"][0]["approve_command"])
