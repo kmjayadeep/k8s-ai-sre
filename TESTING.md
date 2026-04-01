@@ -42,6 +42,7 @@ curl -X POST http://127.0.0.1:8080/investigate \
 What to verify:
 
 - the response includes `incident_id`
+- the response includes `source` (`manual` for `/investigate`, `alertmanager` for webhook flow)
 - the response includes `answer`
 - the response includes `action_ids` and `proposed_actions` when the model used proposal tools
 
@@ -64,6 +65,7 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
 What to verify:
 
 - the response includes `incident_id`
+- the response includes `source` with value `alertmanager`
 - the response includes `answer`
 - the response includes `action_ids` and `proposed_actions` when the model used proposal tools
 - the response includes `notification_status`
@@ -112,6 +114,7 @@ What to verify:
 - incident messages show action IDs when proposals exist
 - `/approve` executes the guarded action
 - `/reject` updates the action state without execution
+- missing command arguments return a clear usage hint (for example `/approve` -> `Usage: /approve <action-id>`)
 
 ## Example 4: Kind End-To-End Exercise
 

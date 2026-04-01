@@ -1,26 +1,32 @@
-import json
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
+from app.stores.backend import JsonFileKeyValueStore, KeyValueStore
+
 
 ACTION_STORE_PATH = Path("/tmp/k8s-ai-sre-actions.json")
+_action_store: KeyValueStore = JsonFileKeyValueStore(lambda: ACTION_STORE_PATH)
 
 
-def _load_actions() -> dict[str, dict]:
-    if not ACTION_STORE_PATH.exists():
-        return {}
-    return json.loads(ACTION_STORE_PATH.read_text(encoding="utf-8"))
+def set_action_store(store: KeyValueStore) -> None:
+    global _action_store
+    _action_store = store
 
 
-def _save_actions(actions: dict[str, dict]) -> None:
-    ACTION_STORE_PATH.write_text(json.dumps(actions, indent=2, sort_keys=True), encoding="utf-8")
+def _load_actions() -> dict[str, dict[str, object]]:
+    return _action_store.load()
 
 
-def create_action(action_type: str, namespace: str, name: str, params: dict | None = None) -> dict:
+def _save_actions(actions: dict[str, dict[str, object]]) -> None:
+    _action_store.save(actions)
+
+
+def create_action(action_type: str, namespace: str, name: str, params: Mapping[str, object] | None = None) -> dict[str, object]:
     actions = _load_actions()
     action_id = uuid4().hex[:8]
-    action = {
+    action: dict[str, object] = {
         "id": action_id,
         "type": action_type,
         "namespace": namespace,
