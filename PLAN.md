@@ -19,6 +19,7 @@ Implemented and validated:
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - action lifecycle safety checks (pending-only transitions, expiry handling, retry safety)
 - local JSON-backed incident/action persistence with store abstraction
+- read-only web incident inspector (`/` + `/incidents`) for operator inspection of past incidents
 - CI test workflow for PRs and `main`
 - in-cluster end-to-end validation of alert -> propose -> notify -> approve -> execute
 

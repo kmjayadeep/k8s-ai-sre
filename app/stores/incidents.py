@@ -117,6 +117,21 @@ def get_incident(incident_id: str) -> dict[str, object] | None:
     return normalized
 
 
+def list_incidents() -> list[dict[str, object]]:
+    incidents = _load_incidents()
+    normalized_records: dict[str, dict[str, object]] = {}
+    dirty = False
+    for incident_id, incident in incidents.items():
+        normalized = normalize_incident_payload(incident, incident_id=incident_id)
+        if normalized != incident:
+            incidents[incident_id] = normalized
+            dirty = True
+        normalized_records[incident_id] = normalized
+    if dirty:
+        _save_incidents(incidents)
+    return [normalized_records[incident_id] for incident_id in sorted(normalized_records.keys(), reverse=True)]
+
+
 def update_incident(incident_id: str, updates: dict[str, object]) -> dict[str, object] | None:
     incidents = _load_incidents()
     incident = incidents.get(incident_id)
