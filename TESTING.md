@@ -5,8 +5,8 @@ Use this file as the current runbook. It intentionally keeps only a few represen
 ## Prerequisites
 
 - a working kube context, ideally a local kind cluster
-- model credentials loaded in the shell
-- optional Telegram credentials if you want the chat flow
+- model credentials loaded in the shell (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
+- Telegram credentials loaded in the shell for approval flow (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
 
 Useful checks:
 
@@ -123,6 +123,7 @@ scripts/e2e_kind.sh
 
 It will:
 
+- fail fast if model or Telegram credentials are missing
 - apply the broken deployment scenario
 - prompt you to start the service locally or port-forward the in-cluster service
 - send the sample Alertmanager payload
