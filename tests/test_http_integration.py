@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import app.actions as action_service
 import app.stores.actions as action_store
 import app.stores.incidents as incident_store
-from app.http import AlertmanagerWebhook, InvestigateRequest, alertmanager_webhook, investigate, read_incident
+from app.http import AlertmanagerWebhook, InvestigateRequest, alertmanager_webhook, incident_inspector, investigate, read_incident, read_incidents
 
 
 class HttpIntegrationTests(unittest.TestCase):
@@ -108,3 +108,20 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual("manual", stored["source"])
         self.assertEqual(["f314980d"], stored["action_ids"])
         self.assertEqual("/approve f314980d", stored["proposed_actions"][0]["approve_command"])
+
+    def test_read_incidents_returns_incidents_sorted_by_id_desc(self) -> None:
+        first = incident_store.create_incident({"kind": "pod", "namespace": "ai-sre-demo", "name": "first"})
+        second = incident_store.create_incident({"kind": "deployment", "namespace": "ai-sre-demo", "name": "second"})
+
+        payload = run(read_incidents()).model_dump()
+        returned_ids = [item["incident_id"] for item in payload["incidents"]]
+        expected_ids = sorted([first["incident_id"], second["incident_id"]], reverse=True)
+
+        self.assertEqual(2, len(payload["incidents"]))
+        self.assertEqual(expected_ids, returned_ids)
+
+    def test_incident_inspector_returns_html(self) -> None:
+        response = run(incident_inspector())
+
+        self.assertIn("text/html", response.media_type)
+        self.assertIn("Incident Feed", response.body.decode("utf-8"))

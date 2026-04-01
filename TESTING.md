@@ -47,6 +47,7 @@ What to verify:
 - the response includes `source` (`manual` for `/investigate`, `alertmanager` for webhook flow)
 - the response includes `answer`
 - the response includes `action_ids` and `proposed_actions` when the model used proposal tools
+- `http://127.0.0.1:8080/` shows an incident feed and renders incident details after selection
 
 ## Example 2: Local Server And Webhook
 

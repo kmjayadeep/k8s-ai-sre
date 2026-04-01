@@ -10,6 +10,7 @@ Today it can:
 - persist incidents and pending actions locally
 - notify and approve actions through Telegram
 - execute guarded actions only after explicit approval
+- provide a built-in web incident inspector at `/`
 
 The intended loop is:
 
@@ -110,6 +111,11 @@ Response contract notes:
 
 - `/investigate` and `/webhooks/alertmanager` return stable incident fields including `incident_id`, `source`, `answer`, `action_ids`, and `proposed_actions`.
 - `/incidents/{incident_id}` returns the same normalized incident shape as the create paths.
+- `/incidents` returns normalized incidents sorted by incident ID (descending) for UI and operator tooling.
+
+Web UI:
+
+- open `http://127.0.0.1:8080/` to browse stored incidents and inspect full payload details.
 
 ## Telegram Flow
 
