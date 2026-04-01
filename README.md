@@ -136,6 +136,8 @@ Supported commands:
 - `/approve <action-id>`
 - `/reject <action-id>`
 
+If required command arguments are missing, the bot returns a command-specific usage hint.
+
 The server starts the Telegram polling loop automatically when `TELEGRAM_BOT_TOKEN` is configured.
 
 ## Guarded Actions

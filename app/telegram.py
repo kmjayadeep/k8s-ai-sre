@@ -12,6 +12,19 @@ from app.stores import get_incident
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
+COMMAND_HELP_TEXT = "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
+
+
+def _usage(command: str) -> str:
+    if command == "/incident":
+        return "Usage: /incident <incident-id>"
+    if command == "/status":
+        return "Usage: /status <incident-id>"
+    if command == "/approve":
+        return "Usage: /approve <action-id>"
+    if command == "/reject":
+        return "Usage: /reject <action-id>"
+    return COMMAND_HELP_TEXT
 
 
 def _telegram_token() -> str | None:
@@ -92,25 +105,33 @@ def _handle_command(text: str) -> str:
         command = command.split("@", 1)[0]
     argument = parts[1] if len(parts) > 1 else ""
 
-    if command == "/incident" and argument:
+    if command == "/incident":
+        if not argument:
+            return _usage(command)
         incident = get_incident(argument)
         if incident is None:
             return f"Incident {argument} not found."
         return _format_incident(incident)
 
-    if command == "/status" and argument:
+    if command == "/status":
+        if not argument:
+            return _usage(command)
         incident = get_incident(argument)
         if incident is None:
             return f"Incident {argument} not found."
         return _format_status(incident)
 
-    if command == "/approve" and argument:
+    if command == "/approve":
+        if not argument:
+            return _usage(command)
         return approve_action(argument)
 
-    if command == "/reject" and argument:
+    if command == "/reject":
+        if not argument:
+            return _usage(command)
         return reject_action(argument)
 
-    return "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
+    return COMMAND_HELP_TEXT
 
 
 def poll_telegram_updates_once() -> str:
@@ -153,8 +174,9 @@ def poll_telegram_updates_once() -> str:
             reply = _handle_command(text)
         except Exception as exc:
             log_event("telegram_command_failed", chat_id=chat_id, text=text, error=str(exc))
-            reply = f"Command failed: {exc}"
-        _send_message(chat_id, reply)
+            reply = "Command failed due to an internal error. Please retry in a few seconds."
+        send_status = _send_message(chat_id, reply)
+        log_event("telegram_reply_result", chat_id=chat_id, status=send_status)
         handled += 1
 
     log_event("telegram_poll_processed", handled=handled)
