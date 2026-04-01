@@ -46,12 +46,19 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - reject handling now preserves terminal action states and marks expired actions consistently
 - integration coverage now includes an alertmanager webhook -> pending action -> approval execution path with incident/action linkage validation
 
+### Latest Live Validation Findings
+
+- preferred heartbeat validation path is now confirmed in-cluster: build local image, load into kind, deploy to `ai-sre-system`, then port-forward service for webhook tests
+- live webhook execution produced real pending actions (`cebeffb8`, `fdbed64a`) and Telegram notification status reported success
+- full end-to-end loop is now validated in-cluster: alert -> investigate -> propose -> notify -> Telegram `/approve` from operator chat -> guarded action execution
+- concrete Telegram approval evidence captured in pod logs (`telegram_command_received` and `action_approved` for `fdbed64a`) and in action store state (`status: approved`)
+- Kubernetes state change confirmed after approval: proposed pod `bad-deploy-c7bb7798b-6k28j` was deleted and replaced by `bad-deploy-c7bb7798b-lrb8g`
+- operator note for future runs: bot-originated `sendMessage` cannot emulate incoming operator commands; approval validation must come from Telegram user chat
+
 ## What Still Needs Real Validation
 
 These are code-complete or mostly code-complete, but still need live proof:
 
-- full alert -> investigate -> propose -> notify -> approve -> execute flow in a real cluster
-- Telegram polling and approval behavior in the deployed pod, not just locally
 - model behavior on real incidents: whether it proposes the expected actions consistently
 - write RBAC coverage for the currently supported guarded actions in-cluster
 

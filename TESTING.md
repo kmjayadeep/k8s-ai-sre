@@ -5,8 +5,8 @@ Use this file as the current runbook. It intentionally keeps only a few represen
 ## Prerequisites
 
 - a working kube context, ideally a local kind cluster
-- model credentials loaded in the shell
-- optional Telegram credentials if you want the chat flow
+- model credentials loaded in the shell (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
+- Telegram credentials loaded in the shell for approval flow (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
 
 Useful checks:
 
@@ -118,7 +118,33 @@ What to verify:
 
 ## Example 4: Kind End-To-End Exercise
 
-The repository includes a live helper script:
+Preferred workflow for repeatable heartbeats:
+
+1. build a local image
+2. load it into kind
+3. deploy into `ai-sre-system` using the existing `k8s-ai-sre-env` secret
+4. port-forward the in-cluster service and run the webhook
+
+```bash
+docker build -t k8s-ai-sre:e2e .
+kind load docker-image k8s-ai-sre:e2e --name k8s-ai-sre
+kubectl apply -k deploy
+kubectl -n ai-sre-system set image deployment/k8s-ai-sre app=k8s-ai-sre:e2e
+kubectl -n ai-sre-system patch deployment k8s-ai-sre --type='json' \
+  -p='[{"op":"replace","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"IfNotPresent"}]'
+kubectl -n ai-sre-system rollout status deployment/k8s-ai-sre
+kubectl -n ai-sre-system port-forward svc/k8s-ai-sre 18080:80
+```
+
+Then send an Alertmanager-style payload:
+
+```bash
+curl -X POST http://127.0.0.1:18080/webhooks/alertmanager \
+  -H 'Content-Type: application/json' \
+  --data @examples/alertmanager-bad-deploy.json
+```
+
+The repository also includes a helper script:
 
 ```bash
 scripts/e2e_kind.sh
@@ -126,6 +152,7 @@ scripts/e2e_kind.sh
 
 It will:
 
+- fail fast if model or Telegram credentials are missing
 - apply the broken deployment scenario
 - prompt you to start the service locally or port-forward the in-cluster service
 - send the sample Alertmanager payload
@@ -136,6 +163,10 @@ What to verify:
 - the incident response contains `incident_id` and any proposed `action_ids`
 - Telegram receives the notification
 - approving an action from Telegram changes cluster state as expected
+
+Note:
+- if logs repeatedly show `telegram_poll_loop_failed` with `HTTP Error 409: Conflict`, another process is already consuming `getUpdates` for that bot token; use a dedicated bot token (or stop the competing consumer) before relying on Telegram polling validation.
+- do not use bot-token `sendMessage` to emulate operator approval; bot-originated messages are not ingested as incoming command updates for the same bot. Use a real Telegram user chat message for `/approve` validation.
 
 ## Cleanup
 
