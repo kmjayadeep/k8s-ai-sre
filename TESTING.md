@@ -86,6 +86,16 @@ export TELEGRAM_CHAT_ID=...
 export TELEGRAM_ALLOWED_CHAT_IDS=...
 ```
 
+Optional polling overrides:
+
+```bash
+export TELEGRAM_POLL_ENABLED=true
+export TELEGRAM_POLL_TIMEOUT_SECONDS=30
+export TELEGRAM_HTTP_TIMEOUT_SECONDS=35
+export TELEGRAM_POLL_INTERVAL_SECONDS=1
+export TELEGRAM_POLL_BACKOFF_SECONDS=5
+```
+
 Create an incident through `/investigate` or `/webhooks/alertmanager`.
 
 The server polls Telegram automatically when `TELEGRAM_BOT_TOKEN` is configured.

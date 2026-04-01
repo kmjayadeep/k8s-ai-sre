@@ -37,12 +37,13 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 ### Recent Fixes Reflected In Code
 
 - model selection is configurable through environment variables in `model_factory.py`
-- FastAPI now uses explicit response models for health, investigation, webhook, and incident-read endpoints
-- incident payloads are normalized in the store layer so sparse or legacy records resolve to a stable shape (`source`, `answer`, `evidence`, `action_ids`, and normalized proposed action metadata)
+- FastAPI response typing now accepts structured incident payloads
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
+- deployment manifest now includes a startup probe so startup latency does not trigger liveness restarts prematurely
+- deployment docs now include Telegram polling configuration knobs in both runtime env guidance and Kubernetes secret setup
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
-- Telegram command handling now returns explicit usage hints for missing arguments, uses a safer operator-facing internal-error reply, and records reply-delivery result logs
+- integration coverage now includes an alertmanager webhook -> pending action -> approval execution path with incident/action linkage validation
 
 ## What Still Needs Real Validation
 
@@ -69,9 +70,9 @@ Goal:
 
 ### 2. Tighten The HTTP And Telegram Contract
 
-- keep explicit response models for incidents and health responses aligned with runtime behavior as fields evolve
-- continue normalizing the incident payload shape so HTTP, store, and Telegram all use the same fields
-- keep Telegram error and usage replies operator-friendly and consistent
+- add explicit response models for incidents and health responses
+- normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
+- make Telegram error replies more operator-friendly
 
 Goal:
 - reduce ambiguity in service behavior and make future refactors safer
@@ -97,7 +98,6 @@ Goal:
 ### 5. Improve Deployment Readiness
 
 - verify secret configuration and env docs against the current deployment manifests
-- consider dedicated config for Telegram polling knobs
 - verify probe behavior and startup timing in-cluster
 
 Goal:
@@ -124,7 +124,7 @@ Goal:
 ### 8. Expand Test Coverage Around Live Edge Cases
 
 - add tests for long-poll timeout configuration
-- add tests for action execution failures and retry-safe approval behavior
+- add tests for action execution failures and retry-safe approval behavior beyond the current webhook-to-approve coverage
 - add tests for unauthorized Telegram chats and expired actions in the service path
 
 Goal:
