@@ -42,6 +42,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
 - HTTP endpoints now use explicit response models and normalize incident payload fields (`source`, `answer`, `evidence`, `action_ids`, `proposed_actions`, `notification_status`) for a stable API contract
+- HTTP integration tests now exercise real ASGI request paths (`TestClient`) so FastAPI `response_model` validation is covered for `/healthz`, `/investigate`, `/webhooks/alertmanager`, and `/incidents/{incident_id}`
 - Telegram command handling now returns explicit usage hints for missing arguments, uses a safer operator-facing internal-error reply, and records reply-delivery result logs
 
 ## What Still Needs Real Validation
