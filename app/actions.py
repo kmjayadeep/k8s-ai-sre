@@ -93,8 +93,12 @@ def approve_action(action_id: str) -> str:
         log_event("action_expired", action_id=action_id)
         return _action_result_prefix(action) + f"Action {action_id} has expired."
 
-    result = execute_action(action)
-    new_status = "approved" if _action_execution_succeeded(result) else "failed"
+    try:
+        result = execute_action(action)
+        new_status = "approved" if _action_execution_succeeded(result) else "failed"
+    except Exception as exc:
+        result = f"Failed to execute action {action_id}: {exc}"
+        new_status = "failed"
     update_action_status(action_id, new_status)
     log_fields = {
         "action_id": action_id,

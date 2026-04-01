@@ -53,6 +53,16 @@ class ActionServiceTests(unittest.TestCase):
         stored = action_store.get_action(action["id"])
         self.assertEqual("approved", stored["status"])
 
+    def test_approve_action_fails_closed_when_execution_raises(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch("app.actions.delete_pod", side_effect=RuntimeError("kaboom")):
+            result = action_service.approve_action(action["id"])
+
+        self.assertIn(f"Failed to execute action {action['id']}: kaboom", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("failed", stored["status"])
+
     def test_reject_action_does_not_override_non_pending_state(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
         action_store.update_action_status(action["id"], "approved")
