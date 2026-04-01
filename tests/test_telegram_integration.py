@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -77,3 +78,30 @@ class TelegramIntegrationTests(unittest.TestCase):
             "777",
             "Command failed due to an internal error. Please retry and check service logs.",
         )
+
+    def test_approve_command_marks_expired_action_in_service_path(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        action_store.update_action(
+            action["id"],
+            {"expires_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()},
+        )
+
+        reply = telegram._handle_command(f"/approve {action['id']}")
+
+        self.assertIn(f"Action {action['id']} has expired.", reply)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("expired", stored["status"])
+
+    def test_poll_updates_ignores_unauthorized_chat_commands(self) -> None:
+        body = {
+            "ok": True,
+            "result": [{"update_id": 10, "message": {"chat": {"id": 222}, "text": "/status incident-123"}}],
+        }
+        with patch("app.telegram._telegram_token", return_value="token"):
+            with patch("app.telegram._telegram_api", return_value=body):
+                with patch("app.telegram._allowed_chat_ids", return_value={"111"}):
+                    with patch("app.telegram._send_message") as send_message:
+                        result = telegram.poll_telegram_updates_once()
+
+        self.assertEqual("Processed 0 Telegram command(s).", result)
+        send_message.assert_not_called()
