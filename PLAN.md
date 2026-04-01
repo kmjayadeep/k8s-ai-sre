@@ -49,6 +49,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - reject handling now preserves terminal action states and marks expired actions consistently
 - integration coverage now includes an alertmanager webhook -> pending action -> approval execution path with incident/action linkage validation
 - `scale` now validates replica count (`>= 0`) and both `scale` / `rollout-undo` verify deployment existence before mutating actions
+- approval execution is now covered by retry-safety tests so repeated approvals do not re-run already terminal actions
 
 ### Latest Live Validation Findings
 

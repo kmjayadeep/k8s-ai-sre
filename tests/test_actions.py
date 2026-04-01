@@ -63,6 +63,28 @@ class ActionServiceTests(unittest.TestCase):
         stored = action_store.get_action(action["id"])
         self.assertEqual("failed", stored["status"])
 
+    def test_approve_action_is_retry_safe_after_success(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch("app.actions.delete_pod", return_value='pod "crashy" deleted') as delete_pod:
+            first_result = action_service.approve_action(action["id"])
+            second_result = action_service.approve_action(action["id"])
+
+        self.assertIn('pod "crashy" deleted', first_result)
+        self.assertIn(f"Action {action['id']} is already approved.", second_result)
+        delete_pod.assert_called_once()
+
+    def test_approve_action_is_retry_safe_after_failure(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch("app.actions.delete_pod", return_value="Failed to delete pod crashy in namespace ai-sre-demo: boom") as delete_pod:
+            first_result = action_service.approve_action(action["id"])
+            second_result = action_service.approve_action(action["id"])
+
+        self.assertIn("Failed to delete pod", first_result)
+        self.assertIn(f"Action {action['id']} is already failed.", second_result)
+        delete_pod.assert_called_once()
+
     def test_reject_action_does_not_override_non_pending_state(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
         action_store.update_action_status(action["id"], "approved")
