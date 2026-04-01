@@ -146,6 +146,11 @@ If required command arguments are missing, the bot returns a command-specific us
 The server starts the Telegram polling loop automatically when `TELEGRAM_BOT_TOKEN` is configured.
 If a command is missing its required ID argument, the bot replies with a command-specific `Usage: ...` hint.
 When `TELEGRAM_ALLOWED_CHAT_IDS` is set, commands from other chats are ignored.
+Polling defaults:
+- `TELEGRAM_POLL_TIMEOUT_SECONDS=30`
+- `TELEGRAM_HTTP_TIMEOUT_SECONDS=35`
+
+If timeout env values are invalid or non-positive, safe defaults are used. If HTTP timeout is configured below poll timeout, it is automatically raised above poll timeout.
 
 ## Guarded Actions
 

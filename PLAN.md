@@ -44,6 +44,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - deployment docs now include Telegram polling configuration knobs in both runtime env guidance and Kubernetes secret setup
 - Telegram command parsing now returns explicit per-command usage hints when required IDs are missing
 - unauthorized Telegram chats are ignored and logged explicitly for auditability
+- Telegram timeout parsing now fails safely on invalid values and enforces an HTTP timeout greater than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
 - integration coverage now includes an alertmanager webhook -> pending action -> approval execution path with incident/action linkage validation

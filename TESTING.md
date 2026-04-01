@@ -16,6 +16,8 @@ kubectl get nodes
 .venv/bin/python -m unittest discover -s tests
 ```
 
+Telegram timeout safety is covered by unit tests (`tests/test_telegram_commands.py`) and verifies poll/HTTP timeout guardrails.
+
 ## Example 1: Local Service And Investigation
 
 Create the demo namespace and a broken deployment:
