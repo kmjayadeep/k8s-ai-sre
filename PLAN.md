@@ -51,6 +51,15 @@ These are code-complete or mostly code-complete, but still need live proof:
 - model behavior on real incidents: whether it proposes the expected actions consistently
 - write RBAC coverage for the currently supported guarded actions in-cluster
 
+## Unmerged Branch Triage Snapshot (2026-04-01)
+
+Decision matrix relative to `origin/main`:
+
+- merge-ready: `quinn/http-contract-models`, `quinn/11-real-e2e-validation`, `task/alert-to-approve-loop-integration-test`, `task/deploy-readiness-probes-and-telegram-knobs`, `task/fail-closed-approve-on-execution-exceptions`, `task/http-contract-models-and-store-normalization`, `task/retry-safe-approval-behavior-tests`, `task/telegram-command-ux-and-unauthorized-logging`, `task/telegram-service-path-edge-coverage`, `task/telegram-timeout-guardrails-and-tests`, `task/validate-scale-and-undo-targets`
+- superseded: `task/http-response-models-normalization` and `task/http-contract-and-incident-normalization` (superseded by `task/http-contract-models-and-store-normalization`), `task/telegram-operator-error-messages` (superseded by `task/telegram-command-ux-and-unauthorized-logging`), `deploy/explicit-telegram-poll-config` (superseded by `task/deploy-readiness-probes-and-telegram-knobs`), `safety/scale-replica-validation` and `safety/rollout-undo-target-validation` (superseded by `task/validate-scale-and-undo-targets`), `feat/http-contract-models` and `refactor/incident-payload-normalization` (superseded by contract/store normalization branches), `ux/telegram-operator-errors` (superseded by Telegram UX branch), `fix/reject-pending-guard` (superseded by merged `task/action-lifecycle-guards`)
+- needs rework: `ci/python-tests-workflow` because it bundles one CI workflow commit with two stale unmerged commits; split/cherry-pick onto a clean branch before PR
+- local-only branch note: `task/ci-test-gate-before-container-build` is merge-ready but has no remote tracking branch yet
+
 ## Highest-Value Next Steps
 
 ### 1. Run One Real End-To-End Validation
