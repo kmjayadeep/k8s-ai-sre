@@ -10,7 +10,7 @@ Operate `k8s-ai-sre` as a reliable, service-first SRE assistant that completes t
 4. operator is notified and explicitly approves or rejects
 5. approved actions execute with namespace/RBAC guardrails and auditable state
 
-## Current Baseline (April 1, 2026)
+## Current Baseline (April 2, 2026)
 
 Implemented and validated:
 
@@ -28,6 +28,12 @@ Known limits:
 - persistence is local-file only (not HA)
 - approval and execution are not yet backed by Kubernetes-native identity/audit surfaces
 - rollout readiness still depends on manual environment/secret setup
+
+## Product Direction Update
+
+- near-term product focus is homelab-first quick start
+- default persistence target should be SQLite (simple single-binary setup)
+- PostgreSQL is deferred as future extension work, not part of current plan
 
 ## Prioritized Next Steps
 
@@ -55,10 +61,10 @@ Exit criteria:
 
 ### P1: Persistence and Recoverability
 
-1. Add durable backing store option
-- keep file store for dev
-- add pluggable Redis or Postgres backend for incidents/actions
-- preserve current API/Telegram contract shape
+1. Replace JSON files with SQLite default
+- keep zero-friction local startup for homelab users
+- migrate incident/action stores to a SQLite-backed implementation
+- preserve current API/Telegram contract shape and action lifecycle semantics
 
 2. Recovery semantics
 - define behavior on restart during pending/approved actions
@@ -66,7 +72,7 @@ Exit criteria:
 
 Exit criteria:
 - restart tests show no lost or duplicated terminal actions
-- store backend swap does not change external behavior
+- SQLite-backed store does not change external behavior
 
 ### P1: Contract and Observability Stability
 
