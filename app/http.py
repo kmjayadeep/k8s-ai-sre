@@ -1,6 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.actions import attach_actions_to_incident
 from app.investigate import investigate_target
@@ -17,24 +17,52 @@ class InvestigateRequest(BaseModel):
 
 
 class AlertmanagerAlert(BaseModel):
-    labels: dict[str, str] = {}
+    labels: dict[str, str] = Field(default_factory=dict)
 
 
 class AlertmanagerWebhook(BaseModel):
-    commonLabels: dict[str, str] = {}
-    alerts: list[AlertmanagerAlert] = []
+    commonLabels: dict[str, str] = Field(default_factory=dict)
+    alerts: list[AlertmanagerAlert] = Field(default_factory=list)
+
+
+class HealthzResponse(BaseModel):
+    status: str
+
+
+class ProposedActionResponse(BaseModel):
+    action_id: str
+    action_type: str
+    namespace: str
+    name: str
+    params: dict[str, object] = Field(default_factory=dict)
+    expires_at: str | None = None
+    approve_command: str
+    reject_command: str
+
+
+class IncidentResponse(BaseModel):
+    incident_id: str
+    kind: str
+    namespace: str
+    name: str
+    answer: str = ""
+    evidence: str = ""
+    source: str = "manual"
+    action_ids: list[str] = Field(default_factory=list)
+    proposed_actions: list[ProposedActionResponse] = Field(default_factory=list)
+    notification_status: str | None = None
 
 
 app = FastAPI()
 
 
-@app.get("/healthz")
-async def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get("/healthz", response_model=HealthzResponse)
+async def healthz() -> HealthzResponse:
+    return HealthzResponse(status="ok")
 
 
-@app.post("/investigate")
-async def investigate(request: InvestigateRequest) -> dict[str, object]:
+@app.post("/investigate", response_model=IncidentResponse)
+async def investigate(request: InvestigateRequest) -> IncidentResponse:
     if not all([request.kind, request.namespace, request.name]):
         raise HTTPException(status_code=400, detail="kind, namespace, and name are required")
     log_event("http_investigate_received", kind=request.kind, namespace=request.namespace, name=request.name)
@@ -50,7 +78,7 @@ async def investigate(request: InvestigateRequest) -> dict[str, object]:
         namespace=request.namespace,
         name=request.name,
     )
-    return incident
+    return IncidentResponse.model_validate(incident)
 
 
 def _resolve_alert_target(payload: AlertmanagerWebhook) -> tuple[str, str, str]:
@@ -68,8 +96,8 @@ def _resolve_alert_target(payload: AlertmanagerWebhook) -> tuple[str, str, str]:
     raise HTTPException(status_code=400, detail="could not resolve alert target from labels")
 
 
-@app.post("/webhooks/alertmanager")
-async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, object]:
+@app.post("/webhooks/alertmanager", response_model=IncidentResponse)
+async def alertmanager_webhook(payload: AlertmanagerWebhook) -> IncidentResponse:
     kind, namespace, name = _resolve_alert_target(payload)
     log_event("alertmanager_webhook_received", kind=kind, namespace=namespace, name=name)
     result = await investigate_target(kind, namespace, name, emit_progress=False)
@@ -79,15 +107,15 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> dict[str, object
     incident["notification_status"] = send_telegram_notification(incident)
     update_incident(incident["incident_id"], {"source": "alertmanager", "notification_status": incident["notification_status"]})
     log_event("alertmanager_webhook_completed", incident_id=incident["incident_id"], kind=kind, namespace=namespace, name=name)
-    return incident
+    return IncidentResponse.model_validate(incident)
 
 
-@app.get("/incidents/{incident_id}")
-async def read_incident(incident_id: str) -> dict[str, object]:
+@app.get("/incidents/{incident_id}", response_model=IncidentResponse)
+async def read_incident(incident_id: str) -> IncidentResponse:
     incident = get_incident(incident_id)
     if incident is None:
         raise HTTPException(status_code=404, detail="incident not found")
-    return incident
+    return IncidentResponse.model_validate(incident)
 
 
 def run_server(port: int = 8080) -> None:

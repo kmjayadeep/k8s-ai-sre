@@ -20,6 +20,15 @@ class TelegramCommandParsingTests(unittest.TestCase):
         self.assertEqual("rejected", reply)
         reject_action.assert_called_once_with("f314980d")
 
+    def test_incident_command_without_argument_returns_usage(self) -> None:
+        reply = telegram._handle_command("/incident")
+        self.assertEqual("Usage: /incident <incident-id>", reply)
+
+    def test_unknown_command_returns_help(self) -> None:
+        reply = telegram._handle_command("/help")
+        self.assertIn("/incident <incident-id>", reply)
+        self.assertIn("/approve <action-id>", reply)
+
     def test_start_telegram_polling_thread_skips_when_token_missing(self) -> None:
         with patch("app.telegram._telegram_token", return_value=None):
             thread = telegram.start_telegram_polling_thread()

@@ -50,3 +50,30 @@ class TelegramIntegrationTests(unittest.TestCase):
         self.assertIn('pod "crashy" deleted', reply)
         stored = action_store.get_action(action["id"])
         self.assertEqual("approved", stored["status"])
+
+    def test_poll_replies_with_operator_friendly_error_on_command_failure(self) -> None:
+        update_body = {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 123,
+                    "message": {
+                        "chat": {"id": "777"},
+                        "text": "/incident abc123",
+                    },
+                }
+            ],
+        }
+
+        with patch("app.telegram._telegram_token", return_value="token"):
+            with patch("app.telegram._telegram_api", return_value=update_body):
+                with patch("app.telegram._allowed_chat_ids", return_value=set()):
+                    with patch("app.telegram._handle_command", side_effect=RuntimeError("boom")):
+                        with patch("app.telegram._send_message", return_value="Telegram reply sent.") as send_message:
+                            result = telegram.poll_telegram_updates_once()
+
+        self.assertEqual("Processed 1 Telegram command(s).", result)
+        send_message.assert_called_once_with(
+            "777",
+            "Command failed due to an internal error. Please retry in a few seconds.",
+        )

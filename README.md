@@ -106,6 +106,11 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
   --data @examples/alertmanager-bad-deploy.json
 ```
 
+Response contract notes:
+
+- `/investigate` and `/webhooks/alertmanager` return stable incident fields including `incident_id`, `source`, `answer`, `action_ids`, and `proposed_actions`.
+- `/incidents/{incident_id}` returns the same normalized incident shape as the create paths.
+
 ## Telegram Flow
 
 Telegram is optional for local investigation, but required for the chat approval loop.
@@ -135,6 +140,8 @@ Supported commands:
 - `/status <incident-id>`
 - `/approve <action-id>`
 - `/reject <action-id>`
+
+If required command arguments are missing, the bot returns a command-specific usage hint.
 
 The server starts the Telegram polling loop automatically when `TELEGRAM_BOT_TOKEN` is configured.
 
