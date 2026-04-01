@@ -75,5 +75,5 @@ class TelegramIntegrationTests(unittest.TestCase):
         self.assertEqual("Processed 1 Telegram command(s).", result)
         send_message.assert_called_once_with(
             "777",
-            "Command failed due to an internal error. Please retry in a few seconds.",
+            "Command failed due to an internal error. Please retry and check service logs.",
         )

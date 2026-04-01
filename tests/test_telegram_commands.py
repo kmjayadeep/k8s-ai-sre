@@ -76,7 +76,10 @@ class TelegramCommandParsingTests(unittest.TestCase):
                 with patch("app.telegram._allowed_chat_ids", return_value=set()):
                     with patch("app.telegram._save_offset"):
                         with patch("app.telegram._handle_command", side_effect=RuntimeError("boom")):
-                            with patch("app.telegram._send_message") as send_message:
+                            with patch("app.telegram._send_message", return_value="Telegram reply sent.") as send_message:
                                 telegram.poll_telegram_updates_once()
 
-        send_message.assert_called_once_with("123", "Command failed due to an internal error. Please retry in a few seconds.")
+        send_message.assert_called_once_with(
+            "123",
+            "Command failed due to an internal error. Please retry and check service logs.",
+        )

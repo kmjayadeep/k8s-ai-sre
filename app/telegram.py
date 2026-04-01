@@ -175,7 +175,7 @@ def poll_telegram_updates_once() -> str:
             reply = _handle_command(text)
         except Exception as exc:
             log_event("telegram_command_failed", chat_id=chat_id, text=text, error=str(exc))
-            reply = "Command failed due to an internal error. Please retry in a few seconds."
+            reply = "Command failed due to an internal error. Please retry and check service logs."
         send_status = _send_message(chat_id, reply)
         log_event("telegram_reply_result", chat_id=chat_id, status=send_status)
         handled += 1
