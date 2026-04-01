@@ -1,68 +1,62 @@
 # k8s-ai-sre
 
-`k8s-ai-sre` is an AI-assisted Kubernetes incident investigator with guarded remediation.
+> AI-assisted Kubernetes incident investigation with guarded remediation. 🤖🛡️
 
-Today it can:
+`k8s-ai-sre` helps you move from alert to safe action faster:
 
-- investigate pods and deployments with real `kubectl` reads
-- collect evidence from resource state, events, logs, and optional Prometheus queries
-- accept Alertmanager-style webhooks
-- persist incidents and pending actions locally
-- notify and approve actions through Telegram
-- execute guarded actions only after explicit approval
-- provide a built-in web incident inspector at `/`
+- receives a target from HTTP (`/investigate`) or Alertmanager webhook (`/webhooks/alertmanager`)
+- gathers real cluster evidence with `kubectl` reads (and optional Prometheus context)
+- drafts actionable remediation proposals
+- requires explicit operator approval before any write action
+- executes only guarded actions with namespace constraints
 
-The intended loop is:
+![k8s-ai-sre architecture](assets/readme-architecture.svg)
 
-1. an alert or manual request targets a Kubernetes object
-2. the agent gathers evidence and explains the likely cause
-3. the agent can create pending remediation proposals
-4. an operator approves or rejects those proposals
-5. approved actions execute through the existing guardrails
+## Why this is useful for homelabs and small teams 🏠
 
-## Architecture
+When something breaks in-cluster, this project gives you one loop:
 
-```mermaid
-flowchart TD
-    A[Alertmanager or manual API call] --> B[FastAPI entrypoint]
-    B --> C[Investigation flow]
-    C --> D[Kubernetes tools]
-    C --> E[Prometheus tool]
-    C --> F[LLM via model_factory]
-    F --> G[Proposal tools]
-    G --> H[Action store]
-    C --> I[Incident store]
-    I --> J[Telegram notifier]
-    K[Telegram poller] --> H
-    K --> I
-    H --> L[Guarded action execution]
-    D --> M[kubectl / Kubernetes API]
-    L --> M
-```
+1. detect an issue
+2. investigate quickly with real evidence
+3. decide from proposed actions
+4. approve/reject from Telegram
+5. apply only guarded changes
 
-Component guide:
+It is designed to be practical first, not magic-first.
 
-- [main.py](main.py): server entrypoint
-- [app/http.py](app/http.py): HTTP endpoints for investigations and Alertmanager webhooks
-- [app/investigate.py](app/investigate.py): agent orchestration
-- [app/tools/k8s.py](app/tools/k8s.py): Kubernetes and Prometheus read helpers
-- [app/tools/actions.py](app/tools/actions.py): guarded action execution helpers
-- [app/telegram.py](app/telegram.py): Telegram polling and commands
-- [app/stores](app/stores): local JSON stores for incidents and actions
-- [app/ui/incident_inspector.html](app/ui/incident_inspector.html): operator incident inspector web template
-- [model_factory.py](model_factory.py): model selection and client configuration
+## What is implemented today ✅
 
-## Quick Start
+- `FastAPI` service with:
+  - `POST /investigate`
+  - `POST /webhooks/alertmanager`
+  - `GET /incidents`
+  - `GET /incidents/{incident_id}`
+  - `GET /healthz`
+  - `GET /` built-in web incident inspector
+- local JSON-backed storage for incidents and actions
+- Telegram notification plus command handling:
+  - `/incident <incident-id>`
+  - `/status <incident-id>`
+  - `/approve <action-id>`
+  - `/reject <action-id>`
+- guarded write actions:
+  - `delete-pod`
+  - `rollout-restart`
+  - `scale`
+  - `rollout-undo`
+- namespace guardrails via `WRITE_ALLOWED_NAMESPACES`
 
-### 1. Install Dependencies
+## Quick start 🚀
+
+### 1. Install dependencies
 
 ```bash
 uv sync
 ```
 
-### 2. Configure The Model
+### 2. Configure model access
 
-Minimum configuration:
+Required:
 
 ```bash
 export PORTKEY_API_KEY=...
@@ -77,22 +71,24 @@ export MODEL_BASE_URL=https://api.portkey.ai/v1
 export MODEL_API_KEY=...
 ```
 
-`MODEL_API_KEY` overrides `PORTKEY_API_KEY` when both are set.
+Note: `MODEL_API_KEY` overrides `PORTKEY_API_KEY` when both are set.
 
-### 3. Prepare A Local Scenario
+### 3. Create a local demo failure
 
 ```bash
 kubectl create namespace ai-sre-demo --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f examples/kind-bad-deploy.yaml
 ```
 
-### 4. Run The Service
+### 4. Run the service
 
 ```bash
 uv run main.py
 ```
 
-### 5. Trigger An Investigation
+### 5. Trigger investigation
+
+Manual target:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/investigate \
@@ -100,7 +96,7 @@ curl -X POST http://127.0.0.1:8080/investigate \
   -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"bad-deploy"}'
 ```
 
-Or send a sample webhook:
+Alertmanager sample:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
@@ -108,21 +104,15 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
   --data @examples/alertmanager-bad-deploy.json
 ```
 
-Response contract notes:
+Then open the incident inspector UI:
 
-- `/investigate` and `/webhooks/alertmanager` return stable incident fields including `incident_id`, `source`, `answer`, `action_ids`, and `proposed_actions`.
-- `/incidents/{incident_id}` returns the same normalized incident shape as the create paths.
-- `/incidents` returns normalized incidents sorted by incident ID (descending) for UI and operator tooling.
+```text
+http://127.0.0.1:8080/
+```
 
-Web UI:
+## Telegram approval loop 💬
 
-- open `http://127.0.0.1:8080/` to browse stored incidents and inspect a card-based summary of source, target, and proposed actions.
-
-## Telegram Flow
-
-Telegram is optional for local investigation, but required for the chat approval loop.
-
-Typical variables:
+Telegram is optional for local investigation, but required for chat-based approvals.
 
 ```bash
 export TELEGRAM_BOT_TOKEN=...
@@ -131,7 +121,7 @@ export TELEGRAM_ALLOWED_CHAT_IDS=...
 export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
 ```
 
-Optional Telegram polling knobs:
+Optional polling knobs:
 
 ```bash
 export TELEGRAM_POLL_ENABLED=true
@@ -141,47 +131,30 @@ export TELEGRAM_POLL_INTERVAL_SECONDS=1
 export TELEGRAM_POLL_BACKOFF_SECONDS=5
 ```
 
-Supported commands:
+Behavior details:
 
-- `/incident <incident-id>`
-- `/status <incident-id>`
-- `/approve <action-id>`
-- `/reject <action-id>`
+- polling starts automatically when `TELEGRAM_BOT_TOKEN` is set
+- unauthorized chat IDs are ignored when `TELEGRAM_ALLOWED_CHAT_IDS` is configured
+- missing command arguments return usage hints (`Usage: /approve <action-id>`, etc.)
+- timeout values are validated and clamped to safe defaults when needed
 
-If required command arguments are missing, the bot returns a command-specific usage hint.
+## Guardrails and safety model 🔒
 
-The server starts the Telegram polling loop automatically when `TELEGRAM_BOT_TOKEN` is configured.
-If a command is missing its required ID argument, the bot replies with a command-specific `Usage: ...` hint.
-When `TELEGRAM_ALLOWED_CHAT_IDS` is set, commands from other chats are ignored.
-Polling defaults:
-- `TELEGRAM_POLL_TIMEOUT_SECONDS=30`
-- `TELEGRAM_HTTP_TIMEOUT_SECONDS=35`
+- write actions require explicit approve commands before execution
+- write scope can be restricted to specific namespaces (`WRITE_ALLOWED_NAMESPACES`)
+- `scale` rejects negative replica values
+- `scale` and `rollout-undo` validate target deployment readability/existence before mutating
 
-If timeout env values are invalid or non-positive, safe defaults are used. If HTTP timeout is configured below poll timeout, it is automatically raised above poll timeout.
+## Deployment ☸️
 
-## Guarded Actions
-
-The current guarded actions are:
-
-- `delete-pod`
-- `rollout-restart`
-- `scale`
-- `rollout-undo`
-
-They are namespace-restricted through `WRITE_ALLOWED_NAMESPACES` and require explicit approval before execution.
-Additional guardrails:
-- `scale` refuses negative replica values.
-- `scale` and `rollout-undo` verify the target deployment exists before mutating state.
-
-## Deployment
-
-The Kubernetes manifests are in [deploy](deploy) and deploy the published image:
+Kubernetes manifests are in [`deploy`](deploy).
+Current published image reference:
 
 ```text
 ghcr.io/kmjayadeep/k8s-ai-sre:main
 ```
 
-Create the runtime secret:
+Create runtime secret:
 
 ```bash
 kubectl create namespace ai-sre-system --dry-run=client -o yaml | kubectl apply -f -
@@ -211,16 +184,34 @@ kubectl get pods -n ai-sre-system
 kubectl get svc -n ai-sre-system
 ```
 
-## Testing
+## Architecture and code map 🧭
 
-See [TESTING.md](TESTING.md) for the concise current runbook:
+- [`main.py`](main.py): service boot
+- [`app/http.py`](app/http.py): API routes + incident inspector UI
+- [`app/ui/incident_inspector.html`](app/ui/incident_inspector.html): incident inspector web template
+- [`app/investigate.py`](app/investigate.py): investigation orchestration
+- [`app/tools/k8s.py`](app/tools/k8s.py): Kubernetes + Prometheus reads
+- [`app/tools/actions.py`](app/tools/actions.py): guarded mutating actions
+- [`app/telegram.py`](app/telegram.py): Telegram polling and command handling
+- [`app/stores`](app/stores): incident/action store abstraction
+- [`model_factory.py`](model_factory.py): model provider wiring
 
-- local investigation
-- local server plus webhook
+## Testing 🧪
+
+Use [`TESTING.md`](TESTING.md) for the current runbook, including:
+
+- local investigate flow
+- Alertmanager webhook flow
 - Telegram approval flow
-- live kind end-to-end exercise
+- kind end-to-end exercise
 
-## Documentation Site
+Quick command:
+
+```bash
+uv run python -m unittest discover -s tests
+```
+
+## Documentation site
 
 The repository includes an initial docs website scaffold for GitHub Pages:
 
