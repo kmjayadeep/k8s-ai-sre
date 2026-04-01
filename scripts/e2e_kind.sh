@@ -12,7 +12,7 @@ kubectl apply -f "${SCENARIO_MANIFEST}"
 
 echo
 echo "Start the service in another terminal with one of:"
-echo "  uv run main.py serve"
+echo "  uv run main.py"
 echo "  kubectl port-forward -n ai-sre-system svc/k8s-ai-sre 8080:80"
 echo
 echo "Then press Enter to continue."

@@ -41,6 +41,20 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
+- `scripts/e2e_kind.sh` now uses the current server entrypoint (`uv run main.py`)
+- deployment docs now include creating `ai-sre-demo` before `kubectl apply -k deploy` so RBAC resources apply cleanly
+
+### Latest Real-Cluster Validation Evidence (2026-04-01)
+
+- created and targeted a real kind cluster (`kind-ai-sre`, Kubernetes `v1.35.0`)
+- deployed current manifests and image (`ghcr.io/kmjayadeep/k8s-ai-sre:main`) in `ai-sre-system`
+- confirmed service health endpoint success (`GET /healthz` -> `200 {"status":"ok"}`)
+- verified alert webhook path reaches investigation but fails without a valid model credential (`401 Invalid API Key` from model provider, surfaced as HTTP `500`)
+- verified Telegram poller remains disabled when `TELEGRAM_BOT_TOKEN` is not set (`telegram_poll_not_started`, reason `token_missing`)
+
+Implication:
+- in-cluster deployment and service startup path are validated
+- full alert -> investigate -> propose -> notify -> approve -> execute loop remains blocked on real model and Telegram credentials
 
 ## What Still Needs Real Validation
 
@@ -64,6 +78,9 @@ These are code-complete or mostly code-complete, but still need live proof:
 
 Goal:
 - prove the product loop works outside tests and local mocks
+
+Current blocker (2026-04-01):
+- requires valid `PORTKEY_API_KEY` or `MODEL_API_KEY`, plus Telegram bot/chat credentials in runtime environment
 
 ### 2. Tighten The HTTP And Telegram Contract
 

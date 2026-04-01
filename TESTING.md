@@ -124,6 +124,41 @@ What to verify:
 - Telegram receives the notification
 - approving an action from Telegram changes cluster state as expected
 
+## Latest Validation Evidence (2026-04-01)
+
+Environment execution in this run:
+
+```bash
+kind create cluster --name ai-sre --wait 120s
+kubectl create namespace ai-sre-demo --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -k deploy
+kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
+  --from-literal=MODEL_API_KEY=dummy \
+  --from-literal=MODEL_NAME=openai/gpt-oss-20b \
+  --from-literal=MODEL_PROVIDER=groq \
+  --from-literal=MODEL_BASE_URL=https://api.portkey.ai/v1 \
+  --from-literal=WRITE_ALLOWED_NAMESPACES=ai-sre-demo \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n ai-sre-system rollout restart deploy/k8s-ai-sre
+kubectl -n ai-sre-system port-forward svc/k8s-ai-sre 18080:80
+curl http://127.0.0.1:18080/healthz
+curl -X POST http://127.0.0.1:18080/webhooks/alertmanager \
+  -H 'Content-Type: application/json' \
+  --data @examples/alertmanager-bad-deploy.json
+```
+
+Observed results:
+
+- `/healthz` returned `200 {"status":"ok"}`.
+- `/webhooks/alertmanager` returned `500 Internal Server Error`.
+- Pod logs showed `telegram_poll_not_started` with `reason: token_missing`.
+- Pod logs showed model call failure: `openai.AuthenticationError ... Invalid API Key ... Error Code: 03`.
+
+Blocking inputs for full `alert -> investigate -> propose -> notify -> approve -> execute` validation:
+
+- a valid `PORTKEY_API_KEY` or `MODEL_API_KEY`
+- Telegram runtime credentials: `TELEGRAM_BOT_TOKEN` and allowed chat configuration
+
 ## Cleanup
 
 ```bash

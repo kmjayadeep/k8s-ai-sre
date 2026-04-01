@@ -151,6 +151,7 @@ Create the runtime secret:
 
 ```bash
 kubectl create namespace ai-sre-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace ai-sre-demo --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
   --from-literal=PORTKEY_API_KEY="$PORTKEY_API_KEY" \
   --from-literal=MODEL_NAME="$MODEL_NAME" \
