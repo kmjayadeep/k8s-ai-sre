@@ -19,6 +19,16 @@ The intended loop is:
 4. an operator approves or rejects those proposals
 5. approved actions execute through the existing guardrails
 
+## HTTP Response Contract
+
+The incident endpoints (`/investigate`, `/webhooks/alertmanager`, `/incidents/{incident_id}`) return a normalized payload shape:
+
+- `incident_id`, `kind`, `namespace`, `name`
+- `source` (`manual` or `alertmanager`)
+- `evidence`, `answer`
+- `action_ids`, `proposed_actions`
+- `notification_status`
+
 ## Architecture
 
 ```mermaid

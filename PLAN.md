@@ -41,6 +41,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
+- HTTP endpoints now use explicit response models and normalize incident payload fields (`source`, `answer`, `evidence`, `action_ids`, `proposed_actions`, `notification_status`) for a stable API contract
 
 ## What Still Needs Real Validation
 
@@ -67,8 +68,8 @@ Goal:
 
 ### 2. Tighten The HTTP And Telegram Contract
 
-- add explicit response models for incidents and health responses
-- normalize the incident payload shape so HTTP, store, and Telegram all use the same fields
+- keep explicit response models for incidents and health responses aligned with runtime behavior as fields evolve
+- continue normalizing the incident payload shape so HTTP, store, and Telegram all use the same fields
 - make Telegram error replies more operator-friendly
 
 Goal:

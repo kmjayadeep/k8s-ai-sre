@@ -60,3 +60,21 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual("alertmanager", body["source"])
         stored = run(read_incident(body["incident_id"]))
         self.assertEqual("alertmanager", stored["source"])
+
+    def test_read_incident_normalizes_legacy_payload_shape(self) -> None:
+        incident = incident_store.create_incident(
+            {
+                "kind": "pod",
+                "namespace": "ai-sre-demo",
+                "name": "crashy",
+            }
+        )
+
+        stored = run(read_incident(incident["incident_id"]))
+
+        self.assertEqual("manual", stored["source"])
+        self.assertEqual("", stored["answer"])
+        self.assertEqual("", stored["evidence"])
+        self.assertEqual([], stored["action_ids"])
+        self.assertEqual([], stored["proposed_actions"])
+        self.assertEqual("notification_not_attempted", stored["notification_status"])
