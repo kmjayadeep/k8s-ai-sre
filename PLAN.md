@@ -150,3 +150,18 @@ Goal:
 
 Goal:
 - ensure new readers understand the current architecture without reading the whole codebase
+
+## Branch Reconciliation Snapshot (AIE-9)
+
+Context:
+- `ci/python-tests-workflow` is stale relative to `origin/main` (ahead 3, behind 2) and bundles unrelated changes.
+- `task/ci-test-gate-before-container-build` is a one-commit local-only branch that cleanly gates container builds behind tests.
+
+Decision matrix:
+- `af1c4d2` (from `ci/python-tests-workflow`) is salvageable: carry forward as a clean standalone tests workflow.
+- `44fbabe` (from `task/ci-test-gate-before-container-build`) is salvageable: gate container build on a successful test job.
+- `437d164` and `7cf711d` (the pre-PR-9 stacked feature commits) are not merged as-is and should not be merged from the stale stack; re-land only through focused, reviewable branches.
+
+Retirement guidance:
+- Retire `ci/python-tests-workflow` after salvage commits are merged.
+- Retire `task/ci-test-gate-before-container-build` after equivalent gated-build changes are merged.
