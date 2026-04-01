@@ -4,6 +4,7 @@ from asyncio import run
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import app.actions as action_service
 import app.stores.actions as action_store
 import app.stores.incidents as incident_store
 from app.http import AlertmanagerWebhook, InvestigateRequest, alertmanager_webhook, investigate, read_incident
@@ -60,3 +61,36 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual("alertmanager", body["source"])
         stored = run(read_incident(body["incident_id"]))
         self.assertEqual("alertmanager", stored["source"])
+
+    def test_alertmanager_to_approval_executes_linked_action(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        result = {
+            "kind": "pod",
+            "namespace": "ai-sre-demo",
+            "name": "crashy",
+            "answer": "Summary: CrashLoopBackOff from bad sidecar config",
+            "proposed_actions": [action_service.action_metadata(action)],
+            "action_ids": [action["id"]],
+        }
+        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)):
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent."):
+                body = run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(commonLabels={"namespace": "ai-sre-demo", "pod": "crashy"}, alerts=[])
+                    )
+                )
+
+        stored_incident = run(read_incident(body["incident_id"]))
+        self.assertEqual([action["id"]], stored_incident["action_ids"])
+        self.assertEqual("alertmanager", stored_incident["source"])
+
+        stored_action = action_store.get_action(action["id"])
+        self.assertEqual(body["incident_id"], stored_action["incident_id"])
+        self.assertEqual("pending", stored_action["status"])
+
+        with patch("app.actions.delete_pod", return_value='pod "crashy" deleted'):
+            approval_reply = action_service.approve_action(action["id"])
+
+        self.assertIn(f"Incident {body['incident_id']}", approval_reply)
+        self.assertIn('pod "crashy" deleted', approval_reply)
+        self.assertEqual("approved", action_store.get_action(action["id"])["status"])

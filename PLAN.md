@@ -24,7 +24,6 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - proposed actions are stored with `action_ids` and `proposed_actions`
 - incidents are persisted in a local JSON store
 - actions are persisted in a local JSON store with expiry handling
-- incidents/actions now share a pluggable store backend interface while keeping JSON files as default persistence
 - Telegram notifications include proposed action IDs and approval commands
 - Telegram supports `/incident`, `/status`, `/approve`, and `/reject`
 - approved actions execute through guarded action helpers
@@ -40,9 +39,11 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - model selection is configurable through environment variables in `model_factory.py`
 - FastAPI response typing now accepts structured incident payloads
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
+- deployment manifest now includes a startup probe so startup latency does not trigger liveness restarts prematurely
+- deployment docs now include Telegram polling configuration knobs in both runtime env guidance and Kubernetes secret setup
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
-- store persistence now has an explicit backend abstraction seam (`KeyValueStore`) to allow future Redis/DB backends without API changes
+- integration coverage now includes an alertmanager webhook -> pending action -> approval execution path with incident/action linkage validation
 
 ## What Still Needs Real Validation
 
@@ -97,7 +98,6 @@ Goal:
 ### 5. Improve Deployment Readiness
 
 - verify secret configuration and env docs against the current deployment manifests
-- consider dedicated config for Telegram polling knobs
 - verify probe behavior and startup timing in-cluster
 
 Goal:
@@ -124,7 +124,7 @@ Goal:
 ### 8. Expand Test Coverage Around Live Edge Cases
 
 - add tests for long-poll timeout configuration
-- add tests for action execution failures and retry-safe approval behavior
+- add tests for action execution failures and retry-safe approval behavior beyond the current webhook-to-approve coverage
 - add tests for unauthorized Telegram chats and expired actions in the service path
 
 Goal:
