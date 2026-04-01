@@ -49,6 +49,7 @@ Component guide:
 - [app/tools/actions.py](app/tools/actions.py): guarded action execution helpers
 - [app/telegram.py](app/telegram.py): Telegram polling and commands
 - [app/stores](app/stores): local JSON stores for incidents and actions
+- [app/ui/incident_inspector.html](app/ui/incident_inspector.html): operator incident inspector web template
 - [model_factory.py](model_factory.py): model selection and client configuration
 
 ## Quick Start
@@ -115,7 +116,7 @@ Response contract notes:
 
 Web UI:
 
-- open `http://127.0.0.1:8080/` to browse stored incidents and inspect full payload details.
+- open `http://127.0.0.1:8080/` to browse stored incidents and inspect a card-based summary of source, target, and proposed actions.
 
 ## Telegram Flow
 
