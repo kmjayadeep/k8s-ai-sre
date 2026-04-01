@@ -32,6 +32,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - allowed Telegram chats are constrained with `TELEGRAM_ALLOWED_CHAT_IDS`
 - structured logging is in place
 - the container image, GHCR publishing flow, and Kubernetes manifests exist
+- PR/main CI test workflow exists via `.github/workflows/tests.yml` (`uv sync --locked` + `python -m unittest discover -s tests`)
 - unit and integration tests exist for actions, incident persistence, HTTP routes, and Telegram command handling
 
 ### Recent Fixes Reflected In Code
