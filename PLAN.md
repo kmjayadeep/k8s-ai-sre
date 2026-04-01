@@ -24,6 +24,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - proposed actions are stored with `action_ids` and `proposed_actions`
 - incidents are persisted in a local JSON store
 - actions are persisted in a local JSON store with expiry handling
+- incidents/actions now share a pluggable store backend interface while keeping JSON files as default persistence
 - Telegram notifications include proposed action IDs and approval commands
 - Telegram supports `/incident`, `/status`, `/approve`, and `/reject`
 - approved actions execute through guarded action helpers
@@ -41,6 +42,7 @@ Operate `k8s-ai-sre` as a service-first Kubernetes incident investigator with gu
 - Telegram long polling no longer times out prematurely because the HTTP timeout is longer than the poll timeout
 - the testing-only CLI command surface has been removed
 - reject handling now preserves terminal action states and marks expired actions consistently
+- store persistence now has an explicit backend abstraction seam (`KeyValueStore`) to allow future Redis/DB backends without API changes
 
 ## What Still Needs Real Validation
 

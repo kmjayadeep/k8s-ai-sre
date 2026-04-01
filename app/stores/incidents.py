@@ -1,19 +1,24 @@
-import json
 from pathlib import Path
 from uuid import uuid4
 
+from app.stores.backend import JsonFileKeyValueStore, KeyValueStore
+
 
 INCIDENT_STORE_PATH = Path("/tmp/k8s-ai-sre-incidents.json")
+_incident_store: KeyValueStore = JsonFileKeyValueStore(lambda: INCIDENT_STORE_PATH)
 
 
 def _load_incidents() -> dict[str, dict[str, object]]:
-    if not INCIDENT_STORE_PATH.exists():
-        return {}
-    return json.loads(INCIDENT_STORE_PATH.read_text(encoding="utf-8"))
+    return _incident_store.load()
 
 
 def _save_incidents(incidents: dict[str, dict[str, object]]) -> None:
-    INCIDENT_STORE_PATH.write_text(json.dumps(incidents, indent=2, sort_keys=True), encoding="utf-8")
+    _incident_store.save(incidents)
+
+
+def set_incident_store(store: KeyValueStore) -> None:
+    global _incident_store
+    _incident_store = store
 
 
 def create_incident(payload: dict[str, object]) -> dict[str, object]:
