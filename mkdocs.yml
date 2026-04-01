@@ -1,0 +1,17 @@
+site_name: k8s-ai-sre Docs
+site_description: Documentation for the k8s-ai-sre Kubernetes incident investigator
+repo_name: kmjayadeep/k8s-ai-sre
+repo_url: https://github.com/kmjayadeep/k8s-ai-sre
+nav:
+  - Overview: index.md
+  - Architecture: architecture.md
+  - Quick Start: quickstart.md
+  - Testing: testing.md
+  - Deployment: deployment.md
+  - Plan: plan.md
+  - Maintainers: maintainers.md
+theme:
+  name: mkdocs
+markdown_extensions:
+  - admonition
+  - tables

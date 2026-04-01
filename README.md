@@ -218,3 +218,19 @@ See [TESTING.md](TESTING.md) for the concise current runbook:
 - local server plus webhook
 - Telegram approval flow
 - live kind end-to-end exercise
+
+## Documentation Site
+
+The repository includes an initial docs website scaffold for GitHub Pages:
+
+- source content: `docs/`
+- configuration: `mkdocs.yml`
+- CI/CD workflow: `.github/workflows/docs-pages.yml`
+
+Build locally:
+
+```bash
+uvx --with mkdocs mkdocs build --strict
+```
+
+The generated site output is written to `site/`.
