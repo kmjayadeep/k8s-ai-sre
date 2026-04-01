@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>k8s-ai-sre Incident Inspector</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --panel: #ffffff;
+      --bg-1: #fff7ed;
+      --bg-2: #ecfeff;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(20, 184, 166, 0.12), transparent 36%),
+        radial-gradient(circle at 80% 90%, rgba(249, 115, 22, 0.14), transparent 34%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    }
+
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 1.2rem;
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 1rem;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(229, 231, 235, 0.9);
+      border-radius: 16px;
+      box-shadow: 0 10px 36px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
+    .panel h1,
+    .panel h2 {
+      margin: 0;
+      padding: 1rem 1rem 0.35rem;
+      font-family: "Space Grotesk", "Manrope", sans-serif;
+      font-size: 1.15rem;
+      letter-spacing: 0.02em;
+    }
+
+    .subline {
+      margin: 0;
+      padding: 0 1rem 0.9rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    #incident-list {
+      max-height: 76vh;
+      overflow-y: auto;
+      padding: 0.25rem 0.7rem 0.9rem;
+    }
+
+    .incident-item {
+      width: 100%;
+      display: block;
+      text-align: left;
+      margin: 0.4rem 0;
+      padding: 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+      cursor: pointer;
+      transition: 140ms ease;
+    }
+
+    .incident-item:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      box-shadow: 0 6px 18px rgba(15, 118, 110, 0.12);
+    }
+
+    .incident-item.active {
+      border-color: var(--accent);
+      background: color-mix(in oklab, var(--accent-soft), #fff 65%);
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent), #fff 35%);
+    }
+
+    .incident-title {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .incident-subtitle {
+      margin-top: 0.25rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .empty {
+      margin: 0.4rem;
+      padding: 0.8rem;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    #detail-grid {
+      display: grid;
+      gap: 0.8rem;
+      padding: 0 1rem 1rem;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 0.85rem;
+    }
+
+    .card h3 {
+      margin: 0 0 0.45rem;
+      font-size: 0.9rem;
+      color: #111827;
+      font-family: "Space Grotesk", "Manrope", sans-serif;
+      letter-spacing: 0.01em;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 0.3rem 0.6rem;
+      margin: 0;
+      font-size: 0.88rem;
+    }
+
+    .kv dt {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .kv dd {
+      margin: 0;
+      color: #111827;
+      word-break: break-word;
+    }
+
+    .answer {
+      margin: 0;
+      white-space: pre-wrap;
+      color: #111827;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .action-list {
+      margin: 0;
+      padding-left: 1rem;
+      display: grid;
+      gap: 0.45rem;
+      font-size: 0.88rem;
+    }
+
+    .action-list code {
+      font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      font-size: 0.82rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      padding: 0.12rem 0.28rem;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      #incident-list {
+        max-height: 45vh;
+      }
+
+      .kv {
+        grid-template-columns: 110px 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="panel">
+      <h1>Incident Feed</h1>
+      <p class="subline">Select an incident to inspect the summary, source, and proposed actions.</p>
+      <div id="incident-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Incident Inspector</h2>
+      <p class="subline" id="detail-hint">Choose an incident from the feed.</p>
+      <div id="detail-grid"></div>
+    </section>
+  </main>
+
+  <script>
+    const listEl = document.getElementById("incident-list");
+    const hintEl = document.getElementById("detail-hint");
+    const detailGridEl = document.getElementById("detail-grid");
+    let selectedId = null;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderAction(action) {
+      const approve = escapeHtml(action.approve_command || "");
+      const reject = escapeHtml(action.reject_command || "");
+      const actionType = escapeHtml(action.action_type || "unknown");
+      const target = `${escapeHtml(action.namespace || "")}/${escapeHtml(action.name || "")}`;
+      return `<li><strong>${actionType}</strong> on <code>${target}</code><br />Approve: <code>${approve}</code> Reject: <code>${reject}</code></li>`;
+    }
+
+    function renderIncidentDetail(incident) {
+      const answer = incident.answer && incident.answer.trim() ? escapeHtml(incident.answer) : "No summary available.";
+      const notification = incident.notification_status ? escapeHtml(incident.notification_status) : "not sent";
+      const actions = (incident.proposed_actions || []).map(renderAction).join("");
+      const actionsMarkup = actions ? `<ul class="action-list">${actions}</ul>` : '<p class="answer">No proposed actions.</p>';
+
+      detailGridEl.innerHTML = `
+        <article class="card">
+          <h3>Incident Overview</h3>
+          <dl class="kv">
+            <dt>Incident ID</dt><dd><code>${escapeHtml(incident.incident_id)}</code></dd>
+            <dt>Target</dt><dd>${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}</dd>
+            <dt>Source</dt><dd>${escapeHtml(incident.source || "manual")}</dd>
+            <dt>Notifications</dt><dd>${notification}</dd>
+          </dl>
+        </article>
+
+        <article class="card">
+          <h3>Investigation Summary</h3>
+          <p class="answer">${answer}</p>
+        </article>
+
+        <article class="card">
+          <h3>Proposed Actions</h3>
+          ${actionsMarkup}
+        </article>
+      `;
+    }
+
+    function setSelectedButton(incidentId) {
+      for (const element of listEl.querySelectorAll(".incident-item")) {
+        element.classList.toggle("active", element.dataset.incidentId === incidentId);
+      }
+    }
+
+    async function inspectIncident(incidentId) {
+      selectedId = incidentId;
+      setSelectedButton(incidentId);
+      const response = await fetch(`/incidents/${incidentId}`);
+      if (!response.ok) {
+        hintEl.textContent = "Incident not found.";
+        detailGridEl.innerHTML = "";
+        return;
+      }
+
+      const incident = await response.json();
+      hintEl.textContent = `Inspecting ${incident.incident_id}`;
+      renderIncidentDetail(incident);
+    }
+
+    async function loadIncidents() {
+      const response = await fetch("/incidents");
+      if (!response.ok) {
+        listEl.innerHTML = '<div class="empty">Failed to load incidents.</div>';
+        return;
+      }
+
+      const payload = await response.json();
+      const incidents = payload.incidents || [];
+      if (!incidents.length) {
+        listEl.innerHTML = '<div class="empty">No incidents recorded yet.</div>';
+        detailGridEl.innerHTML = "";
+        hintEl.textContent = "Trigger /investigate or /webhooks/alertmanager to populate this view.";
+        return;
+      }
+
+      listEl.innerHTML = "";
+      for (const incident of incidents) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "incident-item";
+        button.dataset.incidentId = incident.incident_id;
+        button.innerHTML = `
+          <p class="incident-title">${escapeHtml(incident.incident_id)}</p>
+          <p class="incident-subtitle">${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}</p>
+        `;
+        button.addEventListener("click", () => inspectIncident(incident.incident_id));
+        listEl.appendChild(button);
+      }
+
+      if (!selectedId) {
+        await inspectIncident(incidents[0].incident_id);
+      } else {
+        await inspectIncident(selectedId);
+      }
+    }
+
+    loadIncidents();
+  </script>
+</body>
+</html>
