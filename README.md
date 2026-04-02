@@ -157,6 +157,7 @@ Behavior details:
 ## Deployment ☸️
 
 Kubernetes manifests are in [`deploy`](deploy).
+Canonical deploy/rollback and degradation response guidance is in [`docs/deployment.md`](docs/deployment.md).
 Current published image reference:
 
 ```text
