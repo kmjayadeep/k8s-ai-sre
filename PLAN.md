@@ -16,6 +16,7 @@ Implemented and validated:
 
 - FastAPI investigation + Alertmanager webhook paths
 - Telegram notification and command approval flow (`/incident`, `/status`, `/approve`, `/reject`)
+- token-guarded HTTP operator action decisions (`POST /actions/{action_id}/approve|reject`) for non-interactive E2E validation
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - action lifecycle safety checks (pending-only transitions, expiry handling, retry safety)
 - local JSON-backed incident/action persistence with store abstraction
