@@ -21,6 +21,7 @@ Implemented baseline includes:
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - local JSON persistence for incidents/actions
 - CI tests and in-cluster end-to-end validation path
+- full in-cluster monitoring validation path using Prometheus + Alertmanager rule/webhook wiring
 
 ## Priority direction
 
