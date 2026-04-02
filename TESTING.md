@@ -8,6 +8,7 @@ Use this file as the current runbook. It intentionally keeps only a few represen
 - model credentials loaded in the shell (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
 - Telegram credentials loaded in the shell for notification/command flow (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
 - optional HTTP operator token for non-interactive approvals (`OPERATOR_API_TOKEN`)
+- optional SQLite store path override (`K8S_AI_SRE_STORE_PATH`)
 
 Useful checks:
 
@@ -242,6 +243,6 @@ Expected evidence:
 ```bash
 kubectl delete -f examples/kind-bad-deploy.yaml --ignore-not-found
 kubectl delete namespace ai-sre-demo --ignore-not-found
-rm -f /tmp/k8s-ai-sre-actions.json /tmp/k8s-ai-sre-incidents.json /tmp/k8s-ai-sre-e2e-incident.json
+rm -f /tmp/k8s-ai-sre-store.sqlite3 /tmp/k8s-ai-sre-actions.json /tmp/k8s-ai-sre-incidents.json /tmp/k8s-ai-sre-e2e-incident.json
 rm -rf /tmp/k8s-ai-sre-aie30
 ```
