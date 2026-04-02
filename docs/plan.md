@@ -30,4 +30,17 @@ Current priority in `PLAN.md` is the production safety gate before broader rollo
 - complete runbook and startup config validation
 - repeatedly validate reliability in-cluster
 
+## Next execution slices
+
+The plan now defines an ordered queue of PR-sized slices:
+
+1. startup preflight + fail-fast config validation
+2. approval actor and execution audit trail fields
+3. idempotent execution transitions under retry/restart
+4. SQLite-backed incident/action persistence (default path)
+5. restart reconciliation tests for in-flight actions
+6. approval-loop telemetry and health metrics
+
+Each slice is intended to ship as an atomic branch + PR with explicit tests.
+
 Read `PLAN.md` for detailed exit criteria and sequence.
