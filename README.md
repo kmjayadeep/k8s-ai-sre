@@ -36,7 +36,7 @@ It is designed to be practical first, not magic-first.
   - `GET /incidents/{incident_id}`
   - `GET /healthz`
   - `GET /` built-in web incident inspector
-- local JSON-backed storage for incidents and actions
+- local SQLite-backed storage for incidents and actions
 - Telegram notification plus command handling:
   - `/incident <incident-id>`
   - `/status <incident-id>`
@@ -141,6 +141,12 @@ Optional non-interactive operator API approval path:
 export OPERATOR_API_TOKEN=...
 ```
 
+Optional persistence override:
+
+```bash
+export K8S_AI_SRE_STORE_PATH=/var/lib/k8s-ai-sre/store.sqlite3
+```
+
 Behavior details:
 
 - polling starts automatically when `TELEGRAM_BOT_TOKEN` is set
@@ -149,6 +155,12 @@ Behavior details:
 - missing command arguments return usage hints (`Usage: /approve <action-id>`, etc.)
 - timeout values are validated and clamped to safe defaults when needed
 - `POST /actions/{action_id}/approve|reject` requires `Authorization: Bearer $OPERATOR_API_TOKEN` plus `X-Operator-Id: <operator-id>` and can be used for repeatable non-human E2E approvals
+
+Persistence note:
+
+- default incident/action persistence is `SQLite` at `/tmp/k8s-ai-sre-store.sqlite3`
+- set `K8S_AI_SRE_STORE_PATH` to place the DB on a persistent volume/path
+- legacy `/tmp/k8s-ai-sre-actions.json` and `/tmp/k8s-ai-sre-incidents.json` are no longer the default runtime store files
 
 ## Guardrails and safety model 🔒
 

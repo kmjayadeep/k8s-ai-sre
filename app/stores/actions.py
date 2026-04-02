@@ -1,13 +1,14 @@
+import os
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from app.stores.backend import JsonFileKeyValueStore, KeyValueStore
+from app.stores.backend import KeyValueStore, SqliteKeyValueStore
 
 
-ACTION_STORE_PATH = Path("/tmp/k8s-ai-sre-actions.json")
-_action_store: KeyValueStore = JsonFileKeyValueStore(lambda: ACTION_STORE_PATH)
+ACTION_STORE_PATH = Path(os.getenv("K8S_AI_SRE_STORE_PATH", "/tmp/k8s-ai-sre-store.sqlite3"))
+_action_store: KeyValueStore = SqliteKeyValueStore(lambda: ACTION_STORE_PATH, table_name="actions")
 
 
 def set_action_store(store: KeyValueStore) -> None:
