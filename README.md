@@ -220,6 +220,7 @@ Use [`TESTING.md`](TESTING.md) for the current runbook, including:
 - Alertmanager webhook flow
 - Telegram approval flow
 - kind end-to-end exercise
+- full in-cluster alert pipeline exercise (Prometheus + Alertmanager)
 
 Quick command:
 

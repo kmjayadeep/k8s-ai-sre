@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ai-sre-bad-deploy
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  groups:
+    - name: ai-sre.rules
+      rules:
+        - alert: DeploymentReplicasUnavailable
+          expr: kube_deployment_status_replicas_unavailable{namespace="ai-sre-demo",deployment="bad-deploy"} > 0
+          for: 1m
+          labels:
+            severity: warning
+            namespace: ai-sre-demo
+            deployment: bad-deploy
+          annotations:
+            summary: bad-deploy has unavailable replicas
+            description: bad-deploy is unhealthy and should trigger ai-sre investigation.

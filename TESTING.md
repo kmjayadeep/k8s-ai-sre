@@ -158,13 +158,14 @@ curl -X POST http://127.0.0.1:18080/webhooks/alertmanager \
   --data @examples/alertmanager-bad-deploy.json
 ```
 
-The repository also includes a helper script:
+The repository includes helper scripts:
 
 ```bash
 scripts/e2e_kind.sh
+scripts/e2e_full_stack_kind.sh
 ```
 
-It will:
+`scripts/e2e_kind.sh` will:
 
 - fail fast if model or Telegram credentials are missing
 - apply the broken deployment scenario
@@ -191,10 +192,56 @@ Note:
 - do not use bot-token `sendMessage` to emulate operator approval; bot-originated messages are not ingested as incoming command updates for the same bot. Use a real Telegram user chat message for `/approve` validation.
 - for repeatable CI-like checks, prefer the token-guarded HTTP operator endpoint instead of bot-originated Telegram messages.
 
+## Example 5: Full Alert Pipeline In Kind (Prometheus + Alertmanager)
+
+This verifies that a real in-cluster alert (not a synthetic webhook curl) drives the full loop.
+
+Prerequisites:
+
+- `kind`, `kubectl`, `docker`, `jq`, `curl` (`helm` is used if installed; otherwise the script downloads a local Helm binary)
+- model credentials (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
+- Telegram credentials (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
+- operator API token (`OPERATOR_API_TOKEN`) for non-interactive approval
+- optional operator identity header value (`OPERATOR_ID`, default: `e2e-kind-runner`)
+- alternatively, pre-existing `ai-sre-system/k8s-ai-sre-env` secret with those keys; the script backfills missing shell vars from that secret
+
+Run:
+
+```bash
+scripts/e2e_full_stack_kind.sh
+```
+
+What it does:
+
+- builds and loads `k8s-ai-sre:e2e` into kind
+- deploys app manifests into `ai-sre-system`
+- installs `kube-prometheus-stack` in `monitoring` using `examples/monitoring/kube-prom-stack-values.yaml`
+- applies `examples/monitoring/bad-deploy-prometheus-rule.yaml`
+- creates the failing `bad-deploy` workload in `ai-sre-demo`
+- waits for `DeploymentReplicasUnavailable` in Alertmanager
+- waits for a `source=alertmanager` incident in `/incidents`
+- approves first proposed action via `POST /actions/{id}/approve`
+- verifies the action reaches a terminal execution state and records workload health as best-effort context
+- writes evidence bundle to `/tmp/k8s-ai-sre-aie30/`
+
+Important:
+
+- if the model returns no proposed actions (`action_ids=[]`), the script exits non-zero after saving evidence and a `failure-reason.txt`; this indicates a real propose-stage gap.
+
+Expected evidence:
+
+- `/tmp/k8s-ai-sre-aie30/incidents.json`
+- `/tmp/k8s-ai-sre-aie30/alertmanager-alerts.json`
+- `/tmp/k8s-ai-sre-aie30/approval.json`
+- `/tmp/k8s-ai-sre-aie30/execution-summary.json`
+- `/tmp/k8s-ai-sre-aie30/bad-deploy-state.yaml`
+- `/tmp/k8s-ai-sre-aie30/bad-deploy-pods.txt`
+
 ## Cleanup
 
 ```bash
 kubectl delete -f examples/kind-bad-deploy.yaml --ignore-not-found
 kubectl delete namespace ai-sre-demo --ignore-not-found
 rm -f /tmp/k8s-ai-sre-actions.json /tmp/k8s-ai-sre-incidents.json /tmp/k8s-ai-sre-e2e-incident.json
+rm -rf /tmp/k8s-ai-sre-aie30
 ```

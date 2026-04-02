@@ -23,6 +23,7 @@ Implemented baseline includes:
 - action audit fields for operator identity/source and execution result details
 - local JSON persistence for incidents/actions
 - CI tests and in-cluster end-to-end validation path
+- full in-cluster monitoring validation path using Prometheus + Alertmanager rule/webhook wiring
 
 ## Priority direction
 

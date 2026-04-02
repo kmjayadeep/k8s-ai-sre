@@ -26,6 +26,7 @@ Implemented and validated:
 - CI test workflow for PRs and `main`
 - in-cluster end-to-end validation of alert -> propose -> notify -> approve -> execute
 - deterministic proposal fallback for `deployment` and `pod` investigations when the model answer omits proposal tool calls
+- full kind runbook for real alert generation with PrometheusRule + Alertmanager webhook routing (`scripts/e2e_full_stack_kind.sh`)
 
 Known limits:
 

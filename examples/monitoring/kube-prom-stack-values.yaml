@@ -1,0 +1,36 @@
+defaultRules:
+  create: false
+
+grafana:
+  enabled: false
+
+prometheus-node-exporter:
+  enabled: false
+
+kube-state-metrics:
+  enabled: true
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    replicas: 1
+  config:
+    global:
+      resolve_timeout: 1m
+    route:
+      receiver: ai-sre-webhook
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 2m
+    receivers:
+      - name: ai-sre-webhook
+        webhook_configs:
+          - url: http://k8s-ai-sre.ai-sre-system.svc.cluster.local/webhooks/alertmanager
+            send_resolved: true
+      - name: "null"
+
+prometheus:
+  enabled: true
+  prometheusSpec:
+    evaluationInterval: 15s
+    scrapeInterval: 15s
