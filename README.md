@@ -41,6 +41,7 @@ It is designed to be practical first, not magic-first.
   - `/status <incident-id>`
   - `/approve <action-id>`
   - `/reject <action-id>`
+  - one-tap inline Approve/Reject buttons embedded in incident notifications
 - guarded write actions:
   - `delete-pod`
   - `rollout-restart`
@@ -143,6 +144,7 @@ Behavior details:
 
 - polling starts automatically when `TELEGRAM_BOT_TOKEN` is set
 - unauthorized chat IDs are ignored when `TELEGRAM_ALLOWED_CHAT_IDS` is configured
+- incident notifications include inline action buttons (`Approve <id>`, `Reject <id>`) so operators can decide without typing IDs
 - missing command arguments return usage hints (`Usage: /approve <action-id>`, etc.)
 - timeout values are validated and clamped to safe defaults when needed
 - `POST /actions/{action_id}/approve|reject` requires `Authorization: Bearer $OPERATOR_API_TOKEN` and can be used for repeatable non-human E2E approvals

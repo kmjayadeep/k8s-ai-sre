@@ -29,6 +29,17 @@ class TelegramCommandParsingTests(unittest.TestCase):
         reply = telegram._handle_command("/approve")
         self.assertEqual("Usage: /approve <action-id>", reply)
 
+    def test_handle_callback_dispatches_approve(self) -> None:
+        with patch("app.telegram.approve_action", return_value="ok") as approve_action:
+            reply = telegram._handle_callback("approve:f314980d")
+
+        self.assertEqual("ok", reply)
+        approve_action.assert_called_once_with("f314980d")
+
+    def test_handle_callback_rejects_unknown_payload(self) -> None:
+        reply = telegram._handle_callback("bogus")
+        self.assertEqual("Unsupported action button payload.", reply)
+
     def test_unknown_command_returns_help(self) -> None:
         reply = telegram._handle_command("/help")
         self.assertIn("/incident <incident-id>", reply)
@@ -84,6 +95,58 @@ class TelegramCommandParsingTests(unittest.TestCase):
             "123",
             "Command failed due to an internal error. Please retry and check service logs.",
         )
+
+    def test_poll_updates_processes_callback_query(self) -> None:
+        body = {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 12,
+                    "callback_query": {
+                        "id": "cb-1",
+                        "data": "approve:deadbeef",
+                        "message": {"chat": {"id": 123}},
+                    },
+                }
+            ],
+        }
+        with patch("app.telegram._telegram_token", return_value="token"):
+            with patch("app.telegram._telegram_api", return_value=body):
+                with patch("app.telegram._allowed_chat_ids", return_value=set()):
+                    with patch("app.telegram._save_offset"):
+                        with patch("app.telegram._handle_callback", return_value="approved") as handle_callback:
+                            with patch("app.telegram._send_message", return_value="Telegram reply sent.") as send_message:
+                                with patch("app.telegram._answer_callback_query", return_value="Telegram callback acknowledged.") as ack:
+                                    result = telegram.poll_telegram_updates_once()
+
+        self.assertEqual("Processed 1 Telegram command(s).", result)
+        handle_callback.assert_called_once_with("approve:deadbeef")
+        send_message.assert_called_once_with("123", "approved")
+        ack.assert_called_once_with("cb-1", "approved")
+
+    def test_poll_updates_ignores_unauthorized_callback_query(self) -> None:
+        body = {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 13,
+                    "callback_query": {
+                        "id": "cb-2",
+                        "data": "reject:deadbeef",
+                        "message": {"chat": {"id": 123}},
+                    },
+                }
+            ],
+        }
+        with patch("app.telegram._telegram_token", return_value="token"):
+            with patch("app.telegram._telegram_api", return_value=body):
+                with patch("app.telegram._allowed_chat_ids", return_value={"999"}):
+                    with patch("app.telegram._save_offset"):
+                        with patch("app.telegram._send_message") as send_message:
+                            result = telegram.poll_telegram_updates_once()
+
+        self.assertEqual("Processed 0 Telegram command(s).", result)
+        send_message.assert_not_called()
 
     def test_poll_updates_uses_numeric_poll_timeout_override(self) -> None:
         with patch.dict(environ, {"TELEGRAM_POLL_TIMEOUT_SECONDS": "42"}, clear=False):
