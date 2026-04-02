@@ -129,7 +129,7 @@ def _format_status(incident: dict[str, object]) -> str:
     )
 
 
-def _handle_command(text: str) -> str:
+def _handle_command(text: str, approver_id: str = "unknown", approval_source: str = "telegram") -> str:
     parts = text.strip().split(maxsplit=1)
     command = parts[0] if parts else ""
     if "@" in command:
@@ -155,12 +155,12 @@ def _handle_command(text: str) -> str:
     if command == "/approve":
         if not argument:
             return _usage(command)
-        return approve_action(argument)
+        return approve_action(argument, approver_id=approver_id, approval_source=approval_source)
 
     if command == "/reject":
         if not argument:
             return _usage(command)
-        return reject_action(argument)
+        return reject_action(argument, approver_id=approver_id, approval_source=approval_source)
 
     return COMMAND_HELP_TEXT
 
@@ -193,8 +193,19 @@ def poll_telegram_updates_once() -> str:
             _save_offset(update_id + 1)
         message = update.get("message", {})
         chat = message.get("chat", {})
+        actor = message.get("from", {})
         text = message.get("text", "").strip()
         chat_id = str(chat.get("id", ""))
+        actor_id = str(actor.get("id", "")).strip()
+        actor_username = str(actor.get("username", "")).strip()
+        if actor_username:
+            approver_id = f"telegram:{actor_username}"
+        elif actor_id:
+            approver_id = f"telegram:{actor_id}"
+        elif chat_id:
+            approver_id = f"telegram-chat:{chat_id}"
+        else:
+            approver_id = "telegram:unknown"
         allowed_chat_ids = _allowed_chat_ids()
         if allowed_chat_ids and chat_id not in allowed_chat_ids:
             log_event("telegram_command_ignored_unauthorized", chat_id=chat_id, text=text)
@@ -203,7 +214,7 @@ def poll_telegram_updates_once() -> str:
             continue
         log_event("telegram_command_received", chat_id=chat_id, text=text)
         try:
-            reply = _handle_command(text)
+            reply = _handle_command(text, approver_id=approver_id, approval_source="telegram")
         except Exception as exc:
             log_event("telegram_command_failed", chat_id=chat_id, text=text, error=str(exc))
             reply = "Command failed due to an internal error. Please retry and check service logs."

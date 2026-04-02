@@ -19,6 +19,8 @@ Implemented baseline includes:
 - API investigation and Alertmanager webhook paths
 - Telegram notification and approval command flow
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
+- fail-closed RBAC preflight (`kubectl auth can-i`) and target readability checks for mutating actions
+- action audit fields for operator identity/source and execution result details
 - local JSON persistence for incidents/actions
 - CI tests and in-cluster end-to-end validation path
 

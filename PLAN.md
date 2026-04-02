@@ -18,7 +18,9 @@ Implemented and validated:
 - Telegram notification and command approval flow (`/incident`, `/status`, `/approve`, `/reject`)
 - token-guarded HTTP operator action decisions (`POST /actions/{action_id}/approve|reject`) for non-interactive E2E validation
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
+- fail-closed mutation preflight with `kubectl auth can-i` checks and target readability checks before execution
 - action lifecycle safety checks (pending-only transitions, expiry handling, retry safety)
+- action audit fields for approver identity/source, executed target details, and terminal execution result
 - local JSON-backed incident/action persistence with store abstraction
 - read-only web incident inspector (`/` + `/incidents`) for operator inspection of past incidents
 - CI test workflow for PRs and `main`
@@ -27,7 +29,7 @@ Implemented and validated:
 Known limits:
 
 - persistence is local-file only (not HA)
-- approval and execution are not yet backed by Kubernetes-native identity/audit surfaces
+- approval identity is currently header/chat-derived and not federated with cluster identity providers
 - rollout readiness still depends on manual environment/secret setup
 
 ## Product Direction Update

@@ -125,7 +125,7 @@ What to verify:
 - `/approve` executes the guarded action
 - `/reject` updates the action state without execution
 - missing command arguments return a clear usage hint (for example `/approve` -> `Usage: /approve <action-id>`)
-- when `OPERATOR_API_TOKEN` is set, `POST /actions/<action-id>/approve` and `POST /actions/<action-id>/reject` require `Authorization: Bearer <token>` and update action state without Telegram input
+- when `OPERATOR_API_TOKEN` is set, `POST /actions/<action-id>/approve` and `POST /actions/<action-id>/reject` require both `Authorization: Bearer <token>` and `X-Operator-Id: <operator-id>` and update action state without Telegram input
 
 ## Example 4: Kind End-To-End Exercise
 
@@ -179,7 +179,8 @@ What to verify:
 ```bash
 ACTION_ID="$(jq -r '.action_ids[0]' /tmp/k8s-ai-sre-e2e-incident.json)"
 curl -X POST "http://127.0.0.1:18080/actions/${ACTION_ID}/approve" \
-  -H "Authorization: Bearer ${OPERATOR_API_TOKEN}"
+  -H "Authorization: Bearer ${OPERATOR_API_TOKEN}" \
+  -H "X-Operator-Id: ci-e2e"
 ```
 
 Note:

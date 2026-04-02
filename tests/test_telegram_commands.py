@@ -12,14 +12,14 @@ class TelegramCommandParsingTests(unittest.TestCase):
             reply = telegram._handle_command("/approve@k8s_ai_sre_bot f314980d")
 
         self.assertEqual("ok", reply)
-        approve_action.assert_called_once_with("f314980d")
+        approve_action.assert_called_once_with("f314980d", approver_id="unknown", approval_source="telegram")
 
     def test_reject_command_strips_bot_mention(self) -> None:
         with patch("app.telegram.reject_action", return_value="rejected") as reject_action:
             reply = telegram._handle_command("/reject@k8s_ai_sre_bot f314980d")
 
         self.assertEqual("rejected", reply)
-        reject_action.assert_called_once_with("f314980d")
+        reject_action.assert_called_once_with("f314980d", approver_id="unknown", approval_source="telegram")
 
     def test_incident_command_without_argument_returns_usage(self) -> None:
         reply = telegram._handle_command("/incident")

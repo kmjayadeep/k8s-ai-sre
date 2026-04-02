@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCENARIO_MANIFEST="${ROOT_DIR}/examples/kind-bad-deploy.yaml"
 ALERT_PAYLOAD="${ROOT_DIR}/examples/alertmanager-bad-deploy.json"
 SERVICE_URL="${SERVICE_URL:-http://127.0.0.1:8080}"
+OPERATOR_ID="${OPERATOR_ID:-kind-e2e}"
 
 if [[ -z "${MODEL_API_KEY:-}" && -z "${PORTKEY_API_KEY:-}" ]]; then
   echo "Missing model credentials. Set MODEL_API_KEY or PORTKEY_API_KEY before running this script."
@@ -44,13 +45,14 @@ if [[ -n "${ACTION_ID}" && -n "${OPERATOR_API_TOKEN:-}" ]]; then
   echo "Auto-approving first action via HTTP operator endpoint: ${ACTION_ID}"
   curl -sS -X POST "${SERVICE_URL}/actions/${ACTION_ID}/approve" \
     -H "Authorization: Bearer ${OPERATOR_API_TOKEN}" \
+    -H "X-Operator-Id: ${OPERATOR_ID}" \
     -H 'Content-Type: application/json' | tee /tmp/k8s-ai-sre-e2e-approval.json
   echo "  3. Approval response captured at /tmp/k8s-ai-sre-e2e-approval.json."
 else
   echo "  3. Approve one action from Telegram with /approve <action-id>."
   if [[ -n "${ACTION_ID}" ]]; then
     echo "     Optional automation: set OPERATOR_API_TOKEN and run:"
-    echo "     curl -X POST \"${SERVICE_URL}/actions/${ACTION_ID}/approve\" -H \"Authorization: Bearer \$OPERATOR_API_TOKEN\""
+    echo "     curl -X POST \"${SERVICE_URL}/actions/${ACTION_ID}/approve\" -H \"Authorization: Bearer \$OPERATOR_API_TOKEN\" -H \"X-Operator-Id: <operator-id>\""
   fi
 fi
 echo "  4. Verify the action result in the cluster:"

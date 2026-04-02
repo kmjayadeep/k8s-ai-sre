@@ -145,14 +145,16 @@ Behavior details:
 - unauthorized chat IDs are ignored when `TELEGRAM_ALLOWED_CHAT_IDS` is configured
 - missing command arguments return usage hints (`Usage: /approve <action-id>`, etc.)
 - timeout values are validated and clamped to safe defaults when needed
-- `POST /actions/{action_id}/approve|reject` requires `Authorization: Bearer $OPERATOR_API_TOKEN` and can be used for repeatable non-human E2E approvals
+- `POST /actions/{action_id}/approve|reject` requires `Authorization: Bearer $OPERATOR_API_TOKEN` plus `X-Operator-Id: <operator-id>` and can be used for repeatable non-human E2E approvals
 
 ## Guardrails and safety model 🔒
 
 - write actions require explicit approve commands before execution
 - write scope can be restricted to specific namespaces (`WRITE_ALLOWED_NAMESPACES`)
 - `scale` rejects negative replica values
-- `scale` and `rollout-undo` validate target deployment readability/existence before mutating
+- mutating actions perform fail-closed `kubectl auth can-i` checks and deny on ambiguous authorization responses
+- `delete-pod` validates pod readability/existence before mutating
+- deployment mutations validate deployment readability/existence before mutating
 
 ## Deployment ☸️
 

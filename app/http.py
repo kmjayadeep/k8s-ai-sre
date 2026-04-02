@@ -87,6 +87,13 @@ def _require_operator_api_token(authorization: str | None) -> None:
         raise HTTPException(status_code=403, detail="invalid operator token")
 
 
+def _require_operator_identity(operator_id: str | None) -> str:
+    candidate = (operator_id or "").strip()
+    if not candidate:
+        raise HTTPException(status_code=400, detail="missing operator identity header (X-Operator-Id)")
+    return candidate
+
+
 def _action_status_or_not_found(action_id: str) -> str:
     action = get_action(action_id)
     if action is None:
@@ -168,16 +175,26 @@ async def read_incident(incident_id: str) -> IncidentResponse:
 
 
 @app.post("/actions/{action_id}/approve", response_model=ActionDecisionResponse)
-async def approve_action_http(action_id: str, authorization: str | None = Header(default=None)) -> ActionDecisionResponse:
+async def approve_action_http(
+    action_id: str,
+    authorization: str | None = Header(default=None),
+    operator_id: str | None = Header(default=None, alias="X-Operator-Id"),
+) -> ActionDecisionResponse:
     _require_operator_api_token(authorization)
-    message = approve_action(action_id)
+    approver_id = _require_operator_identity(operator_id)
+    message = approve_action(action_id, approver_id=approver_id, approval_source="http_api")
     return ActionDecisionResponse(action_id=action_id, status=_action_status_or_not_found(action_id), message=message)
 
 
 @app.post("/actions/{action_id}/reject", response_model=ActionDecisionResponse)
-async def reject_action_http(action_id: str, authorization: str | None = Header(default=None)) -> ActionDecisionResponse:
+async def reject_action_http(
+    action_id: str,
+    authorization: str | None = Header(default=None),
+    operator_id: str | None = Header(default=None, alias="X-Operator-Id"),
+) -> ActionDecisionResponse:
     _require_operator_api_token(authorization)
-    message = reject_action(action_id)
+    approver_id = _require_operator_identity(operator_id)
+    message = reject_action(action_id, approver_id=approver_id, approval_source="http_api")
     return ActionDecisionResponse(action_id=action_id, status=_action_status_or_not_found(action_id), message=message)
 
 
