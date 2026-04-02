@@ -1,6 +1,6 @@
 from agents import Agent, Runner
 
-from app.actions import begin_proposal_capture, finish_proposal_capture
+from app.actions import begin_proposal_capture, finish_proposal_capture, propose_action
 from app.log import log_event
 from app.prompts import AGENT_INSTRUCTIONS, build_demo_prompt
 from app.tools.k8s import (
@@ -15,6 +15,17 @@ from app.tools.k8s import (
 )
 from app.tools.proposals import propose_delete_pod, propose_rollout_restart, propose_rollout_undo, propose_scale
 from model_factory import create_model
+
+
+def _create_deterministic_fallback_proposal(kind: str, namespace: str, name: str) -> str | None:
+    normalized_kind = kind.strip().lower()
+    if normalized_kind == "deployment":
+        propose_action("rollout-restart", namespace, name)
+        return "rollout-restart"
+    if normalized_kind == "pod":
+        propose_action("delete-pod", namespace, name)
+        return "delete-pod"
+    return None
 
 
 def create_agent() -> Agent:
@@ -51,6 +62,19 @@ async def investigate_target(kind: str, namespace: str, name: str, emit_progress
     capture_token = begin_proposal_capture()
     result = await Runner.run(agent, build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence)
     proposed_actions = finish_proposal_capture(capture_token)
+    fallback_action_type: str | None = None
+    if not proposed_actions:
+        fallback_token = begin_proposal_capture()
+        fallback_action_type = _create_deterministic_fallback_proposal(kind, namespace, name)
+        proposed_actions = finish_proposal_capture(fallback_token)
+        if proposed_actions and fallback_action_type is not None:
+            log_event(
+                "investigation_fallback_proposal_created",
+                kind=kind,
+                namespace=namespace,
+                name=name,
+                action_type=fallback_action_type,
+            )
     response = {
         "kind": kind,
         "namespace": namespace,

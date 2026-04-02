@@ -23,6 +23,7 @@ Implemented and validated:
 - read-only web incident inspector (`/` + `/incidents`) for operator inspection of past incidents
 - CI test workflow for PRs and `main`
 - in-cluster end-to-end validation of alert -> propose -> notify -> approve -> execute
+- deterministic proposal fallback for `deployment` and `pod` investigations when the model answer omits proposal tool calls
 
 Known limits:
 

@@ -7,6 +7,7 @@
 - receives a target from HTTP (`/investigate`) or Alertmanager webhook (`/webhooks/alertmanager`)
 - gathers real cluster evidence with `kubectl` reads (and optional Prometheus context)
 - drafts actionable remediation proposals
+- applies deterministic fallback proposals for Deployment/Pod targets when the model response omits proposal tool calls
 - requires explicit operator approval before any write action
 - executes only guarded actions with namespace constraints
 
