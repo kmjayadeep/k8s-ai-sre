@@ -1,4 +1,5 @@
 from contextvars import ContextVar, Token
+from datetime import UTC, datetime
 
 from app.log import log_event
 from app.stores import create_action, get_action, is_action_expired, update_action, update_action_status
@@ -82,7 +83,24 @@ def _action_execution_succeeded(result: str) -> bool:
     return not result.startswith(failure_prefixes)
 
 
-def approve_action(action_id: str) -> str:
+def _utc_now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _executed_action_details(action: dict) -> dict[str, object]:
+    return {
+        "action_type": action["type"],
+        "namespace": action["namespace"],
+        "name": action["name"],
+        "params": action.get("params", {}),
+    }
+
+
+def approve_action(
+    action_id: str,
+    approver_id: str = "unknown",
+    approval_source: str = "unknown",
+) -> str:
     action = get_action(action_id)
     if action is None:
         return f"Action {action_id} not found."
@@ -93,26 +111,48 @@ def approve_action(action_id: str) -> str:
         log_event("action_expired", action_id=action_id)
         return _action_result_prefix(action) + f"Action {action_id} has expired."
 
+    update_action(
+        action_id,
+        {
+            "approved_by": approver_id,
+            "approval_source": approval_source,
+            "approval_decided_at": _utc_now(),
+            "executed_action": _executed_action_details(action),
+        },
+    )
     try:
         result = execute_action(action)
         new_status = "approved" if _action_execution_succeeded(result) else "failed"
     except Exception as exc:
         result = f"Failed to execute action {action_id}: {exc}"
         new_status = "failed"
-    update_action_status(action_id, new_status)
+    update_action(
+        action_id,
+        {
+            "status": new_status,
+            "execution_result": result,
+            "execution_finished_at": _utc_now(),
+        },
+    )
     log_fields = {
         "action_id": action_id,
         "action_type": action["type"],
         "namespace": action["namespace"],
         "name": action["name"],
         "status": new_status,
+        "approved_by": approver_id,
+        "approval_source": approval_source,
     }
     log_fields.update(action.get("params", {}))
     log_event("action_approved" if new_status == "approved" else "action_failed", **log_fields)
     return _action_result_prefix(action) + result
 
 
-def reject_action(action_id: str) -> str:
+def reject_action(
+    action_id: str,
+    approver_id: str = "unknown",
+    approval_source: str = "unknown",
+) -> str:
     action = get_action(action_id)
     if action is None:
         return f"Action {action_id} not found."
@@ -124,6 +164,16 @@ def reject_action(action_id: str) -> str:
         log_event("action_expired", action_id=action_id)
         return _action_result_prefix(action) + f"Action {action_id} has expired."
 
-    update_action_status(action_id, "rejected")
-    log_event("action_rejected", action_id=action_id)
+    update_action(
+        action_id,
+        {
+            "status": "rejected",
+            "approved_by": approver_id,
+            "approval_source": approval_source,
+            "approval_decided_at": _utc_now(),
+            "execution_result": "Rejected by operator before execution.",
+            "execution_finished_at": _utc_now(),
+        },
+    )
+    log_event("action_rejected", action_id=action_id, approved_by=approver_id, approval_source=approval_source)
     return _action_result_prefix(action) + f"Rejected action {action_id}."

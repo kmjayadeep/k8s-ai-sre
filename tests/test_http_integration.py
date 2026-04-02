@@ -143,17 +143,32 @@ class HttpIntegrationTests(unittest.TestCase):
 
         with patch.dict("os.environ", {"OPERATOR_API_TOKEN": "test-token"}, clear=False):
             with patch("app.actions.delete_pod", return_value='pod "crashy" deleted'):
-                body = run(approve_action_http(action["id"], authorization="Bearer test-token")).model_dump()
+                body = run(
+                    approve_action_http(
+                        action["id"],
+                        authorization="Bearer test-token",
+                        operator_id="automation-kind",
+                    )
+                ).model_dump()
 
         self.assertEqual(action["id"], body["action_id"])
         self.assertEqual("approved", body["status"])
         self.assertIn('pod "crashy" deleted', body["message"])
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("automation-kind", stored["approved_by"])
+        self.assertEqual("http_api", stored["approval_source"])
 
     def test_operator_http_reject_updates_status_when_token_valid(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
 
         with patch.dict("os.environ", {"OPERATOR_API_TOKEN": "test-token"}, clear=False):
-            body = run(reject_action_http(action["id"], authorization="Bearer test-token")).model_dump()
+            body = run(
+                reject_action_http(
+                    action["id"],
+                    authorization="Bearer test-token",
+                    operator_id="operator-42",
+                )
+            ).model_dump()
 
         self.assertEqual(action["id"], body["action_id"])
         self.assertEqual("rejected", body["status"])
@@ -173,6 +188,15 @@ class HttpIntegrationTests(unittest.TestCase):
 
         with patch.dict("os.environ", {"OPERATOR_API_TOKEN": "test-token"}, clear=False):
             with self.assertRaises(HTTPException) as raised:
-                run(approve_action_http(action["id"], authorization="Bearer wrong"))
+                run(approve_action_http(action["id"], authorization="Bearer wrong", operator_id="operator-1"))
 
         self.assertEqual(403, raised.exception.status_code)
+
+    def test_operator_http_approve_requires_operator_identity_header(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch.dict("os.environ", {"OPERATOR_API_TOKEN": "test-token"}, clear=False):
+            with self.assertRaises(HTTPException) as raised:
+                run(approve_action_http(action["id"], authorization="Bearer test-token", operator_id=None))
+
+        self.assertEqual(400, raised.exception.status_code)

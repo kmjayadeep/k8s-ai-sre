@@ -47,11 +47,16 @@ class ActionServiceTests(unittest.TestCase):
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
 
         with patch("app.actions.delete_pod", return_value='pod "crashy" deleted'):
-            result = action_service.approve_action(action["id"])
+            result = action_service.approve_action(action["id"], approver_id="operator-1", approval_source="http_api")
 
         self.assertIn('pod "crashy" deleted', result)
         stored = action_store.get_action(action["id"])
         self.assertEqual("approved", stored["status"])
+        self.assertEqual("operator-1", stored["approved_by"])
+        self.assertEqual("http_api", stored["approval_source"])
+        self.assertIn("action_type", stored["executed_action"])
+        self.assertIn('pod "crashy" deleted', stored["execution_result"])
+        self.assertIn("execution_finished_at", stored)
 
     def test_approve_action_fails_closed_when_execution_raises(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
@@ -94,6 +99,20 @@ class ActionServiceTests(unittest.TestCase):
         self.assertIn(f"Action {action['id']} is already approved.", result)
         stored = action_store.get_action(action["id"])
         self.assertEqual("approved", stored["status"])
+
+    def test_reject_action_writes_audit_fields(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        result = action_service.reject_action(action["id"], approver_id="telegram:alice", approval_source="telegram")
+
+        self.assertIn(f"Rejected action {action['id']}.", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("rejected", stored["status"])
+        self.assertEqual("telegram:alice", stored["approved_by"])
+        self.assertEqual("telegram", stored["approval_source"])
+        self.assertIn("Rejected by operator", stored["execution_result"])
+        self.assertIn("approval_decided_at", stored)
+        self.assertIn("execution_finished_at", stored)
 
     def test_reject_action_marks_expired_when_action_is_expired(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
