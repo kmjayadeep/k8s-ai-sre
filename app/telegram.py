@@ -99,6 +99,16 @@ def _send_message(chat_id: str, text: str) -> str:
     return "Telegram reply sent."
 
 
+def _answer_callback_query(callback_query_id: str, text: str) -> str:
+    payload = {"callback_query_id": callback_query_id}
+    if text:
+        payload["text"] = text[:180]
+    body = _telegram_api("answerCallbackQuery", payload)
+    if not body.get("ok"):
+        return f"Failed to acknowledge Telegram callback: {body}"
+    return "Telegram callback acknowledged."
+
+
 def _format_incident(incident: dict[str, object]) -> str:
     lines = [
         f"Incident {incident.get('incident_id', 'unknown')}",
@@ -165,6 +175,17 @@ def _handle_command(text: str) -> str:
     return COMMAND_HELP_TEXT
 
 
+def _handle_callback(data: str) -> str:
+    verb, separator, action_id = data.strip().partition(":")
+    if not separator or not action_id:
+        return "Unsupported action button payload."
+    if verb == "approve":
+        return approve_action(action_id)
+    if verb == "reject":
+        return reject_action(action_id)
+    return "Unsupported action button payload."
+
+
 def poll_telegram_updates_once() -> str:
     token = _telegram_token()
     if not token:
@@ -191,6 +212,30 @@ def poll_telegram_updates_once() -> str:
         update_id = update.get("update_id")
         if update_id is not None:
             _save_offset(update_id + 1)
+        callback_query = update.get("callback_query", {})
+        callback_message = callback_query.get("message", {})
+        callback_chat = callback_message.get("chat", {})
+        callback_chat_id = str(callback_chat.get("id", ""))
+        callback_data = str(callback_query.get("data", "")).strip()
+        callback_id = str(callback_query.get("id", "")).strip()
+        if callback_query and callback_chat_id and callback_data:
+            allowed_chat_ids = _allowed_chat_ids()
+            if allowed_chat_ids and callback_chat_id not in allowed_chat_ids:
+                log_event("telegram_callback_ignored_unauthorized", chat_id=callback_chat_id, data=callback_data)
+                continue
+            log_event("telegram_callback_received", chat_id=callback_chat_id, data=callback_data)
+            try:
+                reply = _handle_callback(callback_data)
+            except Exception as exc:
+                log_event("telegram_callback_failed", chat_id=callback_chat_id, data=callback_data, error=str(exc))
+                reply = "Action failed due to an internal error. Please retry and check service logs."
+            send_status = _send_message(callback_chat_id, reply)
+            log_event("telegram_reply_result", chat_id=callback_chat_id, status=send_status)
+            if callback_id:
+                ack_status = _answer_callback_query(callback_id, reply)
+                log_event("telegram_callback_ack_result", callback_id=callback_id, status=ack_status)
+            handled += 1
+            continue
         message = update.get("message", {})
         chat = message.get("chat", {})
         text = message.get("text", "").strip()

@@ -5,6 +5,24 @@ import urllib.parse
 import urllib.request
 
 
+def _inline_keyboard(incident: dict[str, object]) -> list[list[dict[str, str]]]:
+    proposed_actions = incident.get("proposed_actions", [])
+    keyboard: list[list[dict[str, str]]] = []
+    for action in proposed_actions[:4]:
+        if not isinstance(action, dict):
+            continue
+        action_id = str(action.get("action_id", "")).strip()
+        if not action_id:
+            continue
+        keyboard.append(
+            [
+                {"text": f"Approve {action_id}", "callback_data": f"approve:{action_id}"},
+                {"text": f"Reject {action_id}", "callback_data": f"reject:{action_id}"},
+            ]
+        )
+    return keyboard
+
+
 def _format_proposed_actions(incident: dict[str, object]) -> str:
     proposed_actions = incident.get("proposed_actions", [])
     if not proposed_actions:
@@ -37,7 +55,11 @@ def send_telegram_notification(incident: dict[str, object]) -> str:
         f"{_format_proposed_actions(incident)}"
     )
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = urllib.parse.urlencode({"chat_id": chat_id, "text": message}).encode("utf-8")
+    payload_data = {"chat_id": chat_id, "text": message}
+    keyboard = _inline_keyboard(incident)
+    if keyboard:
+        payload_data["reply_markup"] = json.dumps({"inline_keyboard": keyboard})
+    payload = urllib.parse.urlencode(payload_data).encode("utf-8")
     request = urllib.request.Request(url, data=payload, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=10) as response:

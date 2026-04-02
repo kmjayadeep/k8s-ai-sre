@@ -119,9 +119,12 @@ From Telegram:
 /reject <action-id>
 ```
 
+Notification messages also include inline `Approve <action-id>` / `Reject <action-id>` buttons for one-tap decisions.
+
 What to verify:
 
 - incident messages show action IDs when proposals exist
+- incident messages include inline Approve/Reject buttons for proposed actions
 - `/approve` executes the guarded action
 - `/reject` updates the action state without execution
 - missing command arguments return a clear usage hint (for example `/approve` -> `Usage: /approve <action-id>`)
