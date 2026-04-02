@@ -34,11 +34,25 @@ curl -sS -X POST "${SERVICE_URL}/webhooks/alertmanager" \
   -H 'Content-Type: application/json' \
   --data @"${ALERT_PAYLOAD}" | tee /tmp/k8s-ai-sre-e2e-incident.json
 
+ACTION_ID="$(jq -r '.action_ids[0] // empty' /tmp/k8s-ai-sre-e2e-incident.json)"
+
 echo
 echo "Next checks:"
 echo "  1. Inspect /tmp/k8s-ai-sre-e2e-incident.json for incident_id, action_ids, and answer."
 echo "  2. Confirm Telegram received the incident summary and any proposed action IDs."
-echo "  3. Approve one action from Telegram with /approve <action-id>."
+if [[ -n "${ACTION_ID}" && -n "${OPERATOR_API_TOKEN:-}" ]]; then
+  echo "Auto-approving first action via HTTP operator endpoint: ${ACTION_ID}"
+  curl -sS -X POST "${SERVICE_URL}/actions/${ACTION_ID}/approve" \
+    -H "Authorization: Bearer ${OPERATOR_API_TOKEN}" \
+    -H 'Content-Type: application/json' | tee /tmp/k8s-ai-sre-e2e-approval.json
+  echo "  3. Approval response captured at /tmp/k8s-ai-sre-e2e-approval.json."
+else
+  echo "  3. Approve one action from Telegram with /approve <action-id>."
+  if [[ -n "${ACTION_ID}" ]]; then
+    echo "     Optional automation: set OPERATOR_API_TOKEN and run:"
+    echo "     curl -X POST \"${SERVICE_URL}/actions/${ACTION_ID}/approve\" -H \"Authorization: Bearer \$OPERATOR_API_TOKEN\""
+  fi
+fi
 echo "  4. Verify the action result in the cluster:"
 echo "     kubectl get deployment bad-deploy -n ai-sre-demo"
 echo "     kubectl get pods -n ai-sre-demo -l app=bad-deploy"

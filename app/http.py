@@ -1,15 +1,16 @@
+import os
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from app.actions import attach_actions_to_incident
+from app.actions import approve_action, attach_actions_to_incident, reject_action
 from app.investigate import investigate_target
 from app.log import log_event
 from app.notifier import send_telegram_notification
-from app.stores import create_incident, get_incident, list_incidents, update_incident
+from app.stores import create_incident, get_action, get_incident, list_incidents, update_incident
 from app.telegram import start_telegram_polling_thread
 
 
@@ -60,6 +61,12 @@ class IncidentsResponse(BaseModel):
     incidents: list[IncidentResponse] = Field(default_factory=list)
 
 
+class ActionDecisionResponse(BaseModel):
+    action_id: str
+    status: str
+    message: str
+
+
 app = FastAPI()
 
 _UI_TEMPLATE_PATH = Path(__file__).resolve().parent / "ui" / "incident_inspector.html"
@@ -67,6 +74,24 @@ _UI_TEMPLATE_PATH = Path(__file__).resolve().parent / "ui" / "incident_inspector
 
 def _load_incident_inspector_html() -> str:
     return _UI_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+
+def _require_operator_api_token(authorization: str | None) -> None:
+    configured_token = os.getenv("OPERATOR_API_TOKEN", "").strip()
+    if not configured_token:
+        raise HTTPException(status_code=503, detail="operator API approval endpoint is not configured")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="missing operator token")
+    provided_token = authorization.split(" ", 1)[1].strip()
+    if provided_token != configured_token:
+        raise HTTPException(status_code=403, detail="invalid operator token")
+
+
+def _action_status_or_not_found(action_id: str) -> str:
+    action = get_action(action_id)
+    if action is None:
+        raise HTTPException(status_code=404, detail="action not found")
+    return str(action.get("status", "unknown"))
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -140,6 +165,20 @@ async def read_incident(incident_id: str) -> IncidentResponse:
     if incident is None:
         raise HTTPException(status_code=404, detail="incident not found")
     return IncidentResponse.model_validate(incident)
+
+
+@app.post("/actions/{action_id}/approve", response_model=ActionDecisionResponse)
+async def approve_action_http(action_id: str, authorization: str | None = Header(default=None)) -> ActionDecisionResponse:
+    _require_operator_api_token(authorization)
+    message = approve_action(action_id)
+    return ActionDecisionResponse(action_id=action_id, status=_action_status_or_not_found(action_id), message=message)
+
+
+@app.post("/actions/{action_id}/reject", response_model=ActionDecisionResponse)
+async def reject_action_http(action_id: str, authorization: str | None = Header(default=None)) -> ActionDecisionResponse:
+    _require_operator_api_token(authorization)
+    message = reject_action(action_id)
+    return ActionDecisionResponse(action_id=action_id, status=_action_status_or_not_found(action_id), message=message)
 
 
 def run_server(port: int = 8080) -> None:

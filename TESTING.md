@@ -6,7 +6,8 @@ Use this file as the current runbook. It intentionally keeps only a few represen
 
 - a working kube context, ideally a local kind cluster
 - model credentials loaded in the shell (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
-- Telegram credentials loaded in the shell for approval flow (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
+- Telegram credentials loaded in the shell for notification/command flow (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
+- optional HTTP operator token for non-interactive approvals (`OPERATOR_API_TOKEN`)
 
 Useful checks:
 
@@ -89,6 +90,12 @@ export TELEGRAM_CHAT_ID=...
 export TELEGRAM_ALLOWED_CHAT_IDS=...
 ```
 
+Optional non-Telegram automation path:
+
+```bash
+export OPERATOR_API_TOKEN=...
+```
+
 Optional polling overrides:
 
 ```bash
@@ -118,6 +125,7 @@ What to verify:
 - `/approve` executes the guarded action
 - `/reject` updates the action state without execution
 - missing command arguments return a clear usage hint (for example `/approve` -> `Usage: /approve <action-id>`)
+- when `OPERATOR_API_TOKEN` is set, `POST /actions/<action-id>/approve` and `POST /actions/<action-id>/reject` require `Authorization: Bearer <token>` and update action state without Telegram input
 
 ## Example 4: Kind End-To-End Exercise
 
@@ -166,10 +174,18 @@ What to verify:
 - the incident response contains `incident_id` and any proposed `action_ids`
 - Telegram receives the notification
 - approving an action from Telegram changes cluster state as expected
+- or, for automation, approve through HTTP:
+
+```bash
+ACTION_ID="$(jq -r '.action_ids[0]' /tmp/k8s-ai-sre-e2e-incident.json)"
+curl -X POST "http://127.0.0.1:18080/actions/${ACTION_ID}/approve" \
+  -H "Authorization: Bearer ${OPERATOR_API_TOKEN}"
+```
 
 Note:
 - if logs repeatedly show `telegram_poll_loop_failed` with `HTTP Error 409: Conflict`, another process is already consuming `getUpdates` for that bot token; use a dedicated bot token (or stop the competing consumer) before relying on Telegram polling validation.
 - do not use bot-token `sendMessage` to emulate operator approval; bot-originated messages are not ingested as incoming command updates for the same bot. Use a real Telegram user chat message for `/approve` validation.
+- for repeatable CI-like checks, prefer the token-guarded HTTP operator endpoint instead of bot-originated Telegram messages.
 
 ## Cleanup
 
