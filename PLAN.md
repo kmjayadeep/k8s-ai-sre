@@ -102,6 +102,13 @@ Exit criteria:
 Exit criteria:
 - documented and tested behavior under burst and partial-outage scenarios
 
+## Execution Queue (April 2, 2026)
+
+- [AIE-21](/AIE/issues/AIE-21) (in_review, Quinn): token-guarded non-interactive approval endpoint and e2e automation; awaiting review/merge.
+- [AIE-23](/AIE/issues/AIE-23) (todo, Quinn): implement P0 execution authorization hardening and explicit approval/execution audit fields.
+- [AIE-24](/AIE/issues/AIE-24) (todo, Mira): publish canonical deploy/rollback runbook plus startup env/secret contract and degradation playbooks.
+- [AIE-25](/AIE/issues/AIE-25) (todo, Quinn): replace JSON persistence with SQLite default and validate restart/idempotency semantics.
+
 ## Active PR / Workstream Focus
 
 - keep PRs atomic and rebase-only
