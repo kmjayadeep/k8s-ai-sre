@@ -7,12 +7,25 @@ import urllib.request
 from pathlib import Path
 
 from app.actions import approve_action, reject_action
+from app.error_taxonomy import telegram_error_message
 from app.log import log_event
 from app.stores import get_incident
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
 COMMAND_HELP_TEXT = "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
+TELEGRAM_COMMAND_EXECUTION_FAILED = telegram_error_message(
+    "telegram_command_execution_failed",
+    "Command failed due to an internal error. Please retry and check service logs.",
+)
+TELEGRAM_CALLBACK_EXECUTION_FAILED = telegram_error_message(
+    "telegram_callback_execution_failed",
+    "Action failed due to an internal error. Please retry and check service logs.",
+)
+TELEGRAM_CALLBACK_PAYLOAD_INVALID = telegram_error_message(
+    "telegram_callback_payload_invalid",
+    "Unsupported action button payload.",
+)
 
 
 def _usage(command: str) -> str:
@@ -178,12 +191,12 @@ def _handle_command(text: str, approver_id: str = "unknown", approval_source: st
 def _handle_callback(data: str) -> str:
     verb, separator, action_id = data.strip().partition(":")
     if not separator or not action_id:
-        return "Unsupported action button payload."
+        return TELEGRAM_CALLBACK_PAYLOAD_INVALID
     if verb == "approve":
         return approve_action(action_id)
     if verb == "reject":
         return reject_action(action_id)
-    return "Unsupported action button payload."
+    return TELEGRAM_CALLBACK_PAYLOAD_INVALID
 
 
 def poll_telegram_updates_once() -> str:
@@ -228,7 +241,7 @@ def poll_telegram_updates_once() -> str:
                 reply = _handle_callback(callback_data)
             except Exception as exc:
                 log_event("telegram_callback_failed", chat_id=callback_chat_id, data=callback_data, error=str(exc))
-                reply = "Action failed due to an internal error. Please retry and check service logs."
+                reply = TELEGRAM_CALLBACK_EXECUTION_FAILED
             send_status = _send_message(callback_chat_id, reply)
             log_event("telegram_reply_result", chat_id=callback_chat_id, status=send_status)
             if callback_id:
@@ -262,7 +275,7 @@ def poll_telegram_updates_once() -> str:
             reply = _handle_command(text, approver_id=approver_id, approval_source="telegram")
         except Exception as exc:
             log_event("telegram_command_failed", chat_id=chat_id, text=text, error=str(exc))
-            reply = "Command failed due to an internal error. Please retry and check service logs."
+            reply = TELEGRAM_COMMAND_EXECUTION_FAILED
         send_status = _send_message(chat_id, reply)
         log_event("telegram_reply_result", chat_id=chat_id, status=send_status)
         handled += 1
