@@ -6,6 +6,7 @@ Use this file as the current runbook. It intentionally keeps only a few represen
 
 - a working kube context, ideally a local kind cluster
 - model credentials loaded in the shell (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
+- write allow-list configured in the shell (`WRITE_ALLOWED_NAMESPACES`, non-empty)
 - Telegram credentials loaded in the shell for notification/command flow (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
 - optional HTTP operator token for non-interactive approvals (`OPERATOR_API_TOKEN`)
 
