@@ -241,6 +241,10 @@ class HttpIntegrationTests(unittest.TestCase):
                 run(approve_action_http(action["id"], authorization=None))
 
         self.assertEqual(401, raised.exception.status_code)
+        self.assertEqual(
+            {"code": "operator_token_missing", "message": "missing operator token"},
+            raised.exception.detail,
+        )
 
     def test_operator_http_approve_rejects_invalid_token(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
@@ -250,6 +254,10 @@ class HttpIntegrationTests(unittest.TestCase):
                 run(approve_action_http(action["id"], authorization="Bearer wrong", operator_id="operator-1"))
 
         self.assertEqual(403, raised.exception.status_code)
+        self.assertEqual(
+            {"code": "operator_token_invalid", "message": "invalid operator token"},
+            raised.exception.detail,
+        )
 
     def test_operator_http_approve_requires_operator_identity_header(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
@@ -259,3 +267,43 @@ class HttpIntegrationTests(unittest.TestCase):
                 run(approve_action_http(action["id"], authorization="Bearer test-token", operator_id=None))
 
         self.assertEqual(400, raised.exception.status_code)
+        self.assertEqual(
+            {
+                "code": "operator_identity_missing",
+                "message": "missing operator identity header (X-Operator-Id)",
+            },
+            raised.exception.detail,
+        )
+
+    def test_operator_http_approve_requires_configured_operator_token(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch.dict("os.environ", {"OPERATOR_API_TOKEN": ""}, clear=False):
+            with self.assertRaises(HTTPException) as raised:
+                run(approve_action_http(action["id"], authorization="Bearer test-token", operator_id="operator-1"))
+
+        self.assertEqual(503, raised.exception.status_code)
+        self.assertEqual(
+            {
+                "code": "operator_api_not_configured",
+                "message": "operator API approval endpoint is not configured",
+            },
+            raised.exception.detail,
+        )
+
+    def test_operator_http_approve_returns_action_not_found_error_shape(self) -> None:
+        with patch.dict("os.environ", {"OPERATOR_API_TOKEN": "test-token"}, clear=False):
+            with self.assertRaises(HTTPException) as raised:
+                run(
+                    approve_action_http(
+                        "missing-action-id",
+                        authorization="Bearer test-token",
+                        operator_id="operator-1",
+                    )
+                )
+
+        self.assertEqual(404, raised.exception.status_code)
+        self.assertEqual(
+            {"code": "action_not_found", "message": "action not found"},
+            raised.exception.detail,
+        )

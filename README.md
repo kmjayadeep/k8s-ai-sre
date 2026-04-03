@@ -157,6 +157,8 @@ Behavior details:
 - missing command arguments return usage hints (`Usage: /approve <action-id>`, etc.)
 - timeout values are validated and clamped to safe defaults when needed
 - `POST /actions/{action_id}/approve|reject` requires `Authorization: Bearer $OPERATOR_API_TOKEN` plus `X-Operator-Id: <operator-id>` and can be used for repeatable non-human E2E approvals
+- HTTP approval failures return `detail` as `{ "code": "...", "message": "..." }` (for example `operator_token_missing`, `operator_identity_missing`, `action_not_found`)
+- Telegram internal command/callback failures return operator-facing strings prefixed with a stable taxonomy code (for example `[telegram_command_execution_failed] ...`)
 
 Persistence note:
 

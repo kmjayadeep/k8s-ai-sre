@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from app.actions import approve_action, attach_actions_to_incident, reject_action
+from app.error_taxonomy import raise_http_error
 from app.investigate import investigate_target
 from app.log import log_event
 from app.metrics import render_prometheus_metrics
@@ -80,25 +81,25 @@ def _load_incident_inspector_html() -> str:
 def _require_operator_api_token(authorization: str | None) -> None:
     configured_token = os.getenv("OPERATOR_API_TOKEN", "").strip()
     if not configured_token:
-        raise HTTPException(status_code=503, detail="operator API approval endpoint is not configured")
+        raise_http_error(503, "operator_api_not_configured", "operator API approval endpoint is not configured")
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="missing operator token")
+        raise_http_error(401, "operator_token_missing", "missing operator token")
     provided_token = authorization.split(" ", 1)[1].strip()
     if provided_token != configured_token:
-        raise HTTPException(status_code=403, detail="invalid operator token")
+        raise_http_error(403, "operator_token_invalid", "invalid operator token")
 
 
 def _require_operator_identity(operator_id: str | None) -> str:
     candidate = (operator_id or "").strip()
     if not candidate:
-        raise HTTPException(status_code=400, detail="missing operator identity header (X-Operator-Id)")
+        raise_http_error(400, "operator_identity_missing", "missing operator identity header (X-Operator-Id)")
     return candidate
 
 
 def _action_status_or_not_found(action_id: str) -> str:
     action = get_action(action_id)
     if action is None:
-        raise HTTPException(status_code=404, detail="action not found")
+        raise_http_error(404, "action_not_found", "action not found")
     return str(action.get("status", "unknown"))
 
 

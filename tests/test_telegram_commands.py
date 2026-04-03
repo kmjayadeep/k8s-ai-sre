@@ -38,7 +38,7 @@ class TelegramCommandParsingTests(unittest.TestCase):
 
     def test_handle_callback_rejects_unknown_payload(self) -> None:
         reply = telegram._handle_callback("bogus")
-        self.assertEqual("Unsupported action button payload.", reply)
+        self.assertEqual("[telegram_callback_payload_invalid] Unsupported action button payload.", reply)
 
     def test_unknown_command_returns_help(self) -> None:
         reply = telegram._handle_command("/help")
@@ -93,7 +93,42 @@ class TelegramCommandParsingTests(unittest.TestCase):
 
         send_message.assert_called_once_with(
             "123",
-            "Command failed due to an internal error. Please retry and check service logs.",
+            "[telegram_command_execution_failed] Command failed due to an internal error. Please retry and check service logs.",
+        )
+
+    def test_poll_updates_sends_taxonomy_failure_reply_for_callback_errors(self) -> None:
+        body = {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 14,
+                    "callback_query": {
+                        "id": "cb-3",
+                        "data": "approve:deadbeef",
+                        "message": {"chat": {"id": 123}},
+                    },
+                }
+            ],
+        }
+        with patch("app.telegram._telegram_token", return_value="token"):
+            with patch("app.telegram._telegram_api", return_value=body):
+                with patch("app.telegram._allowed_chat_ids", return_value=set()):
+                    with patch("app.telegram._save_offset"):
+                        with patch("app.telegram._handle_callback", side_effect=RuntimeError("boom")):
+                            with patch("app.telegram._send_message", return_value="Telegram reply sent.") as send_message:
+                                with patch(
+                                    "app.telegram._answer_callback_query",
+                                    return_value="Telegram callback acknowledged.",
+                                ) as ack:
+                                    telegram.poll_telegram_updates_once()
+
+        send_message.assert_called_once_with(
+            "123",
+            "[telegram_callback_execution_failed] Action failed due to an internal error. Please retry and check service logs.",
+        )
+        ack.assert_called_once_with(
+            "cb-3",
+            "[telegram_callback_execution_failed] Action failed due to an internal error. Please retry and check service logs.",
         )
 
     def test_poll_updates_processes_callback_query(self) -> None:
