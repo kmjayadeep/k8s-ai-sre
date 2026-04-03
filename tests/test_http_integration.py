@@ -16,14 +16,17 @@ from app.http import (
     approve_action_http,
     incident_inspector,
     investigate,
+    metrics,
     read_incident,
     read_incidents,
     reject_action_http,
 )
+from app.metrics import reset_metrics_for_tests
 
 
 class HttpIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
+        reset_metrics_for_tests()
         self.tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(self.tempdir.cleanup)
         self.incident_path = Path(self.tempdir.name) / "incidents.json"
@@ -137,6 +140,30 @@ class HttpIntegrationTests(unittest.TestCase):
 
         self.assertIn("text/html", response.media_type)
         self.assertIn("Incident Feed", response.body.decode("utf-8"))
+
+    def test_metrics_endpoint_includes_investigation_and_approval_signals(self) -> None:
+        result = {
+            "kind": "deployment",
+            "namespace": "ai-sre-demo",
+            "name": "bad-deploy",
+            "answer": "Summary: image pull failure",
+            "proposed_actions": [{"action_id": "abc12345", "action_type": "rollout-restart", "namespace": "ai-sre-demo", "name": "bad-deploy"}],
+            "action_ids": ["abc12345"],
+        }
+        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)):
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent."):
+                run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy")))
+
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        with patch.dict("os.environ", {"OPERATOR_API_TOKEN": "test-token"}, clear=False):
+            with patch("app.actions.delete_pod", return_value='pod "crashy" deleted'):
+                run(approve_action_http(action["id"], authorization="Bearer test-token", operator_id="operator-1"))
+
+        body = run(metrics()).body.decode("utf-8")
+        self.assertIn("k8s_ai_sre_investigation_latency_seconds_count", body)
+        self.assertIn("k8s_ai_sre_action_proposals_total", body)
+        self.assertIn('k8s_ai_sre_action_execution_outcomes_total{status="approved"}', body)
+        self.assertIn("k8s_ai_sre_approval_latency_seconds_count", body)
 
     def test_operator_http_approve_executes_action_when_token_valid(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
