@@ -21,6 +21,30 @@ from app.http import (
     reject_action_http,
 )
 
+INCIDENT_RESPONSE_KEYS = {
+    "incident_id",
+    "kind",
+    "namespace",
+    "name",
+    "answer",
+    "evidence",
+    "source",
+    "action_ids",
+    "proposed_actions",
+    "notification_status",
+}
+
+PROPOSED_ACTION_RESPONSE_KEYS = {
+    "action_id",
+    "action_type",
+    "namespace",
+    "name",
+    "params",
+    "expires_at",
+    "approve_command",
+    "reject_command",
+}
+
 
 class HttpIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -49,9 +73,13 @@ class HttpIntegrationTests(unittest.TestCase):
                 body = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy"))).model_dump()
 
         self.assertEqual("Telegram notification sent.", body["notification_status"])
+        self.assertEqual(INCIDENT_RESPONSE_KEYS, set(body.keys()))
+        self.assertEqual(PROPOSED_ACTION_RESPONSE_KEYS, set(body["proposed_actions"][0].keys()))
         stored = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual(["abc12345"], stored["action_ids"])
         self.assertEqual("Telegram notification sent.", stored["notification_status"])
+        self.assertEqual(INCIDENT_RESPONSE_KEYS, set(stored.keys()))
+        self.assertEqual(PROPOSED_ACTION_RESPONSE_KEYS, set(stored["proposed_actions"][0].keys()))
 
     def test_alertmanager_webhook_resolves_target_and_persists_source(self) -> None:
         result = {
@@ -71,8 +99,10 @@ class HttpIntegrationTests(unittest.TestCase):
                 ).model_dump()
 
         self.assertEqual("alertmanager", body["source"])
+        self.assertEqual(INCIDENT_RESPONSE_KEYS, set(body.keys()))
         stored = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual("alertmanager", stored["source"])
+        self.assertEqual(INCIDENT_RESPONSE_KEYS, set(stored.keys()))
     def test_alertmanager_to_approval_executes_linked_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
         result = {
@@ -129,8 +159,10 @@ class HttpIntegrationTests(unittest.TestCase):
         returned_ids = [item["incident_id"] for item in payload["incidents"]]
         expected_ids = sorted([first["incident_id"], second["incident_id"]], reverse=True)
 
+        self.assertEqual({"incidents"}, set(payload.keys()))
         self.assertEqual(2, len(payload["incidents"]))
         self.assertEqual(expected_ids, returned_ids)
+        self.assertTrue(all(set(item.keys()) == INCIDENT_RESPONSE_KEYS for item in payload["incidents"]))
 
     def test_incident_inspector_returns_html(self) -> None:
         response = run(incident_inspector())
