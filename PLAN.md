@@ -17,6 +17,7 @@ Implemented and validated:
 - FastAPI investigation + Alertmanager webhook paths
 - Telegram notification and command approval flow (`/incident`, `/status`, `/approve`, `/reject`)
 - token-guarded HTTP operator action decisions (`POST /actions/{action_id}/approve|reject`) for non-interactive E2E validation
+- fail-fast startup preflight for required runtime contract (`MODEL_NAME` + API key, Telegram token/chat pairing rules)
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - fail-closed mutation preflight with `kubectl auth can-i` checks and target readability checks before execution
 - action lifecycle safety checks (pending-only transitions, expiry handling, retry safety)
@@ -51,7 +52,7 @@ Known limits:
 
 2. Operational runbook completeness
 - finalize one canonical deploy + rollback runbook
-- define required env/secret contract with validation at startup
+- keep required env/secret startup contract and runbook docs aligned as config rules evolve
 - document incident response steps for Telegram/API degradation
 
 3. Reliability checks in cluster
