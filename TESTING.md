@@ -5,7 +5,7 @@ Use this file as the current runbook. It intentionally keeps only a few represen
 ## Prerequisites
 
 - a working kube context, ideally a local kind cluster
-- model credentials loaded in the shell (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
+- model credentials loaded in the shell (`MODEL_NAME` and one of `MODEL_API_KEY` or `PORTKEY_API_KEY`)
 - Telegram credentials loaded in the shell for notification/command flow (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
 - optional HTTP operator token for non-interactive approvals (`OPERATOR_API_TOKEN`)
 
@@ -199,7 +199,7 @@ This verifies that a real in-cluster alert (not a synthetic webhook curl) drives
 Prerequisites:
 
 - `kind`, `kubectl`, `docker`, `jq`, `curl` (`helm` is used if installed; otherwise the script downloads a local Helm binary)
-- model credentials (`MODEL_API_KEY` or `PORTKEY_API_KEY`)
+- model credentials (`MODEL_NAME` and one of `MODEL_API_KEY` or `PORTKEY_API_KEY`)
 - Telegram credentials (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_CHAT_IDS`)
 - operator API token (`OPERATOR_API_TOKEN`) for non-interactive approval
 - optional operator identity header value (`OPERATOR_ID`, default: `e2e-kind-runner`)

@@ -8,13 +8,13 @@ Secret name expected by the manifest: `k8s-ai-sre-env` in namespace `ai-sre-syst
 
 | Variable | Required | Runtime behavior |
 | --- | --- | --- |
-| `MODEL_API_KEY` or `PORTKEY_API_KEY` | Yes | Investigation requests fail when neither key is set. |
-| `MODEL_NAME` | No | Defaults to `openai/gpt-oss-20b`. |
+| `MODEL_API_KEY` or `PORTKEY_API_KEY` | Yes | Process fails at startup when neither key is set. |
+| `MODEL_NAME` | Yes | Process fails at startup when empty. |
 | `MODEL_PROVIDER` | No | Defaults to `groq`. |
 | `MODEL_BASE_URL` | No | Defaults to Portkey gateway URL in code. |
-| `TELEGRAM_BOT_TOKEN` | No | Enables polling thread and outbound notifications. |
-| `TELEGRAM_CHAT_ID` | Required for outbound Telegram notifications | Without it, investigation still runs but notification status reports Telegram not configured. |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | Recommended when polling enabled | If set, commands from other chat IDs are ignored. |
+| `TELEGRAM_BOT_TOKEN` | No | Must be paired with `TELEGRAM_CHAT_ID` when set. |
+| `TELEGRAM_CHAT_ID` | No | Must be paired with `TELEGRAM_BOT_TOKEN` when set. |
+| `TELEGRAM_ALLOWED_CHAT_IDS` | Recommended when polling enabled | If set, `TELEGRAM_BOT_TOKEN` must be set. |
 | `TELEGRAM_POLL_ENABLED` | No | Defaults to enabled (`true`-like values start polling). |
 | `TELEGRAM_POLL_TIMEOUT_SECONDS` | No | Invalid/non-positive values fall back to defaults. |
 | `TELEGRAM_HTTP_TIMEOUT_SECONDS` | No | Invalid/non-positive values fall back; clamped to safe value relative to poll timeout. |
@@ -25,8 +25,8 @@ Secret name expected by the manifest: `k8s-ai-sre-env` in namespace `ai-sre-syst
 
 Important current behavior:
 
-- `/healthz` reports `ok` and does not validate model/Telegram credentials.
-- missing model credentials are surfaced on investigation execution, not at process boot.
+- startup performs fail-fast runtime config validation before serving traffic.
+- `/healthz` still reports `ok` only after startup preflight passes.
 
 ## Preflight checklist
 
