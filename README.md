@@ -35,6 +35,7 @@ It is designed to be practical first, not magic-first.
   - `GET /incidents`
   - `GET /incidents/{incident_id}`
   - `GET /healthz`
+  - `GET /metrics` Prometheus-format approval-loop health metrics
   - `GET /` built-in web incident inspector
 - local JSON-backed storage for incidents and actions
 - Telegram notification plus command handling:
@@ -158,6 +159,21 @@ Behavior details:
 - mutating actions perform fail-closed `kubectl auth can-i` checks and deny on ambiguous authorization responses
 - `delete-pod` validates pod readability/existence before mutating
 - deployment mutations validate deployment readability/existence before mutating
+
+## Metrics and observability 📈
+
+The service exposes a Prometheus-compatible metrics endpoint:
+
+```text
+GET /metrics
+```
+
+Current loop-health metrics include:
+
+- investigation latency histogram
+- action proposal counter
+- approval latency histogram (proposal to terminal decision)
+- execution outcome counters (`approved`, `failed`, `rejected`)
 
 ## Deployment ☸️
 
