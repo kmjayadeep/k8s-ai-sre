@@ -21,12 +21,13 @@ Secret name expected by the manifest: `k8s-ai-sre-env` in namespace `ai-sre-syst
 | `TELEGRAM_POLL_INTERVAL_SECONDS` | No | Poll loop sleep interval between successful cycles. |
 | `TELEGRAM_POLL_BACKOFF_SECONDS` | No | Backoff after poll failure. |
 | `OPERATOR_API_TOKEN` | Required for HTTP approve/reject endpoints | `/actions/{id}/approve|reject` returns `503` when not set. |
-| `WRITE_ALLOWED_NAMESPACES` | Strongly recommended | Empty means writes are allowed in all namespaces. |
+| `WRITE_ALLOWED_NAMESPACES` | Yes | Process startup fails when empty or unset; mutating actions are allowed only inside this allow-list. |
 
 Important current behavior:
 
 - `/healthz` reports `ok` and does not validate model/Telegram credentials.
 - missing model credentials are surfaced on investigation execution, not at process boot.
+- startup fails fast when `WRITE_ALLOWED_NAMESPACES` is missing or resolves to an empty list.
 
 ## Preflight checklist
 
@@ -42,7 +43,7 @@ kubectl -n ai-sre-system get secret k8s-ai-sre-env -o yaml
 Confirm the secret includes at least:
 
 - one of `MODEL_API_KEY` or `PORTKEY_API_KEY`
-- `WRITE_ALLOWED_NAMESPACES` (non-empty in production-like environments)
+- `WRITE_ALLOWED_NAMESPACES` (required, non-empty)
 - `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` if chat notifications are expected
 - `OPERATOR_API_TOKEN` if HTTP approval endpoints are used for automation
 

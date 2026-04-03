@@ -19,6 +19,7 @@ Implemented and validated:
 - token-guarded HTTP operator action decisions (`POST /actions/{action_id}/approve|reject`) for non-interactive E2E validation
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - fail-closed mutation preflight with `kubectl auth can-i` checks and target readability checks before execution
+- fail-closed write namespace contract: startup requires non-empty `WRITE_ALLOWED_NAMESPACES`
 - action lifecycle safety checks (pending-only transitions, expiry handling, retry safety)
 - action audit fields for approver identity/source, executed target details, and terminal execution result
 - local JSON-backed incident/action persistence with store abstraction

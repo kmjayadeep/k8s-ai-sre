@@ -5,6 +5,19 @@ import app.tools.actions as tool_actions
 
 
 class ToolActionSafetyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.env_patch = patch.dict("os.environ", {"WRITE_ALLOWED_NAMESPACES": "ai-sre-demo"}, clear=False)
+        self.env_patch.start()
+        self.addCleanup(self.env_patch.stop)
+
+    def test_delete_pod_refuses_when_write_namespaces_unset(self) -> None:
+        with patch.dict("os.environ", {"WRITE_ALLOWED_NAMESPACES": ""}, clear=False):
+            with patch("app.tools.actions._run_kubectl") as run_kubectl:
+                result = tool_actions.delete_pod("ai-sre-demo", "crashy", confirm=True)
+
+        self.assertIn("namespace is not in WRITE_ALLOWED_NAMESPACES", result)
+        run_kubectl.assert_not_called()
+
     def test_scale_refuses_negative_replicas(self) -> None:
         result = tool_actions.scale_deployment("ai-sre-demo", "bad-deploy", -1, confirm=True)
         self.assertIn("replicas must be >= 0", result)
