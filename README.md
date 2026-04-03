@@ -66,6 +66,7 @@ Required:
 ```bash
 export MODEL_NAME=openai/gpt-oss-20b
 export PORTKEY_API_KEY=...
+export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
 ```
 
 Optional overrides:
@@ -167,7 +168,7 @@ Persistence note:
 ## Guardrails and safety model 🔒
 
 - write actions require explicit approve commands before execution
-- write scope can be restricted to specific namespaces (`WRITE_ALLOWED_NAMESPACES`)
+- write scope is fail-closed and requires a non-empty namespace allow-list (`WRITE_ALLOWED_NAMESPACES`)
 - `scale` rejects negative replica values
 - mutating actions perform fail-closed `kubectl auth can-i` checks and deny on ambiguous authorization responses
 - `delete-pod` validates pod readability/existence before mutating
