@@ -54,9 +54,15 @@ class SqliteKeyValueStore:
 
     def save(self, records: dict[str, dict[str, object]]) -> None:
         with self._connect() as connection:
-            connection.execute(f"DELETE FROM {self._table_name}")
-            if records:
-                connection.executemany(
-                    f"INSERT INTO {self._table_name} (record_key, record_value) VALUES (?, ?)",
-                    [(key, json.dumps(value, sort_keys=True)) for key, value in records.items()],
-                )
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                connection.execute(f"DELETE FROM {self._table_name}")
+                if records:
+                    connection.executemany(
+                        f"INSERT INTO {self._table_name} (record_key, record_value) VALUES (?, ?)",
+                        [(key, json.dumps(value, sort_keys=True)) for key, value in records.items()],
+                    )
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
