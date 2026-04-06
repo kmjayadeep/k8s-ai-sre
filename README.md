@@ -64,13 +64,13 @@ uv sync
 Required:
 
 ```bash
+export MODEL_NAME=openai/gpt-oss-20b
 export PORTKEY_API_KEY=...
 ```
 
 Optional overrides:
 
 ```bash
-export MODEL_NAME=openai/gpt-oss-20b
 export MODEL_PROVIDER=groq
 export MODEL_BASE_URL=https://api.portkey.ai/v1
 export MODEL_API_KEY=...
@@ -150,6 +150,7 @@ export K8S_AI_SRE_STORE_PATH=/var/lib/k8s-ai-sre/store.sqlite3
 
 Behavior details:
 
+- startup fails fast when required runtime config is missing or inconsistent
 - polling starts automatically when `TELEGRAM_BOT_TOKEN` is set
 - unauthorized chat IDs are ignored when `TELEGRAM_ALLOWED_CHAT_IDS` is configured
 - incident notifications include inline action buttons (`Approve <id>`, `Reject <id>`) so operators can decide without typing IDs
