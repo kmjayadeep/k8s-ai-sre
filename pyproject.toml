@@ -11,5 +11,6 @@ dependencies = [
     "openai>=2.30.0",
     "openai-agents>=0.13.2",
     "portkey-ai>=2.2.0",
+    "prometheus-client>=0.24.1",
     "uvicorn>=0.30.0",
 ]
