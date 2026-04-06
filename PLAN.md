@@ -20,6 +20,7 @@ Implemented and validated:
 - fail-fast startup preflight for required runtime contract (`MODEL_NAME` + API key, Telegram token/chat pairing rules)
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - fail-closed mutation preflight with `kubectl auth can-i` checks and target readability checks before execution
+- fail-closed write namespace contract: startup requires non-empty `WRITE_ALLOWED_NAMESPACES`
 - action lifecycle safety checks (pending-only transitions, expiry handling, retry safety)
 - action audit fields for approver identity/source, executed target details, and terminal execution result
 - local JSON-backed incident/action persistence with store abstraction

@@ -14,7 +14,7 @@ def _allowed_to_write(namespace: str) -> bool:
         for item in os.getenv("WRITE_ALLOWED_NAMESPACES", "").split(",")
         if item.strip()
     }
-    return not allowed_namespaces or namespace in allowed_namespaces
+    return bool(allowed_namespaces) and namespace in allowed_namespaces
 
 
 def _deployment_exists(namespace: str, deployment_name: str) -> tuple[bool, str]:
