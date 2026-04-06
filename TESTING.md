@@ -131,6 +131,8 @@ What to verify:
 - missing command arguments return a clear usage hint (for example `/approve` -> `Usage: /approve <action-id>`)
 - when `OPERATOR_API_TOKEN` is set, `POST /actions/<action-id>/approve` and `POST /actions/<action-id>/reject` require both `Authorization: Bearer <token>` and `X-Operator-Id: <operator-id>` and update action state without Telegram input
 - `GET /metrics` exposes loop-health metrics including investigation latency, proposal totals, approval latency, and action execution outcomes
+- HTTP approval validation errors expose structured detail shape: `{"code":"...","message":"..."}`
+- Telegram command/callback internal failures include taxonomy prefixes in operator replies (for example `[telegram_command_execution_failed] ...`)
 
 ## Example 4: Kind End-To-End Exercise
 
