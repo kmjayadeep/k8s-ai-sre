@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app.stores.incidents as incident_store
+from app.stores.backend import JsonFileKeyValueStore
 
 
 class IncidentStoreTests(unittest.TestCase):
@@ -53,6 +54,9 @@ class IncidentStoreTests(unittest.TestCase):
         self.assertEqual("/approve abc12345", incident["proposed_actions"][0]["approve_command"])
 
     def test_get_incident_normalizes_legacy_payload_from_disk(self) -> None:
+        original_store = incident_store._incident_store
+        self.addCleanup(incident_store.set_incident_store, original_store)
+        incident_store.set_incident_store(JsonFileKeyValueStore(lambda: self.store_path))
         self.store_path.write_text(
             '{"legacy12345": {"incident_id": "legacy12345", "kind": "pod", "namespace": "default", "name": "x"}}',
             encoding="utf-8",

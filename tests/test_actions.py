@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import app.actions as action_service
 import app.stores.actions as action_store
+from app.stores.backend import SqliteKeyValueStore
 
 
 class ActionServiceTests(unittest.TestCase):
@@ -126,3 +127,39 @@ class ActionServiceTests(unittest.TestCase):
         self.assertIn(f"Action {action['id']} has expired.", result)
         stored = action_store.get_action(action["id"])
         self.assertEqual("expired", stored["status"])
+
+    def test_pending_action_survives_store_rebind_restart(self) -> None:
+        original_store = action_store._action_store
+        self.addCleanup(action_store.set_action_store, original_store)
+
+        first_backend = SqliteKeyValueStore(lambda: self.store_path, table_name="actions")
+        action_store.set_action_store(first_backend)
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        restarted_backend = SqliteKeyValueStore(lambda: self.store_path, table_name="actions")
+        action_store.set_action_store(restarted_backend)
+        reloaded = action_store.get_action(action["id"])
+
+        self.assertIsNotNone(reloaded)
+        self.assertEqual("pending", reloaded["status"])
+
+    def test_approved_action_remains_retry_safe_after_store_rebind_restart(self) -> None:
+        original_store = action_store._action_store
+        self.addCleanup(action_store.set_action_store, original_store)
+
+        first_backend = SqliteKeyValueStore(lambda: self.store_path, table_name="actions")
+        action_store.set_action_store(first_backend)
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+
+        with patch("app.actions.delete_pod", return_value='pod "crashy" deleted') as delete_pod:
+            first_result = action_service.approve_action(action["id"])
+            self.assertIn('pod "crashy" deleted', first_result)
+            delete_pod.assert_called_once()
+
+        restarted_backend = SqliteKeyValueStore(lambda: self.store_path, table_name="actions")
+        action_store.set_action_store(restarted_backend)
+        with patch("app.actions.delete_pod") as delete_pod:
+            second_result = action_service.approve_action(action["id"])
+
+        self.assertIn(f"Action {action['id']} is already approved.", second_result)
+        delete_pod.assert_not_called()

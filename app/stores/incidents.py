@@ -1,11 +1,12 @@
+import os
 from pathlib import Path
 from uuid import uuid4
 
-from app.stores.backend import JsonFileKeyValueStore, KeyValueStore
+from app.stores.backend import KeyValueStore, SqliteKeyValueStore
 
 
-INCIDENT_STORE_PATH = Path("/tmp/k8s-ai-sre-incidents.json")
-_incident_store: KeyValueStore = JsonFileKeyValueStore(lambda: INCIDENT_STORE_PATH)
+INCIDENT_STORE_PATH = Path(os.getenv("K8S_AI_SRE_STORE_PATH", "/tmp/k8s-ai-sre-store.sqlite3"))
+_incident_store: KeyValueStore = SqliteKeyValueStore(lambda: INCIDENT_STORE_PATH, table_name="incidents")
 
 
 def _load_incidents() -> dict[str, dict[str, object]]:
