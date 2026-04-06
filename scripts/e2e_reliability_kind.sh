@@ -149,11 +149,13 @@ run_once() {
   if [[ -n "${action_id}" ]]; then
     curl_with_retry "POST" "${SERVICE_URL}/actions/${action_id}/approve" "${run_dir}/approval-first.json" \
       -H "Authorization: Bearer ${OPERATOR_API_TOKEN}" \
+      -H "X-Operator-Id: e2e-operator" \
       -H 'Content-Type: application/json' || run_failed=1
     status_first="$(jq -r '.status // empty' "${run_dir}/approval-first.json" 2>/dev/null || true)"
 
     curl_with_retry "POST" "${SERVICE_URL}/actions/${action_id}/approve" "${run_dir}/approval-retry.json" \
       -H "Authorization: Bearer ${OPERATOR_API_TOKEN}" \
+      -H "X-Operator-Id: e2e-operator" \
       -H 'Content-Type: application/json' || run_failed=1
     status_retry="$(jq -r '.status // empty' "${run_dir}/approval-retry.json" 2>/dev/null || true)"
 
@@ -162,6 +164,7 @@ run_once() {
       kubectl -n "${SYSTEM_NAMESPACE}" rollout status "deployment/${SYSTEM_DEPLOYMENT_NAME}" --timeout=180s >"${run_dir}/service-rollout-status.txt"
       curl_with_retry "POST" "${SERVICE_URL}/actions/${action_id}/approve" "${run_dir}/approval-post-restart-retry.json" \
         -H "Authorization: Bearer ${OPERATOR_API_TOKEN}" \
+        -H "X-Operator-Id: e2e-operator" \
         -H 'Content-Type: application/json' || run_failed=1
       status_restart_retry="$(jq -r '.status // empty' "${run_dir}/approval-post-restart-retry.json" 2>/dev/null || true)"
     fi
