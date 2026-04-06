@@ -23,6 +23,7 @@ Implemented and validated:
 - action audit fields for approver identity/source, executed target details, and terminal execution result
 - local JSON-backed incident/action persistence with store abstraction
 - read-only web incident inspector (`/` + `/incidents`) for operator inspection of past incidents
+- incident API contract regression tests that freeze `IncidentResponse`/`IncidentsResponse` payload keys across `/investigate`, `/webhooks/alertmanager`, `/incidents`, and `/incidents/{incident_id}`
 - CI test workflow for PRs and `main`
 - in-cluster end-to-end validation of alert -> propose -> notify -> approve -> execute
 - deterministic proposal fallback for `deployment` and `pod` investigations when the model answer omits proposal tool calls
@@ -84,6 +85,7 @@ Exit criteria:
 
 1. Freeze response contracts
 - keep normalized incident payloads across create/read endpoints
+- add regression assertions that fail on response key drift across incident create/read routes
 - version or document any breaking schema changes
 
 2. Add operator-facing telemetry
