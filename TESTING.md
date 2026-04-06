@@ -239,6 +239,53 @@ Expected evidence:
 - `/tmp/k8s-ai-sre-aie30/bad-deploy-state.yaml`
 - `/tmp/k8s-ai-sre-aie30/bad-deploy-pods.txt`
 
+## Example 6: Reliability Evidence Bundle (N>=5 runs)
+
+Use this when validating the P0 reliability gate (`alert -> investigate -> propose -> notify -> approve -> execute`) with repeatability and artifacts.
+
+Required environment:
+
+```bash
+export OPERATOR_API_TOKEN=...
+```
+
+Recommended (service in cluster):
+
+```bash
+RUNS=5 scripts/e2e_reliability_kind.sh
+```
+
+What this script does:
+
+- runs the alertmanager flow repeatedly (`RUNS`, default `5`)
+- auto-approves the first proposed action through `POST /actions/{action_id}/approve`
+- retries approval immediately and once more after restarting the in-cluster service deployment to verify idempotent terminal behavior
+- captures per-run evidence under `/tmp/k8s-ai-sre-reliability/<timestamp>/run-XX/`
+- writes aggregate summaries to:
+  - `/tmp/k8s-ai-sre-reliability/<timestamp>/summary.json`
+  - `/tmp/k8s-ai-sre-reliability/<timestamp>/summary.tsv`
+
+Each run captures:
+
+- `webhook-response.json` (incident + action IDs)
+- `incident-readback.json`
+- `approval-first.json`, `approval-retry.json`, and `approval-post-restart-retry.json`
+- `cluster-before.txt`, `cluster-after.txt`, and `cluster-diff.txt`
+- `service.log` and run-level `summary.json`
+
+Exit behavior:
+
+- exits `0` only when all runs succeed and status is stable across retries/restart
+- exits non-zero if any run fails, action IDs are missing (default), or status diverges between first approval and retries
+
+Useful toggles:
+
+```bash
+RUNS=7 RUN_RESTART_CHECK=0 scripts/e2e_reliability_kind.sh
+REQUIRE_ACTION_ID=0 scripts/e2e_reliability_kind.sh
+AUTO_PORT_FORWARD=0 SERVICE_URL=http://127.0.0.1:8080 scripts/e2e_reliability_kind.sh
+```
+
 ## Cleanup
 
 ```bash
@@ -246,4 +293,5 @@ kubectl delete -f examples/kind-bad-deploy.yaml --ignore-not-found
 kubectl delete namespace ai-sre-demo --ignore-not-found
 rm -f /tmp/k8s-ai-sre-store.sqlite3 /tmp/k8s-ai-sre-actions.json /tmp/k8s-ai-sre-incidents.json /tmp/k8s-ai-sre-e2e-incident.json
 rm -rf /tmp/k8s-ai-sre-aie30
+rm -rf /tmp/k8s-ai-sre-reliability
 ```

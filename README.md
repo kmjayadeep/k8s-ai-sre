@@ -249,6 +249,7 @@ Use [`TESTING.md`](TESTING.md) for the current runbook, including:
 - Telegram approval flow
 - kind end-to-end exercise
 - full in-cluster alert pipeline exercise (Prometheus + Alertmanager)
+- repeated reliability evidence runs (`scripts/e2e_reliability_kind.sh`, `RUNS>=5`)
 
 Quick command:
 
