@@ -3,12 +3,13 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from app.actions import approve_action, attach_actions_to_incident, reject_action
 from app.investigate import investigate_target
 from app.log import log_event
+from app.metrics import render_prometheus_metrics
 from app.notifier import send_telegram_notification
 from app.stores import create_incident, get_action, get_incident, list_incidents, update_incident
 from app.telegram import start_telegram_polling_thread
@@ -109,6 +110,11 @@ async def incident_inspector() -> HTMLResponse:
 @app.get("/healthz", response_model=HealthzResponse)
 async def healthz() -> HealthzResponse:
     return HealthzResponse(status="ok")
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+async def metrics() -> PlainTextResponse:
+    return PlainTextResponse(content=render_prometheus_metrics(), media_type="text/plain; version=0.0.4")
 
 
 @app.post("/investigate", response_model=IncidentResponse)
