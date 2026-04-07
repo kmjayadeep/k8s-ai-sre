@@ -65,7 +65,7 @@ Required:
 
 ```bash
 export MODEL_NAME=openai/gpt-oss-20b
-export PORTKEY_API_KEY=...
+export MODEL_API_KEY=...
 export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
 ```
 
@@ -76,8 +76,6 @@ export MODEL_PROVIDER=groq
 export MODEL_BASE_URL=https://api.portkey.ai/v1
 export MODEL_API_KEY=...
 ```
-
-Note: `MODEL_API_KEY` overrides `PORTKEY_API_KEY` when both are set.
 
 ### 3. Create a local demo failure
 
@@ -206,7 +204,6 @@ Create runtime secret:
 ```bash
 kubectl create namespace ai-sre-system --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
-  --from-literal=PORTKEY_API_KEY="$PORTKEY_API_KEY" \
   --from-literal=MODEL_NAME="$MODEL_NAME" \
   --from-literal=MODEL_PROVIDER="$MODEL_PROVIDER" \
   --from-literal=MODEL_BASE_URL="$MODEL_BASE_URL" \
