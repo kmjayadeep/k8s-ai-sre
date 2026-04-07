@@ -8,26 +8,28 @@ Operate `k8s-ai-sre` as a reliable, service-first SRE assistant that completes t
 2. investigation gathers real cluster evidence
 3. agent proposes guarded remediation actions
 4. operator is notified and explicitly approves or rejects
-5. approved actions execute with namespace/RBAC guardrails and auditable state
+5. approved actions execute with guardrails and auditable state
 
-## Current Baseline (April 2, 2026)
+## Current Baseline (April 7, 2026)
 
 Implemented and validated:
 
 - FastAPI investigation + Alertmanager webhook paths
 - Telegram notification and command approval flow (`/incident`, `/status`, `/approve`, `/reject`)
 - token-guarded HTTP operator action decisions (`POST /actions/{action_id}/approve|reject`) for non-interactive E2E validation
-- fail-fast startup preflight for required runtime contract (`MODEL_NAME` + API key, Telegram token/chat pairing rules)
+- fail-fast startup preflight for required runtime contract (`MODEL_NAME` + API key, Telegram token/chat pairing, `WRITE_ALLOWED_NAMESPACES` non-empty)
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - fail-closed mutation preflight with `kubectl auth can-i` checks and target readability checks before execution
 - fail-closed write namespace contract: startup requires non-empty `WRITE_ALLOWED_NAMESPACES`
 - action lifecycle safety checks (pending-only transitions, expiry handling, retry safety)
 - action audit fields for approver identity/source, executed target details, and terminal execution result
-- local JSON-backed incident/action persistence with store abstraction
+- SQLite-backed incident/action persistence with atomic save (PR #43 + PR #54)
 - read-only web incident inspector (`/` + `/incidents`) for operator inspection of past incidents
 - incident API contract regression tests that freeze `IncidentResponse`/`IncidentsResponse` payload keys across `/investigate`, `/webhooks/alertmanager`, `/incidents`, and `/incidents/{incident_id}`
+- error taxonomy: structured `{"code","message"}` HTTP errors and `[code] message` Telegram error prefixes
 - CI test workflow for PRs and `main`
 - in-cluster end-to-end validation of alert -> propose -> notify -> approve -> execute
+- repeated kind reliability validation runner (`scripts/e2e_reliability_kind.sh`, N>=5 runs, evidence bundles)
 - deterministic proposal fallback for `deployment` and `pod` investigations when the model answer omits proposal tool calls
 - full kind runbook for real alert generation with PrometheusRule + Alertmanager webhook routing (`scripts/e2e_full_stack_kind.sh`)
 - Prometheus-compatible operator loop-health metrics endpoint (`GET /metrics`) covering investigation latency, proposal totals, approval latency, and execution outcomes
@@ -36,48 +38,26 @@ Known limits:
 
 - persistence is local-file only (not HA)
 - approval identity is currently header/chat-derived and not federated with cluster identity providers
-- rollout readiness still depends on manual environment/secret setup
-
-## Product Direction Update
-
-- near-term product focus is homelab-first quick start
-- default persistence target should be SQLite (simple single-binary setup)
-- PostgreSQL is deferred as future extension work, not part of current plan
+- restart recovery semantics during in-flight pending/approved actions not yet systematically tested
 
 ## Prioritized Next Steps
 
-### P0: Production Safety Gate (must complete before broader rollout)
+### P0: Production Safety Gate ✅ COMPLETE
 
-1. Harden execution authorization
-- align action execution with Kubernetes RBAC service account boundaries
-- fail closed on any target-resolution or permission ambiguity
-- add explicit audit log fields for who approved, what executed, and result
+Exit criteria met:
 
-2. Operational runbook completeness
-- finalize one canonical deploy + rollback runbook
-- keep required env/secret startup contract and runbook docs aligned as config rules evolve
-- document incident response steps for Telegram/API degradation
-
-3. Reliability checks in cluster
-- run repeated live validation in kind or dev cluster (N>=5 runs)
-- verify no duplicate or unsafe execution under retries/restarts
-- capture evidence bundle (logs, incident IDs, action IDs, cluster state diffs)
-
-Exit criteria:
-- no unsafe execution path found in repeated runs
-- all required startup config validated preflight
-- on-call can execute runbook without code changes
+- no unsafe execution path found in repeated reliability runs ✅
+- all required startup config validated preflight (MODEL_NAME, API key, Telegram pairing, WRITE_ALLOWED_NAMESPACES) ✅
+- canonical deploy + rollback runbook documented in `docs/deployment.md` ✅
+- on-call can execute runbook without code changes ✅
 
 ### P1: Persistence and Recoverability
 
-1. Replace JSON files with SQLite default
-- keep zero-friction local startup for homelab users
-- migrate incident/action stores to a SQLite-backed implementation
-- preserve current API/Telegram contract shape and action lifecycle semantics
-
-2. Recovery semantics
-- define behavior on restart during pending/approved actions
-- ensure idempotent approval/execution after process restart
+1. ~~Replace JSON files with SQLite default~~ ✅ DONE (PR #43)
+2. ~~Atomic save() transaction safety~~ ✅ DONE (PR #54)
+3. Recovery semantics on restart during in-flight pending/approved actions
+   - verify no lost or duplicated terminal actions after process restart
+   - ensure idempotent approval/execution after restart
 
 Exit criteria:
 - restart tests show no lost or duplicated terminal actions
@@ -85,14 +65,10 @@ Exit criteria:
 
 ### P1: Contract and Observability Stability
 
-1. Freeze response contracts
-- keep normalized incident payloads across create/read endpoints
-- add regression assertions that fail on response key drift across incident create/read routes
-- version or document any breaking schema changes
-
-2. Add operator-facing telemetry
-- metrics for investigation latency, proposal rate, approval latency, execution success/failure
-- clear error taxonomy in HTTP and Telegram responses
+1. ~~Freeze response contracts~~ ✅ DONE (PR #49)
+2. ~~Add operator-facing telemetry + error taxonomy~~ ✅ DONE (PR #50, PR #22)
+3. Observability dashboards and alerts
+   - define alert rules for approval loop health (investigation failures, approval SLA breach, execution failure rate)
 
 Exit criteria:
 - dashboards/alerts can answer: "is approval loop healthy right now?"
@@ -101,12 +77,12 @@ Exit criteria:
 ### P2: Scale Readiness
 
 1. Multi-tenant safety boundaries
-- namespace and chat allow-list governance per environment
-- explicit tenancy model for incident/action IDs and access
+   - namespace and chat allow-list governance per environment
+   - explicit tenancy model for incident/action IDs and access
 
 2. Queueing and backpressure
-- protect Telegram/API loop from burst alerts
-- ensure investigation/execution remains bounded under load
+   - protect Telegram/API loop from burst alerts
+   - ensure investigation/execution remains bounded under load
 
 Exit criteria:
 - documented and tested behavior under burst and partial-outage scenarios
@@ -115,7 +91,7 @@ Exit criteria:
 
 - keep PRs atomic and rebase-only
 - prioritize merge order for safety-critical paths first
-- avoid new feature sprawl until P0 gate is complete
+- avoid new feature sprawl until P1 gate is complete
 
 ## Plan Maintenance Rules
 
