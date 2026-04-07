@@ -9,7 +9,7 @@ The repository currently implements:
 - investigation for pods and deployments with real Kubernetes reads
 - evidence collection from resource state, events, logs, and optional Prometheus queries
 - API-triggered investigations (`/investigate`) and Alertmanager webhook handling (`/webhooks/alertmanager`)
-- local JSON persistence for incidents and pending actions
+- SQLite-backed persistence for incidents and pending actions (default path `/tmp/k8s-ai-sre-store.sqlite3`)
 - Telegram notifications and approval commands (`/incident`, `/status`, `/approve`, `/reject`)
 - guarded remediation actions that require explicit approval before execution
 

@@ -14,23 +14,29 @@ Operate `k8s-ai-sre` as a reliable, service-first SRE assistant that safely clos
 
 ## Current baseline
 
-Implemented baseline includes:
+Implemented and validated:
 
 - API investigation and Alertmanager webhook paths
-- Telegram notification and approval command flow
+- Telegram notification and approval command flow (`/incident`, `/status`, `/approve`, `/reject`)
+- token-guarded HTTP operator action decisions (`POST /actions/{action_id}/approve|reject`)
+- fail-fast startup preflight for required runtime config
 - guarded actions (`delete-pod`, `rollout-restart`, `scale`, `rollout-undo`)
 - fail-closed RBAC preflight (`kubectl auth can-i`) and target readability checks for mutating actions
-- action audit fields for operator identity/source and execution result details
-- local JSON persistence for incidents/actions
-- CI tests and in-cluster end-to-end validation path
-- full in-cluster monitoring validation path using Prometheus + Alertmanager rule/webhook wiring
+- fail-closed write namespace contract: startup requires non-empty `WRITE_ALLOWED_NAMESPACES`
+- action lifecycle safety checks and audit fields for operator identity and execution result
+- SQLite-backed incident/action persistence (default: `/tmp/k8s-ai-sre-store.sqlite3`)
+- read-only web incident inspector for operator inspection of past incidents
+- CI test workflow and in-cluster end-to-end validation path
+- full in-cluster alert pipeline exercise (Prometheus + Alertmanager)
+- repeated reliability evidence runner (`scripts/e2e_reliability_kind.sh`, N>=5)
+- Prometheus-compatible loop-health metrics endpoint (`GET /metrics`)
+- incident API contract regression tests freezing response payload keys
+- deterministic proposal fallback for `deployment` and `pod` targets
+
+**P0 Production Safety Gate: COMPLETE** — all PRs merged, reliability validation passed.
 
 ## Priority direction
 
-Current priority in `PLAN.md` is the production safety gate before broader rollout:
-
-- harden execution authorization and auditability
-- complete runbook and startup config validation
-- repeatedly validate reliability in-cluster
+Current active work is P1: Persistence and Recoverability (SQLite done, atomic save PR merged) and observability.
 
 Read `PLAN.md` for detailed exit criteria and sequence.

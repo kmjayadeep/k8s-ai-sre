@@ -6,24 +6,25 @@
 uv sync
 ```
 
-## 2. Configure model credentials
+## 2. Configure model access
 
-Minimum:
+Required:
 
 ```bash
-export PORTKEY_API_KEY=...
+export MODEL_NAME=openai/gpt-oss-20b
+export PORTKEY_API_KEY=***
+export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
 ```
 
 Optional overrides:
 
 ```bash
-export MODEL_NAME=openai/gpt-oss-20b
 export MODEL_PROVIDER=groq
 export MODEL_BASE_URL=https://api.portkey.ai/v1
-export MODEL_API_KEY=...
+export MODEL_API_KEY=***
 ```
 
-`MODEL_API_KEY` overrides `PORTKEY_API_KEY` when both are set.
+Note: `MODEL_API_KEY` overrides `PORTKEY_API_KEY` when both are set.
 
 ## 3. Create demo scenario
 
