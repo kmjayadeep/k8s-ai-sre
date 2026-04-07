@@ -1,0 +1,63 @@
+{
+  "title": "k8s-ai-sre Approval Loop Health",
+  "uid": "k8s-ai-sre",
+  "version": 1,
+  "tags": ["k8s-ai-sre", "sre", "approval-loop"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "Investigation throughput (per minute)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [{"expr": "sum(rate(k8s_ai_sre_investigation_latency_seconds_count[5m])) * 60"}],
+      "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}}
+    },
+    {
+      "title": "Investigation P95 latency",
+      "type": "gauge",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(k8s_ai_sre_investigation_latency_seconds_bucket[5m])) by (le))"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 30, "color": "yellow"}, {"value": 60, "color": "red"}]}}}
+    },
+    {
+      "title": "Action proposals (per minute)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [{"expr": "sum(rate(k8s_ai_sre_action_proposals_total[5m])) * 60"}],
+      "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}}
+    },
+    {
+      "title": "Approval P95 latency",
+      "type": "gauge",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(k8s_ai_sre_approval_latency_seconds_bucket[5m])) by (le))"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 120, "color": "yellow"}, {"value": 300, "color": "red"}]}}}
+    },
+    {
+      "title": "Execution outcomes (5m rate)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "targets": [
+        {"expr": "sum(rate(k8s_ai_sre_action_execution_outcomes_total{status=\"approved\"}[5m]))", "legendFormat": "approved"},
+        {"expr": "sum(rate(k8s_ai_sre_action_execution_outcomes_total{status=\"failed\"}[5m]))", "legendFormat": "failed"},
+        {"expr": "sum(rate(k8s_ai_sre_action_execution_outcomes_total{status=\"rejected\"}[5m]))", "legendFormat": "rejected"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "lineInterpolation": "smooth"}}}
+    },
+    {
+      "title": "Failure + rejection rate",
+      "type": "gauge",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "targets": [
+        {"expr": "sum(rate(k8s_ai_sre_action_execution_outcomes_total{status=\"failed\"}[5m])) / sum(rate(k8s_ai_sre_action_execution_outcomes_total[5m])) * 100", "legendFormat": "failure %"},
+        {"expr": "sum(rate(k8s_ai_sre_action_execution_outcomes_total{status=\"rejected\"}[5m])) / sum(rate(k8s_ai_sre_action_execution_outcomes_total[5m])) * 100", "legendFormat": "rejection %"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 10, "color": "yellow"}, {"value": 30, "color": "red"}]}}}
+    }
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {"list": []},
+  "schemaVersion": 30,
+  "style": "dark"
+}
