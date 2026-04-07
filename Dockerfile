@@ -12,6 +12,8 @@ COPY . .
 
 RUN pip install uv && uv sync --frozen
 
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
 EXPOSE 8080
 
 CMD ["uv", "run", "main.py"]
