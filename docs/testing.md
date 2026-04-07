@@ -15,13 +15,20 @@ The canonical validation runbook lives in `TESTING.md`. Use this page as a docs-
 .venv/bin/python -m unittest discover -s tests
 ```
 
-## E2E helper script
+## E2E helper scripts
 
 ```bash
+# Quick investigate + approve flow
 scripts/e2e_kind.sh
+
+# P0 reliability gate: repeated N-run validation (RUNS>=5)
+scripts/e2e_reliability_kind.sh
+
+# Full in-cluster stack: PrometheusRule + Alertmanager + webhook
+scripts/e2e_full_stack_kind.sh
 ```
 
-The helper sends a sample webhook and writes incident output to:
+The quick helper sends a sample webhook and writes incident output to:
 
 ```text
 /tmp/k8s-ai-sre-e2e-incident.json
