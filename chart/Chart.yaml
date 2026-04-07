@@ -1,0 +1,17 @@
+apiVersion: v2
+name: k8s-ai-sre
+description: AI-assisted Kubernetes incident investigation with guarded remediation
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - sre
+  - incident-response
+  - ai
+home: https://github.com/kmjayadeep/k8s-ai-sre
+sources:
+  - https://github.com/kmjayadeep/k8s-ai-sre
+maintainers:
+  - name: kmjayadeep
+    url: https://github.com/kmjayadeep

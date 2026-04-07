@@ -1,0 +1,19 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "k8s-ai-sre.fullname" . }}
+  namespace: {{ include "k8s-ai-sre.namespace" . }}
+  labels:
+    {{- include "k8s-ai-sre.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "k8s-ai-sre.selectorLabels" . | nindent 4 }}
+{{- end }}

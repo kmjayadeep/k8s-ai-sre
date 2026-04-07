@@ -1,0 +1,60 @@
+{{/*
+NOTES.txt — shown after `helm install` or `helm template`
+*/}}
+{{- $secretMode := .Values.secretMode | default "auto" -}}
+{{- $hasExisting := .Values.existingSecret.name -}}
+{{- $hasInline := .Values.secretData -}}
+{{- $ok := or $hasExisting (not (eq $secretMode "existing")) -}}
+
+{{- $ns := include "k8s-ai-sre.namespace" . }}
+
+k8s-ai-sre installed in namespace "{{ $ns }}".
+
+== Service ==
+
+  http://k8s-ai-sre.{{ $ns }}.svc.cluster.local
+
+== Verify ==
+
+  kubectl -n {{ $ns }} get pods,svc
+  kubectl -n {{ $ns }} rollout status deploy/k8s-ai-sre
+
+  # smoke test (port-forward or from within cluster):
+  curl http://k8s-ai-sre.{{ $ns }}.svc.cluster.local/healthz
+
+== Required secret keys ==
+
+If using an existing secret, make sure it contains these keys:
+
+  PORTKEY_API_KEY   (or MODEL_API_KEY — one required)
+  MODEL_NAME
+  WRITE_ALLOWED_NAMESPACES
+
+Optional:
+  MODEL_PROVIDER          (default: groq)
+  MODEL_BASE_URL          (default: https://api.portkey.ai/v1)
+  TELEGRAM_BOT_TOKEN
+  TELEGRAM_CHAT_ID
+  TELEGRAM_ALLOWED_CHAT_IDS
+  OPERATOR_API_TOKEN
+  K8S_AI_SRE_STORE_PATH
+
+== RBAC ==
+
+Write access is granted to these namespaces (via Role + RoleBinding):
+
+{{- range .Values.writeAllowedNamespaces }}
+  - {{ . }}
+{{- end }}
+
+== Upgrade ==
+
+  helm upgrade --install k8s-ai-sre ./chart \
+    --namespace {{ $ns }} \
+    --values values.yaml
+
+== Uninstall ==
+
+  helm uninstall k8s-ai-sre --namespace {{ $ns }}
+
+  Note: this does NOT delete the write namespaces or external secrets.
