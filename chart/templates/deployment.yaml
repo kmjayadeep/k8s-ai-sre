@@ -58,6 +58,9 @@ spec:
             # WRITE_ALLOWED_NAMESPACES — rendered from the list
             - name: WRITE_ALLOWED_NAMESPACES
               value: {{ include "k8s-ai-sre.writeAllowedNamespaces" . }}
+            # UV_CACHE_DIR must be set when readOnlyRootFilesystem is true
+            - name: UV_CACHE_DIR
+              value: /tmp/.cache/uv
           envFrom:
             {{- if .Values.existingSecret.name }}
             - secretRef:
