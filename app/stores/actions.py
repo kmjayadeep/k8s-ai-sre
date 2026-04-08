@@ -72,3 +72,12 @@ def is_action_expired(action: dict) -> bool:
     if not expires_at:
         return False
     return datetime.now(UTC) > datetime.fromisoformat(expires_at)
+
+
+def list_pending_actions(namespace: str | None = None) -> list[dict]:
+    """List all pending actions, optionally filtered by namespace."""
+    actions = _load_actions()
+    pending = [a for a in actions.values() if a.get("status") == "pending"]
+    if namespace:
+        pending = [a for a in pending if a.get("namespace") == namespace]
+    return sorted(pending, key=lambda a: a.get("expires_at", ""))
