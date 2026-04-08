@@ -1,0 +1,81 @@
+{{/*
+RBAC: ClusterRole (read) + ClusterRoleBinding
+     Role + RoleBinding for each write-allowed namespace
+*/}}
+
+---
+# Read-only ClusterRole — cluster-wide read access for investigation
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "k8s-ai-sre.fullname" . }}-read
+  labels:
+    {{- include "k8s-ai-sre.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events", "namespaces", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["prometheuses", "prometheusrules"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "k8s-ai-sre.fullname" . }}-read
+  labels:
+    {{- include "k8s-ai-sre.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "k8s-ai-sre.fullname" . }}-read
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.serviceAccount.name }}
+    namespace: {{ include "k8s-ai-sre.namespace" . }}
+
+{{/*
+Write roles — one Role per allowed namespace.
+These are namespaced resources, so they live inside their target namespace.
+*/}}
+{{- range .Values.writeAllowedNamespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "k8s-ai-sre.fullname" $ }}-write
+  namespace: {{ . }}
+  labels:
+    {{- include "k8s-ai-sre.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "k8s-ai-sre.fullname" $ }}-write
+  namespace: {{ . }}
+  labels:
+    {{- include "k8s-ai-sre.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "k8s-ai-sre.fullname" $ }}-write
+subjects:
+  - kind: ServiceAccount
+    name: {{ $.Values.serviceAccount.name }}
+    namespace: {{ include "k8s-ai-sre.namespace" $ }}
+{{- end }}

@@ -1,0 +1,127 @@
+# Default values for k8s-ai-sre.
+
+namespace:
+  # Target namespace for the service and RBAC resources
+  name: ai-sre-system
+  # Create the namespace if it doesn't exist
+  create: true
+
+image:
+  repository: ghcr.io/kmjayadeep/k8s-ai-sre
+  tag: main
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Write-allowed namespaces — the service's WRITE_ALLOWED_NAMESPACES env var
+# AND the namespaces where the service account gets write RBAC roles.
+# At least one is required (fail-fast at startup).
+writeAllowedNamespaces:
+  - ai-sre-demo
+
+# Service account name
+serviceAccount:
+  name: k8s-ai-sre
+  # Whether to create the ServiceAccount. Set false to reuse an existing one.
+  create: true
+
+# Credentials and secrets.
+#
+# Two modes:
+#   1. existingSecret.name: reference an existing Kubernetes Secret
+#   2. secretData: create a new Secret with these key-value pairs
+#
+# REQUIRED keys (fail-fast at startup if missing):
+#   PORTKEY_API_KEY (or MODEL_API_KEY)
+#   MODEL_NAME
+#   WRITE_ALLOWED_NAMESPACES
+#
+# OPTIONAL keys:
+#   MODEL_PROVIDER      (default: groq)
+#   MODEL_BASE_URL      (default: https://api.portkey.ai/v1)
+#   MODEL_API_KEY       (overrides PORTKEY_API_KEY when both set)
+#   TELEGRAM_BOT_TOKEN
+#   TELEGRAM_CHAT_ID
+#   TELEGRAM_ALLOWED_CHAT_IDS
+#   TELEGRAM_POLL_ENABLED         (default: true)
+#   TELEGRAM_POLL_TIMEOUT_SECONDS  (default: 30)
+#   TELEGRAM_HTTP_TIMEOUT_SECONDS  (default: 35)
+#   TELEGRAM_POLL_INTERVAL_SECONDS (default: 1)
+#   TELEGRAM_POLL_BACKOFF_SECONDS  (default: 5)
+#   OPERATOR_API_TOKEN
+#   K8S_AI_SRE_STORE_PATH         (default: /tmp/k8s-ai-sre-store.sqlite3)
+#   PORT                            (default: 8080)
+#
+secretMode: auto  # 'existing' | 'inline' | 'auto' (auto=use existing if set, else inline)
+
+existingSecret:
+  name: ""
+  # Map of secret key names to mount as env vars (value is the secret key name).
+  # Example: to mount `api-key` from the secret as `PORTKEY_API_KEY`, set:
+  #   PORTKEY_API_KEY: api-key
+  keys: {}
+
+secretData: {}
+  # PORTKEY_API_KEY: your-api-key
+  # MODEL_NAME: openai/gpt-oss-20b
+  # MODEL_PROVIDER: groq
+  # WRITE_ALLOWED_NAMESPACES: ai-sre-demo
+  # TELEGRAM_BOT_TOKEN: ""
+  # TELEGRAM_CHAT_ID: ""
+  # TELEGRAM_ALLOWED_CHAT_IDS: ""
+  # OPERATOR_API_TOKEN: ""
+
+# Extra environment variables to add beyond those from the secret.
+# Use this for non-sensitive config or to override secret values.
+extraEnv: {}
+  # PORT: "8080"
+
+# Pod resource requests and limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Pod anti-affinity — schedule on a different node when possible
+podAntiAffinity: false
+
+# Node selector, tolerations, and affinity
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: k8s-ai-sre.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: k8s-ai-sre-tls
+  #   hosts:
+  #     - k8s-ai-sre.local
+
+# Prometheus metrics + alerts (from the observability feature)
+prometheus:
+  # Install the PrometheusRule and GrafanaDashboard bundled with the chart
+  enabled: false
+  grafana:
+    dashboard:
+      # Path to the dashboard JSON in the chart (if enabled)
+      path: ""

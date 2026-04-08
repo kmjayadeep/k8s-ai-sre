@@ -1,0 +1,13 @@
+{{- if .Values.extraEnv }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "k8s-ai-sre.fullname" . }}-extra-env
+  namespace: {{ include "k8s-ai-sre.namespace" . }}
+  labels:
+    {{- include "k8s-ai-sre.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.extraEnv }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}
