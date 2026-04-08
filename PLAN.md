@@ -38,7 +38,7 @@ Known limits:
 
 - persistence is local-file only (not HA)
 - approval identity is currently header/chat-derived and not federated with cluster identity providers
-- restart recovery semantics during in-flight pending/approved actions not yet systematically tested
+- restart recovery semantics during in-flight pending/approved actions now tested
 
 ## Prioritized Next Steps
 
@@ -67,12 +67,10 @@ Exit criteria:
 
 1. ~~Freeze response contracts~~ ✅ DONE (PR #49)
 2. ~~Add operator-facing telemetry + error taxonomy~~ ✅ DONE (PR #50, PR #22)
-3. Observability dashboards and alerts
-   - define alert rules for approval loop health (investigation failures, approval SLA breach, execution failure rate)
-
-Exit criteria:
-- dashboards/alerts can answer: "is approval loop healthy right now?"
-- contract tests prevent unintentional payload drift
+3. ~~Observability dashboards and alerts~~ ✅ DONE (PR #63)
+   - alert rules for approval loop health (investigation latency, approval SLA breach, execution failure rate)
+   - Grafana dashboard for loop health monitoring
+   - dashboards/alerts can answer: "is approval loop healthy right now?"
 
 ### P2: Scale Readiness
 
