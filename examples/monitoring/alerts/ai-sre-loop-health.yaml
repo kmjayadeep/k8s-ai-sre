@@ -1,0 +1,94 @@
+# Approval Loop Health Alert Rules
+# These rules monitor the k8s-ai-sre approval loop health
+# Deploy to your monitoring namespace along with kube-prom-stack
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ai-sre-loop-health
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  groups:
+    - name: ai-sre-loop-health.rules
+      rules:
+        # Alert when investigation latency is high (P95 > 30s for 5 consecutive buckets)
+        - alert: AISREInvestigationLatencyHigh
+          expr: histogram_quantile(0.95, sum(rate(k8s_ai_sre_investigation_latency_seconds_bucket[5m])) by (le)) > 30
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AI-SRE investigation latency is high"
+            description: "95th percentile investigation latency is {{ $value | printf \"%.2f\" }}s (threshold: 30s)"
+
+        # Alert when investigation fails completely (no completions in 10 minutes with constant rate)
+        - alert: AISREInvestigationFailures
+          expr: |
+            (
+              sum(rate(k8s_ai_sre_investigation_latency_seconds_count[10m])) > 0
+              AND
+              sum(rate(k8s_ai_sre_investigation_latency_seconds_count[10m])) - sum(rate(k8s_ai_sre_action_proposals_total[10m])) > 0
+            )
+            OR
+            (
+              sum(rate(k8s_ai_sre_investigation_latency_seconds_count[10m])) == 0
+              AND
+              sum(k8s_ai_sre_action_proposals_total) > 0
+            )
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "AI-SRE investigation failures detected"
+            description: "Investigations are completing without proposing actions or no investigations are completing"
+
+        # Alert when approval SLA is breached (approval latency > 5 minutes for 80% of actions)
+        - alert: AISREApprovalSLABreach
+          expr: histogram_quantile(0.8, sum(rate(k8s_ai_sre_approval_latency_seconds_bucket[10m])) by (le)) > 300
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AI-SRE approval SLA is breached"
+            description: "80th percentile approval latency is {{ $value | printf \"%.0f\" }}s (threshold: 300s)"
+
+        # Alert when action execution failure rate is high (> 20%)
+        - alert: AISREExecutionFailureRateHigh
+          expr: |
+            sum(rate(k8s_ai_sre_action_execution_outcomes_total{status="failed"}[15m]))
+            /
+            sum(rate(k8s_ai_sre_action_execution_outcomes_total{status=~"approved|failed"}[15m])) > 0.2
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "AI-SRE execution failure rate is high"
+            description: "Action execution failure rate is {{ $value | printf \"%.1f\" }}% (threshold: 20%)"
+
+        # Alert when no actions are being approved (stalled approval)
+        - alert: AISREApprovalStalled
+          expr: |
+            sum(k8s_ai_sre_action_proposals_total) > 0
+            AND
+            sum(k8s_ai_sre_action_execution_outcomes_total{status=~"approved|rejected|failed"}) == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AI-SRE actions are not being approved/rejected"
+            description: "No terminal action decisions in the last 30 minutes despite proposals"
+
+        # Alert when Telegram polling errors (if exposed)
+        - alert: AISREActionThroughputLow
+          expr: |
+            sum(rate(k8s_ai_sre_action_execution_outcomes_total[1h])) < 0.1
+            AND
+            sum(k8s_ai_sre_action_proposals_total) > 10
+          for: 1h
+          labels:
+            severity: info
+          annotations:
+            summary: "AI-SRE action throughput is low"
+            description: "Very few actions being executed despite incidents occurring"
