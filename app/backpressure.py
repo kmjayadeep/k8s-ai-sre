@@ -18,6 +18,12 @@ _active_investigations: dict[str, datetime] = {}
 _active_investigations_lock = Lock()
 
 
+def _reset_queue() -> None:
+    """Reset the queue (for testing purposes)."""
+    global _investigation_queue
+    _investigation_queue = None
+
+
 def _get_queue() -> Queue[tuple[str, str, str, str]]:
     global _investigation_queue
     if _investigation_queue is None:
@@ -93,9 +99,3 @@ def get_queue_status() -> dict[str, Any]:
         "max_concurrent_investigations": MAX_CONCURRENT_INVESTIGATIONS,
         "queue_utilization": get_queue_depth() / MAX_QUEUE_SIZE if MAX_QUEUE_SIZE > 0 else 0,
     }
-
-
-def _reset_queue() -> None:
-    """Reset the queue (for testing purposes)."""
-    global _investigation_queue
-    _investigation_queue = None
