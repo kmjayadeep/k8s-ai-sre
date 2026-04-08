@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.actions import approve_action, attach_actions_to_incident, reject_action
 from app.backpressure import get_queue_status
 from app.error_taxonomy import raise_http_error
+from app.ui.auth_middleware import InspectorAuthMiddleware, load_inspector_auth
 from app.investigate import investigate_target
 from app.log import log_event
 from app.metrics import render_prometheus_metrics
@@ -86,6 +87,7 @@ class PendingActionsResponse(BaseModel):
 
 
 app = FastAPI()
+app.add_middleware(InspectorAuthMiddleware)
 
 _UI_TEMPLATE_PATH = Path(__file__).resolve().parent / "ui" / "incident_inspector.html"
 
@@ -286,5 +288,6 @@ async def reject_action_http(
 
 def run_server(port: int = 8080) -> None:
     log_event("server_starting", port=port)
+    load_inspector_auth()
     start_telegram_polling_thread()
     uvicorn.run(app, host="0.0.0.0", port=port)
