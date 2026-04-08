@@ -24,12 +24,11 @@ AI-assisted Kubernetes incident investigation with guarded remediation. Complete
 **Known gaps to address:**
 
 ### User Experience
-- [ ] Make README more engaging for new users
-- [ ] Improve UI aesthetics and professionalism
-- [ ] Add simple auth for the incident inspector UI
+- [x] Make README more engaging for new users (#73)
+- [x] Add simple auth for the incident inspector UI (#74)
 
 ### Alert Management
-- [ ] Add API key support for Alertmanager webhook endpoint
+- [x] Add API key support for Alertmanager webhook endpoint (#75)
 - [ ] Handle alert resolution (skip investigation for resolved alerts)
 - [ ] Deduplicate/merge incidents for the same target
 
