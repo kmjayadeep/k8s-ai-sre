@@ -1,68 +1,72 @@
 # Quick Start
 
-## 1. Install dependencies
+Deploy `k8s-ai-sre` on Kubernetes using the Helm chart.
+
+**Prerequisites:** Kubernetes cluster, `kubectl`, [Helm](https://helm.sh/docs/intro/install/).
+
+## 1. Configure values
+
+Copy and edit the example values file:
 
 ```bash
-uv sync
+cp chart/examples/with-inline-secret.yaml my-values.yaml
+# Edit my-values.yaml with your credentials
 ```
 
-## 2. Configure model access
-
-Required:
-
-```bash
-export MODEL_NAME=openai/gpt-oss-20b
-export PORTKEY_API_KEY=***
-export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
+Required changes in `my-values.yaml`:
+```yaml
+secretData:
+  PORTKEY_API_KEY: "your-portkey-api-key"
+  MODEL_NAME: "openai/gpt-oss-20b"
+  MODEL_PROVIDER: "groq"
+  MODEL_BASE_URL: "https://api.portkey.ai/v1"
+  WRITE_ALLOWED_NAMESPACES: "ai-sre-demo"
 ```
 
-Optional overrides:
+## 2. Install the chart
 
 ```bash
-export MODEL_PROVIDER=groq
-export MODEL_BASE_URL=https://api.portkey.ai/v1
-export MODEL_API_KEY=***
+helm install k8s-ai-sre ./chart \
+  --namespace ai-sre-system \
+  --create-namespace \
+  --values my-values.yaml \
+  --timeout 2m \
+  --wait
 ```
 
-Note: `MODEL_API_KEY` overrides `PORTKEY_API_KEY` when both are set.
-
-## 3. Create demo scenario
+## 3. Verify
 
 ```bash
-kubectl create namespace ai-sre-demo --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -f examples/kind-bad-deploy.yaml
+kubectl -n ai-sre-system get pods,svc
+kubectl -n ai-sre-system rollout status deploy/k8s-ai-sre
+curl -s $(kubectl -n ai-sre-system get svc k8s-ai-sre -o jsonpath='{.spec.clusterIP}')/healthz
 ```
 
-## 4. Start the service
+## 4. Trigger investigation
 
 ```bash
-uv run main.py
-```
-
-## 5. Trigger investigation
-
-Manual endpoint:
-
-```bash
-curl -X POST http://127.0.0.1:8080/investigate \
+curl -X POST http://localhost:8080/investigate \
   -H 'Content-Type: application/json' \
   -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"bad-deploy"}'
 ```
 
-Alertmanager-style webhook:
+## Upgrading
 
 ```bash
-curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
-  -H 'Content-Type: application/json' \
-  --data @examples/alertmanager-bad-deploy.json
+helm upgrade --install k8s-ai-sre ./chart \
+  --namespace ai-sre-system \
+  --values my-values.yaml \
+  --timeout 2m \
+  --wait
 ```
 
-## Expected response fields
+## Uninstalling
 
-Investigation creation endpoints return normalized incident payloads including:
+```bash
+helm uninstall k8s-ai-sre --namespace ai-sre-system
+# Note: does not delete write namespaces or external secrets
+```
 
-- `incident_id`
-- `source`
-- `answer`
-- `action_ids`
-- `proposed_actions`
+For production, see [`docs/deployment.md`](deployment.md) for full deployment runbook including rollback procedures.
+
+For local development, see [`docs/developer.md`](developer.md).
