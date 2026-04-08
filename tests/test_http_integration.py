@@ -17,6 +17,7 @@ from app.http import (
     incident_inspector,
     investigate,
     metrics,
+    queue_status,
     read_incident,
     read_incidents,
     reject_action_http,
