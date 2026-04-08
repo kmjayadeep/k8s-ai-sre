@@ -31,6 +31,7 @@ Implemented and validated:
 - in-cluster end-to-end validation of alert -> propose -> notify -> approve -> execute
 - repeated kind reliability validation runner (`scripts/e2e_reliability_kind.sh`, N>=5 runs, evidence bundles)
 - deterministic proposal fallback for `deployment` and `pod` investigations when the model answer omits proposal tool calls
+- all k8s tools properly decorated as function_tool
 - full kind runbook for real alert generation with PrometheusRule + Alertmanager webhook routing (`scripts/e2e_full_stack_kind.sh`)
 - Prometheus-compatible operator loop-health metrics endpoint (`GET /metrics`) covering investigation latency, proposal totals, approval latency, and execution outcomes
 
@@ -38,7 +39,7 @@ Known limits:
 
 - persistence is local-file only (not HA)
 - approval identity is currently header/chat-derived and not federated with cluster identity providers
-- restart recovery semantics during in-flight pending/approved actions not yet systematically tested
+- restart recovery semantics tested with unit tests
 
 ## Prioritized Next Steps
 
