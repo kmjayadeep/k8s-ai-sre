@@ -14,6 +14,10 @@ AGENT_INSTRUCTIONS = (
     "Most likely cause: "
     "Confidence: "
     "Proposed actions: "
+    "When proposing actions, prioritize the least disruptive option that addresses the root cause. "
+    "For crashlooping pods, prefer delete-pod (allows kubelet to restart with fresh state). "
+    "For deployments with unavailable replicas, prefer rollout-restart. "
+    "For scale issues, consider scale only after other options are exhausted. "
 )
 
 
