@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from app.actions import approve_action, attach_actions_to_incident, reject_action
+from app.backpressure import get_queue_status
 from app.error_taxonomy import raise_http_error
 from app.investigate import investigate_target
 from app.log import log_event
@@ -33,6 +34,14 @@ class AlertmanagerWebhook(BaseModel):
 
 class HealthzResponse(BaseModel):
     status: str
+
+
+class QueueStatusResponse(BaseModel):
+    queue_depth: int
+    max_queue_size: int
+    active_investigations: int
+    max_concurrent_investigations: int
+    queue_utilization: float
 
 
 class ProposedActionResponse(BaseModel):
@@ -111,6 +120,13 @@ async def incident_inspector() -> HTMLResponse:
 @app.get("/healthz", response_model=HealthzResponse)
 async def healthz() -> HealthzResponse:
     return HealthzResponse(status="ok")
+
+
+
+@app.get("/queue-status", response_model=QueueStatusResponse)
+async def queue_status() -> QueueStatusResponse:
+    status = get_queue_status()
+    return QueueStatusResponse.model_validate(status)
 
 
 @app.get("/metrics", response_class=PlainTextResponse)
