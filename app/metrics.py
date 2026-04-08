@@ -41,7 +41,8 @@ def _make_metrics(reg: CollectorRegistry) -> None:
     )
 
 
-_make_metrics(CollectorRegistry())
+_registry = CollectorRegistry()
+_make_metrics(_registry)
 
 _lock = Lock()
 _investigation_started: dict[tuple[str, str, str], list[float]] = {}
