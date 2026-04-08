@@ -55,13 +55,9 @@ Exit criteria met:
 
 1. ~~Replace JSON files with SQLite default~~ ✅ DONE (PR #43)
 2. ~~Atomic save() transaction safety~~ ✅ DONE (PR #54)
-3. Recovery semantics on restart during in-flight pending/approved actions
-   - verify no lost or duplicated terminal actions after process restart
-   - ensure idempotent approval/execution after restart
-
-Exit criteria:
-- restart tests show no lost or duplicated terminal actions
-- SQLite-backed store does not change external behavior
+3. ~~Recovery semantics on restart during in-flight pending/approved actions~~ ✅ DONE (PR #61)
+   - restart tests show no lost or duplicated terminal actions
+   - SQLite-backed store does not change external behavior
 
 ### P1: Contract and Observability Stability
 
