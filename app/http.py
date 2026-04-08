@@ -12,6 +12,7 @@ from app.investigate import investigate_target
 from app.log import log_event
 from app.metrics import render_prometheus_metrics
 from app.notifier import send_telegram_notification
+from app.stores.actions import list_pending_actions
 from app.stores import create_incident, get_action, get_incident, list_incidents, update_incident
 from app.telegram import start_telegram_polling_thread
 
@@ -67,6 +68,10 @@ class ActionDecisionResponse(BaseModel):
     action_id: str
     status: str
     message: str
+
+
+class PendingActionsResponse(BaseModel):
+    pending_actions: list[dict] = Field(default_factory=list)
 
 
 app = FastAPI()
@@ -171,6 +176,13 @@ async def alertmanager_webhook(payload: AlertmanagerWebhook) -> IncidentResponse
 async def read_incidents() -> IncidentsResponse:
     incidents = [IncidentResponse.model_validate(incident) for incident in list_incidents()]
     return IncidentsResponse(incidents=incidents)
+
+
+
+@app.get("/actions", response_model=PendingActionsResponse)
+async def read_pending_actions(namespace: str | None = None) -> PendingActionsResponse:
+    pending = list_pending_actions(namespace)
+    return PendingActionsResponse(pending_actions=pending)
 
 
 @app.get("/incidents/{incident_id}", response_model=IncidentResponse)
