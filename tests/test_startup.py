@@ -5,30 +5,27 @@ from app.startup import validate_startup_config, validate_startup_environment
 
 
 class StartupConfigTests(unittest.TestCase):
-    def test_accepts_required_model_config_with_portkey_key(self) -> None:
-        validate_startup_config({"MODEL_NAME": "openai/gpt-oss-20b", "PORTKEY_API_KEY": "pk_test"})
-
-    def test_accepts_required_model_config_with_model_key(self) -> None:
+    def test_accepts_required_model_config(self) -> None:
         validate_startup_config({"MODEL_NAME": "openai/gpt-oss-20b", "MODEL_API_KEY": "mk_test"})
 
     def test_rejects_missing_model_name(self) -> None:
         with self.assertRaises(ValueError) as raised:
-            validate_startup_config({"PORTKEY_API_KEY": "pk_test"})
+            validate_startup_config({"MODEL_API_KEY": "mk_test"})
 
         self.assertIn("MODEL_NAME is required.", str(raised.exception))
 
-    def test_rejects_missing_model_api_keys(self) -> None:
+    def test_rejects_missing_model_api_key(self) -> None:
         with self.assertRaises(ValueError) as raised:
             validate_startup_config({"MODEL_NAME": "openai/gpt-oss-20b"})
 
-        self.assertIn("One of MODEL_API_KEY or PORTKEY_API_KEY is required.", str(raised.exception))
+        self.assertIn("MODEL_API_KEY is required.", str(raised.exception))
 
     def test_rejects_partial_telegram_pair_when_token_only(self) -> None:
         with self.assertRaises(ValueError) as raised:
             validate_startup_config(
                 {
                     "MODEL_NAME": "openai/gpt-oss-20b",
-                    "PORTKEY_API_KEY": "pk_test",
+                    "MODEL_API_KEY": "mk_test",
                     "TELEGRAM_BOT_TOKEN": "bot_token",
                 }
             )
@@ -40,7 +37,7 @@ class StartupConfigTests(unittest.TestCase):
             validate_startup_config(
                 {
                     "MODEL_NAME": "openai/gpt-oss-20b",
-                    "PORTKEY_API_KEY": "pk_test",
+                    "MODEL_API_KEY": "mk_test",
                     "TELEGRAM_CHAT_ID": "12345",
                 }
             )
@@ -52,7 +49,7 @@ class StartupConfigTests(unittest.TestCase):
             validate_startup_config(
                 {
                     "MODEL_NAME": "openai/gpt-oss-20b",
-                    "PORTKEY_API_KEY": "pk_test",
+                    "MODEL_API_KEY": "mk_test",
                     "TELEGRAM_ALLOWED_CHAT_IDS": "12345",
                 }
             )

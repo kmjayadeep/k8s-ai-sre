@@ -12,10 +12,10 @@ Secret name expected by the manifest: `k8s-ai-sre-env` in namespace `ai-sre-syst
 
 | Variable | Required | Runtime behavior |
 | --- | --- | --- |
-| `MODEL_API_KEY` or `PORTKEY_API_KEY` | Yes | Process fails at startup when neither key is set. |
+| `MODEL_API_KEY` | Yes | Process fails at startup when not set. |
 | `MODEL_NAME` | Yes | Process fails at startup when empty. |
 | `MODEL_PROVIDER` | No | Defaults to `groq`. |
-| `MODEL_BASE_URL` | No | Defaults to Portkey gateway URL in code. |
+| `MODEL_BASE_URL` | No | Defaults to `https://api.groq.com/openai/v1`. |
 | `TELEGRAM_BOT_TOKEN` | No | Must be paired with `TELEGRAM_CHAT_ID` when set. |
 | `TELEGRAM_CHAT_ID` | No | Must be paired with `TELEGRAM_BOT_TOKEN` when set. |
 | `TELEGRAM_ALLOWED_CHAT_IDS` | Recommended when polling enabled | If set, `TELEGRAM_BOT_TOKEN` must be set. |
@@ -46,7 +46,7 @@ kubectl -n ai-sre-system get secret k8s-ai-sre-env -o yaml
 
 Confirm the secret includes at least:
 
-- one of `MODEL_API_KEY` or `PORTKEY_API_KEY`
+- `MODEL_API_KEY`
 - `WRITE_ALLOWED_NAMESPACES` (required, non-empty)
 - `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` if chat notifications are expected
 - `OPERATOR_API_TOKEN` if HTTP approval endpoints are used for automation
@@ -64,7 +64,6 @@ Create namespace and secret (idempotent):
 ```bash
 kubectl create namespace ai-sre-system --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
-  --from-literal=PORTKEY_API_KEY="$PORTKEY_API_KEY" \
   --from-literal=MODEL_NAME="$MODEL_NAME" \
   --from-literal=MODEL_PROVIDER="$MODEL_PROVIDER" \
   --from-literal=MODEL_BASE_URL="$MODEL_BASE_URL" \
