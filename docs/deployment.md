@@ -2,6 +2,10 @@
 
 Use this as the canonical deploy + rollback runbook for Kubernetes.
 
+**Recommended:** Use the [Helm chart](chart/) for production deployments. The Helm chart handles namespace, RBAC, ServiceAccount, and Secret creation automatically. See [docs/quickstart.md](quickstart.md) for a quick Helm install guide, or `chart/examples/` for inline and existing-secret modes.
+
+**Alternative:** Use `kubectl apply -k deploy` (see below).
+
 ## Runtime startup contract
 
 Secret name expected by the manifest: `k8s-ai-sre-env` in namespace `ai-sre-system`.

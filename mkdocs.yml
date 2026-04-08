@@ -6,6 +6,7 @@ nav:
   - Overview: index.md
   - Architecture: architecture.md
   - Quick Start: quickstart.md
+  - Developer Guide: developer.md
   - Testing: testing.md
   - Deployment: deployment.md
   - Plan: plan.md
