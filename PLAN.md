@@ -56,6 +56,7 @@ Exit criteria met:
 1. ~~Replace JSON files with SQLite default~~ ✅ DONE (PR #43)
 2. ~~Atomic save() transaction safety~~ ✅ DONE (PR #54)
 3. ~~Recovery semantics on restart during in-flight pending/approved actions~~ ✅ DONE (PR #61)
+3. ~~Recovery semantics on restart during in-flight pending/approved actions~~ ✅ DONE (PR #62)
    - restart tests show no lost or duplicated terminal actions
    - SQLite-backed store does not change external behavior
 
@@ -74,9 +75,10 @@ Exit criteria met:
    - namespace and chat allow-list governance per environment
    - explicit tenancy model for incident/action IDs and access
 
-2. Queueing and backpressure
-   - protect Telegram/API loop from burst alerts
-   - ensure investigation/execution remains bounded under load
+2. ~~Queueing and backpressure~~ ✅ DONE (PR #64)
+   - investigation queue with configurable max size
+   - backpressure protection against burst alerts
+   - queue status monitoring endpoint
 
 Exit criteria:
 - documented and tested behavior under burst and partial-outage scenarios
