@@ -2,12 +2,28 @@
 
 > AI-powered incident response for Kubernetes. Investigate, propose, approve, execute.
 
-Stop spending hours debugging production issues. `k8s-ai-sre` gives you a AI co-pilot that:
+Stop spending hours debugging production. `k8s-ai-sre` is an AI co-pilot that investigates cluster incidents, proposes concrete remediation steps, and executes them only after you explicitly approve — with guardrails in place.
 
-- 🔍 **Investigates** - Gathers real cluster evidence: pod logs, events, deployments, metrics
-- 🤖 **Proposes** - Suggests concrete remediation steps based on evidence
-- ✅ **Guards** - Every action requires explicit operator approval
-- 🔒 **Protects** - Namespace allowlists, kubectl auth checks, audit logging
+---
+
+## The Loop
+
+```
+Alert → Investigate → Propose → Approve → Execute
+         ↓
+   kubectl get pods
+   kubectl logs
+   kubectl describe
+   kubectl events
+```
+
+1. **Alert arrives** via HTTP API or Alertmanager webhook
+2. **AI investigates** — gathers real evidence: pod logs, events, resource metrics
+3. **Proposals created** — concrete actions with Telegram approval commands
+4. **You decide** — approve or reject from Telegram or the HTTP API
+5. **Action executes** — only after explicit approval, with namespace/auth guardrails
+
+---
 
 ## Quick Start
 
@@ -16,7 +32,7 @@ Stop spending hours debugging production issues. `k8s-ai-sre` gives you a AI co-
 uv sync
 
 # 2. Configure
-export MODEL_API_KEY=your-key
+export MODEL_API_KEY=***
 export MODEL_PROVIDER=groq
 export MODEL_BASE_URL=https://api.groq.com/openai/v1
 export MODEL_NAME=openai/gpt-oss-20b
@@ -28,58 +44,56 @@ uv run main.py
 # 4. Investigate
 curl -X POST http://127.0.0.1:8080/investigate \
   -H 'Content-Type: application/json' \
-  -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"bad-deploy"}'
+  -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"my-deploy"}'
 ```
 
-## How It Works
+Or trigger via Alertmanager — see the [Quick Start guide](docs/quickstart.md).
 
-```
-Alert → Investigate → Propose → Approve → Execute
-          ↓
-    kubectl get pods
-    kubectl logs
-    kubectl events
-    kubectl describe
-```
-
-1. **Alert arrives** via HTTP or Alertmanager webhook
-2. **Investigation runs** - queries pods, logs, events, metrics
-3. **Proposals created** - concrete actions with `/approve` commands
-4. **You decide** - Telegram or HTTP API approval
-5. **Action executes** - only after explicit approval
+---
 
 ## Features
 
-- **Multiple input channels**: HTTP API, Alertmanager webhooks
-- **Telegram integration**: Get notified, approve/reject from your phone
-- **Guardrails built-in**: Namespace allowlists, auth checks, audit trail
-- **Prometheus metrics**: Monitor investigation latency, approval times, success rates
+| | |
+|---|---|
+| **Multiple input channels** | HTTP API, Alertmanager webhooks |
+| **Telegram integration** | Approve/reject incidents from your phone |
+| **Guardrails built-in** | Namespace allowlists, kubectl auth checks, audit trail |
+| **Prometheus metrics** | Investigation latency, approval times, action success rates |
+| **Deterministic fallbacks** | Proposes safe recovery even if model skips a tool call |
+
+---
 
 ## Telegram Commands
 
-```
-/incident <id>    - Get incident details
-/status <id>      - Check action status
-/approve <id>    - Approve an action
-/reject <id>      - Reject an action
-```
+| Command | Description |
+|---------|-------------|
+| `/incident <id>` | Get incident details and proposed actions |
+| `/status <id>` | Check action execution status |
+| `/approve <id>` | Approve an action for execution |
+| `/reject <id>` | Reject and discard an action |
+
+---
 
 ## Supported Actions
 
-| Action | Description |
+| Action | When to Use |
 |--------|-------------|
-| `delete-pod` | Delete a stuck pod (allows kubelet to restart) |
-| `rollout-restart` | Restart a deployment |
-| `scale` | Adjust replica count |
-| `rollout-undo` | Undo a deployment rollout |
+| `delete-pod` | Pod stuck in CrashLoopBackOff or Pending — kubelet will restart |
+| `rollout-restart` | Deployment needs a fresh start without changing config |
+| `scale` | Replica count too low or too high |
+| `rollout-undo` | Bad deployment — roll back to the previous revision |
 
-## Deployment
+All actions require approval. Nothing executes automatically.
+
+---
+
+## Kubernetes Deployment
 
 ```bash
 # Create namespace and secret
 kubectl create namespace ai-sre-system
 kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
-  --from-literal=MODEL_API_KEY="$MODEL_API_KEY" \
+  --from-literal=MODEL_API_KEY="***" \
   --from-literal=MODEL_NAME="$MODEL_NAME" \
   --from-literal=WRITE_ALLOWED_NAMESPACES="$WRITE_ALLOWED_NAMESPACES"
 
@@ -89,12 +103,16 @@ kubectl apply -k deploy
 
 Image: `ghcr.io/kmjayadeep/k8s-ai-sre:main`
 
+---
+
 ## Documentation
 
 - [Quick Start](docs/quickstart.md)
 - [Deployment Guide](docs/deployment.md)
 - [Testing Guide](TESTING.md)
 - [Portkey Integration](docs/portkey.md)
+
+---
 
 ## License
 
