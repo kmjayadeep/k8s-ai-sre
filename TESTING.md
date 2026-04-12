@@ -34,10 +34,16 @@ Local equivalent timing snapshot (2026-04-13):
 
 Telegram timeout safety is covered by unit tests (`tests/test_telegram_commands.py`) and verifies poll/HTTP timeout guardrails.
 
-CI smoke gate command:
+## CI Manifest Gate (Helm + Kustomize)
+
+Run the same commands as CI when changing Helm chart or deploy manifests:
 
 ```bash
-uv run python -m unittest tests.test_ci_smoke_api_contract
+helm lint chart
+helm template k8s-ai-sre ./chart --namespace ai-sre-system > /tmp/chart-rendered.yaml
+kustomize build deploy > /tmp/deploy-rendered.yaml
+kubeconform -strict -summary -ignore-missing-schemas /tmp/chart-rendered.yaml
+kubeconform -strict -summary -ignore-missing-schemas /tmp/deploy-rendered.yaml
 ```
 
 ## Example 1: Local Service And Investigation

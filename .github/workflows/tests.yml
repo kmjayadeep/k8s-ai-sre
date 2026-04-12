@@ -59,3 +59,39 @@ jobs:
 
       - name: Run baseline test workflow
         run: scripts/baseline.sh
+
+  manifests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Set up Kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: v5.4.3
+
+      - name: Install kubeconform
+        run: |
+          KUBECONFORM_VERSION="0.6.7"
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Helm lint chart
+        run: helm lint chart
+
+      - name: Render manifests
+        run: |
+          helm template k8s-ai-sre ./chart --namespace ai-sre-system > /tmp/chart-rendered.yaml
+          kustomize build deploy > /tmp/deploy-rendered.yaml
+
+      - name: Validate rendered manifests
+        run: |
+          kubeconform -strict -summary -ignore-missing-schemas /tmp/chart-rendered.yaml
+          kubeconform -strict -summary -ignore-missing-schemas /tmp/deploy-rendered.yaml
