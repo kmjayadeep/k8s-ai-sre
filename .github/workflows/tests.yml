@@ -10,6 +10,29 @@ permissions:
   contents: read
 
 jobs:
+  smoke-api-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      - name: Run smoke API contract tests
+        run: uv run python -m unittest tests.test_ci_smoke_api_contract
+
   python-tests:
     runs-on: ubuntu-latest
 

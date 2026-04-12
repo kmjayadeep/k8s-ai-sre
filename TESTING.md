@@ -21,6 +21,12 @@ kubectl get nodes
 
 Telegram timeout safety is covered by unit tests (`tests/test_telegram_commands.py`) and verifies poll/HTTP timeout guardrails.
 
+CI smoke gate command:
+
+```bash
+uv run python -m unittest tests.test_ci_smoke_api_contract
+```
+
 ## Example 1: Local Service And Investigation
 
 Create the demo namespace and a broken deployment:
