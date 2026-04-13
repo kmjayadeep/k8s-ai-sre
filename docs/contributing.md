@@ -1,5 +1,9 @@
 # Contributing
 
+<div class="page-intro">
+  <p>Use this page as the contributor landing page. It shows the shortest route from local setup to PR handoff, with the deeper validation and maintainer runbooks linked only where they become necessary.</p>
+</div>
+
 Use this page as the contributor entry point. It shows where to set up locally, how much validation to run, what to include in a PR, and who owns the merge.
 
 ## 1. Set up locally

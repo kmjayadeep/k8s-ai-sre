@@ -1,10 +1,18 @@
 # Deployment Runbook (Canonical)
 
+<div class="page-intro">
+  <p>Use this page when you are moving from a local proof-of-concept to a cluster install. It keeps the startup contract, preflight checks, deployment steps, and rollback path on one page so operators do not have to assemble them from scattered repo docs.</p>
+</div>
+
 Use this as the canonical deploy + rollback runbook for Kubernetes.
 
 **Recommended:** Use the [Helm chart](https://github.com/kmjayadeep/k8s-ai-sre/tree/main/chart) for production deployments. The Helm chart handles namespace, RBAC, ServiceAccount, and Secret creation automatically. See [docs/quickstart.md](quickstart.md) for a quick Helm install guide, or `chart/examples/` for inline and existing-secret modes.
 
 **Alternative:** Use `kubectl apply -k deploy` (see below).
+
+<div class="trust-panel">
+  <p><strong>Human-facing default:</strong> start with the Helm path unless you have a specific reason to work directly with the raw manifests. The Helm chart is the shorter and more repeatable operator path.</p>
+</div>
 
 ## Runtime startup contract
 

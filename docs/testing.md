@@ -1,5 +1,9 @@
 # Testing
 
+<div class="page-intro">
+  <p>Pick the lightest validation lane that still proves your change. This page is intentionally short: use it to choose a lane, then drop into the repository runbook for the exact command sequence.</p>
+</div>
+
 Use this page to choose the right validation lane. For the full contributor flow, start with [Contributing](contributing.md). The canonical validation runbook lives in [the repository `TESTING.md` runbook](https://github.com/kmjayadeep/k8s-ai-sre/blob/main/TESTING.md).
 
 ## Covered flows

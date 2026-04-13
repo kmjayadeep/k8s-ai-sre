@@ -16,6 +16,8 @@ nav:
   - Maintainers: maintainers.md
 theme:
   name: mkdocs
+extra_css:
+  - assets/stylesheets/extra.css
 markdown_extensions:
   - admonition
   - tables
