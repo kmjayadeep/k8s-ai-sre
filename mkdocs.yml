@@ -9,6 +9,8 @@ nav:
   - Developer Guide: developer.md
   - Testing: testing.md
   - Deployment: deployment.md
+  - Prometheus Alerts: prometheus-alerts.md
+  - Portkey Integration: portkey.md
   - Plan: plan.md
   - Maintainers: maintainers.md
 theme:

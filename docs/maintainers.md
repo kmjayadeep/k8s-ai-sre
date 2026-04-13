@@ -13,7 +13,7 @@ If any of these files change, update corresponding docs pages in the same PR.
 ## Local docs build
 
 ```bash
-uvx --with mkdocs mkdocs build --strict
+uv tool run --with mkdocs mkdocs build --strict
 ```
 
 The built site is generated into `site/`.

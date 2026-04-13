@@ -2,7 +2,7 @@
 
 Use this as the canonical deploy + rollback runbook for Kubernetes.
 
-**Recommended:** Use the [Helm chart](chart/) for production deployments. The Helm chart handles namespace, RBAC, ServiceAccount, and Secret creation automatically. See [docs/quickstart.md](quickstart.md) for a quick Helm install guide, or `chart/examples/` for inline and existing-secret modes.
+**Recommended:** Use the [Helm chart](https://github.com/kmjayadeep/k8s-ai-sre/tree/main/chart) for production deployments. The Helm chart handles namespace, RBAC, ServiceAccount, and Secret creation automatically. See [docs/quickstart.md](quickstart.md) for a quick Helm install guide, or `chart/examples/` for inline and existing-secret modes.
 
 **Alternative:** Use `kubectl apply -k deploy` (see below).
 
