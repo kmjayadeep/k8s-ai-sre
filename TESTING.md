@@ -1,6 +1,6 @@
 # Testing Guide
 
-Use this file as the current runbook. It intentionally keeps only a few representative flows.
+Use this file as the current runbook. It intentionally keeps only a few representative flows. If you are starting from a contributor task, use [docs/contributing.md](docs/contributing.md) to choose the right lane first.
 
 ## Prerequisites
 

@@ -1,6 +1,6 @@
 # Testing
 
-The canonical validation runbook lives in `TESTING.md`. Use this page as a docs-site entry point.
+Use this page to choose the right validation lane. For the full contributor flow, start with [Contributing](contributing.md). The canonical validation runbook lives in [the repository `TESTING.md` runbook](https://github.com/kmjayadeep/k8s-ai-sre/blob/main/TESTING.md).
 
 ## Covered flows
 
@@ -47,4 +47,4 @@ The quick helper sends a sample webhook and writes incident output to:
 /tmp/k8s-ai-sre-e2e-incident.json
 ```
 
-For exact prerequisites, verification points, and cleanup commands, follow `TESTING.md` directly.
+For exact prerequisites, verification points, and cleanup commands, follow [the repository `TESTING.md` runbook](https://github.com/kmjayadeep/k8s-ai-sre/blob/main/TESTING.md) directly.

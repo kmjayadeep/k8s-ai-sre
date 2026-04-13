@@ -21,6 +21,21 @@ The repository currently implements:
 4. an operator approves or rejects the proposal
 5. approved actions execute through guardrails
 
+## Start Here By Goal
+
+### Operator path
+
+- run the product locally: [Quick Start](quickstart.md)
+- deploy into a cluster: [Deployment Guide](deployment.md)
+- understand the system design: [Architecture Guide](architecture.md)
+
+### Contributor path
+
+- start the repo workflow: [Contributing](contributing.md)
+- local setup and request examples: [Developer Guide](developer.md)
+- choose a validation lane: [Validation guide](testing.md)
+- run exact commands: [repository `TESTING.md` runbook](https://github.com/kmjayadeep/k8s-ai-sre/blob/main/TESTING.md)
+
 ## Source Of Truth
 
 This docs site must stay aligned with repository sources:
@@ -34,9 +49,4 @@ When these sources change, update matching docs pages in the same pull request.
 
 ## Contributor Navigation
 
-Use these pages for repository workflow:
-
-- `quickstart.md` for first-time local setup
-- `developer.md` for contributor validation commands and PR handoff
-- `testing.md` and `TESTING.md` for validation depth and end-to-end runbooks
-- `maintainers.md` for docs ownership and merge routing
+Use [Contributing](contributing.md) as the entry page for repository workflow. It links setup, validation, PR handoff, QA evidence, and merge ownership in order.
