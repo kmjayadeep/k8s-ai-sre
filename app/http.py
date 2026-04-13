@@ -96,6 +96,24 @@ def _load_incident_inspector_html() -> str:
     return _UI_TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
+_ALERTMANAGER_API_KEY: str | None = None
+
+
+def _load_alertmanager_api_key() -> None:
+    global _ALERTMANAGER_API_KEY
+    _ALERTMANAGER_API_KEY = os.getenv("ALERTMANAGER_API_KEY", "").strip() or None
+
+
+def _require_alertmanager_api_key(api_key: str | None) -> None:
+    if _ALERTMANAGER_API_KEY is None:
+        return  # auth disabled
+    provided_key = (api_key or "").strip()
+    if not provided_key:
+        raise_http_error(401, "alertmanager_api_key_missing", "missing Alertmanager API key")
+    if provided_key != _ALERTMANAGER_API_KEY:
+        raise_http_error(403, "alertmanager_api_key_invalid", "invalid Alertmanager API key")
+
+
 def _require_operator_api_token(authorization: str | None) -> None:
     configured_token = os.getenv("OPERATOR_API_TOKEN", "").strip()
     if not configured_token:
@@ -198,7 +216,11 @@ def _is_resolved_alert(payload: AlertmanagerWebhook) -> bool:
 
 
 @app.post("/webhooks/alertmanager", response_model=IncidentResponse)
-async def alertmanager_webhook(payload: AlertmanagerWebhook) -> IncidentResponse:
+async def alertmanager_webhook(
+    payload: AlertmanagerWebhook,
+    authorization: str | None = Header(default=None, alias="X-API-Key"),
+) -> IncidentResponse:
+    _require_alertmanager_api_key(authorization)
     kind, namespace, name = _resolve_alert_target(payload)
     statuses = _alert_statuses(payload)
     log_event(
@@ -289,5 +311,6 @@ async def reject_action_http(
 def run_server(port: int = 8080) -> None:
     log_event("server_starting", port=port)
     load_inspector_auth()
+    _load_alertmanager_api_key()
     start_telegram_polling_thread()
     uvicorn.run(app, host="0.0.0.0", port=port)
