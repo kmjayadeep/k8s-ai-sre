@@ -9,10 +9,23 @@ The canonical validation runbook lives in `TESTING.md`. Use this page as a docs-
 - Telegram approval loop (`/incident`, `/status`, `/approve`, `/reject`)
 - kind-based end-to-end exercise
 
-## Baseline unit test command
+## CI And Local Baseline
 
 ```bash
-.venv/bin/python -m unittest discover -s tests
+uv run python -m unittest tests.test_ci_smoke_api_contract
+uv run python -m unittest discover -s tests
+```
+
+Current `main` runs three validation lanes in `.github/workflows/tests.yml`:
+
+- smoke API contract checks for fast failure feedback
+- full Python test discovery for the baseline suite
+- manifest validation for Helm and Kustomize output
+
+When you change docs, also run:
+
+```bash
+uv tool run --with mkdocs mkdocs build --strict
 ```
 
 ## E2E helper scripts

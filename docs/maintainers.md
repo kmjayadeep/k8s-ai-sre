@@ -10,6 +10,21 @@ This docs site is intentionally small and should track shipped behavior only.
 
 If any of these files change, update corresponding docs pages in the same PR.
 
+## PR Routing
+
+Use this review path for code and docs updates:
+
+1. FoundingEngineer or the implementation owner opens the PR.
+2. QA validates the branch and records evidence on the PR.
+3. FoundingEngineer responds to QA findings, updates the branch, and refreshes evidence when needed.
+4. A human reviewer merges after QA and required checks are complete.
+
+QA evidence belongs on the PR itself:
+
+- automated evidence in GitHub checks
+- manual validation notes, screenshots, and kind or cluster artifacts in the PR description or comments
+- short summaries with links or artifact paths instead of pasted logs
+
 ## Local docs build
 
 ```bash
