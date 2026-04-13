@@ -136,6 +136,60 @@ class HttpIntegrationTests(unittest.TestCase):
         notify_mock.assert_not_called()
         stored = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual("Skipped notification for resolved alert.", stored["notification_status"])
+
+    def test_alertmanager_webhook_requires_api_key_when_configured(self) -> None:
+        with patch("app.http._ALERTMANAGER_API_KEY", "expected-token"):
+            with self.assertRaises(HTTPException) as raised:
+                run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"}, alerts=[]),
+                        authorization=None,
+                    )
+                )
+
+        self.assertEqual(401, raised.exception.status_code)
+        self.assertEqual(
+            {"code": "alertmanager_api_key_missing", "message": "missing Alertmanager API key"},
+            raised.exception.detail,
+        )
+
+    def test_alertmanager_webhook_rejects_invalid_api_key(self) -> None:
+        with patch("app.http._ALERTMANAGER_API_KEY", "expected-token"):
+            with self.assertRaises(HTTPException) as raised:
+                run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"}, alerts=[]),
+                        authorization="wrong-token",
+                    )
+                )
+
+        self.assertEqual(403, raised.exception.status_code)
+        self.assertEqual(
+            {"code": "alertmanager_api_key_invalid", "message": "invalid Alertmanager API key"},
+            raised.exception.detail,
+        )
+
+    def test_alertmanager_webhook_accepts_matching_api_key(self) -> None:
+        result = {
+            "kind": "deployment",
+            "namespace": "ai-sre-demo",
+            "name": "bad-deploy",
+            "answer": "Summary: image pull failure",
+            "proposed_actions": [],
+            "action_ids": [],
+        }
+        with patch("app.http._ALERTMANAGER_API_KEY", "expected-token"):
+            with patch("app.http.investigate_target", new=AsyncMock(return_value=result)):
+                with patch("app.http.send_telegram_notification", return_value="Telegram notification sent."):
+                    body = run(
+                        alertmanager_webhook(
+                            AlertmanagerWebhook(commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"}, alerts=[]),
+                            authorization="expected-token",
+                        )
+                    ).model_dump()
+
+        self.assertEqual("alertmanager", body["source"])
+        self.assertEqual(INCIDENT_RESPONSE_KEYS, set(body.keys()))
     def test_alertmanager_to_approval_executes_linked_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
         result = {

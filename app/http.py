@@ -104,12 +104,12 @@ def _load_alertmanager_api_key() -> None:
     _ALERTMANAGER_API_KEY = os.getenv("ALERTMANAGER_API_KEY", "").strip() or None
 
 
-def _require_alertmanager_api_key(authorization: str | None) -> None:
+def _require_alertmanager_api_key(api_key: str | None) -> None:
     if _ALERTMANAGER_API_KEY is None:
         return  # auth disabled
-    if not authorization or not authorization.startswith("ApiKey "):
+    provided_key = (api_key or "").strip()
+    if not provided_key:
         raise_http_error(401, "alertmanager_api_key_missing", "missing Alertmanager API key")
-    provided_key = authorization.split(" ", 1)[1].strip()
     if provided_key != _ALERTMANAGER_API_KEY:
         raise_http_error(403, "alertmanager_api_key_invalid", "invalid Alertmanager API key")
 
