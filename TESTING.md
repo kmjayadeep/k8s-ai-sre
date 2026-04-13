@@ -16,8 +16,10 @@ Useful checks:
 ```bash
 kubectl config current-context
 kubectl get nodes
-.venv/bin/python -m unittest discover -s tests
+scripts/baseline.sh
 ```
+
+CI (`.github/workflows/tests.yml`) runs the same baseline wrapper to keep local and CI test paths aligned.
 
 Telegram timeout safety is covered by unit tests (`tests/test_telegram_commands.py`) and verifies poll/HTTP timeout guardrails.
 
