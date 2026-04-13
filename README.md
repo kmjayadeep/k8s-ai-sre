@@ -108,6 +108,7 @@ Image: `ghcr.io/kmjayadeep/k8s-ai-sre:main`
 ## Documentation
 
 - [Quick Start](docs/quickstart.md)
+- [Contributing Guide](docs/contributing.md)
 - [Developer Guide](docs/developer.md)
 - [Deployment Guide](docs/deployment.md)
 - [Testing Guide](TESTING.md)
@@ -116,7 +117,9 @@ Image: `ghcr.io/kmjayadeep/k8s-ai-sre:main`
 
 ## Contributor Workflow
 
-For contributor-facing workflow, use:
+Contributing changes? Start with [docs/contributing.md](docs/contributing.md).
+
+From there, use:
 
 - `docs/developer.md` for local setup, validation commands, and PR handoff expectations
 - `TESTING.md` for end-to-end and kind-based validation

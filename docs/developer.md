@@ -1,6 +1,6 @@
 # Developer Guide
 
-Use this page for contributor workflow. For first-time product setup, start with `docs/quickstart.md`.
+Use this page for local setup and command reference. If you are new to the repo workflow, start with [Contributing](contributing.md). For first-time product setup, start with `docs/quickstart.md`.
 
 ## Local Development
 
@@ -56,6 +56,8 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
 ```
 
 ## Contributor Validation Workflow
+
+Use [Validation guide](testing.md) to pick the right depth, then run the matching commands below or in [the repository `TESTING.md` runbook](https://github.com/kmjayadeep/k8s-ai-sre/blob/main/TESTING.md).
 
 Run the smallest validation set that covers your change, but keep the command names consistent with CI:
 

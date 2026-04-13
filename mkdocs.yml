@@ -6,8 +6,9 @@ nav:
   - Overview: index.md
   - Architecture: architecture.md
   - Quick Start: quickstart.md
+  - Contributing: contributing.md
   - Developer Guide: developer.md
-  - Testing: testing.md
+  - Validation: testing.md
   - Deployment: deployment.md
   - Prometheus Alerts: prometheus-alerts.md
   - Portkey Integration: portkey.md
