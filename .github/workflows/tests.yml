@@ -5,12 +5,18 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  smoke-api-contract:
+  smoke:
+    name: Smoke
     runs-on: ubuntu-latest
 
     steps:
@@ -21,20 +27,20 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version-file: .python-version
 
-      - name: Sync dependencies
-        run: uv sync --locked
+      - name: Run smoke workflow
+        run: scripts/smoke.sh
 
-      - name: Run smoke API contract tests
-        run: uv run python -m unittest tests.test_ci_smoke_api_contract
-
-  python-tests:
+  full-baseline:
+    name: Full Baseline
     runs-on: ubuntu-latest
+    needs: smoke
 
     steps:
       - name: Checkout
@@ -44,14 +50,12 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version-file: .python-version
 
-      - name: Sync dependencies
-        run: uv sync --locked
-
-      - name: Run test suite
-        run: uv run python -m unittest discover -s tests
+      - name: Run baseline test workflow
+        run: scripts/baseline.sh

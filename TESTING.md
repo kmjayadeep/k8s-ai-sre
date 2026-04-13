@@ -16,8 +16,21 @@ Useful checks:
 ```bash
 kubectl config current-context
 kubectl get nodes
-.venv/bin/python -m unittest discover -s tests
+scripts/baseline.sh
 ```
+
+CI (`.github/workflows/tests.yml`) now runs a two-stage pipeline:
+
+- `scripts/smoke.sh` for fast critical path checks
+- `scripts/baseline.sh` as the authoritative full test path
+
+The full job still calls `scripts/baseline.sh` so local and CI correctness stay aligned while smoke shortens first failure feedback.
+
+Local equivalent timing snapshot (2026-04-13):
+
+- baseline-only path: `scripts/baseline.sh` -> `2.160s`
+- smoke first signal: `scripts/smoke.sh` -> `1.991s`
+- first feedback improvement: `0.169s` faster (~7.8%) before full baseline starts
 
 Telegram timeout safety is covered by unit tests (`tests/test_telegram_commands.py`) and verifies poll/HTTP timeout guardrails.
 
