@@ -25,10 +25,12 @@ class InvestigateRequest(BaseModel):
 
 
 class AlertmanagerAlert(BaseModel):
+    status: str | None = None
     labels: dict[str, str] = Field(default_factory=dict)
 
 
 class AlertmanagerWebhook(BaseModel):
+    status: str | None = None
     commonLabels: dict[str, str] = Field(default_factory=dict)
     alerts: list[AlertmanagerAlert] = Field(default_factory=list)
 
@@ -174,10 +176,59 @@ def _resolve_alert_target(payload: AlertmanagerWebhook) -> tuple[str, str, str]:
     raise HTTPException(status_code=400, detail="could not resolve alert target from labels")
 
 
+def _alert_statuses(payload: AlertmanagerWebhook) -> list[str]:
+    statuses: list[str] = []
+    if payload.status:
+        statuses.append(payload.status.strip().lower())
+    for alert in payload.alerts:
+        if alert.status:
+            statuses.append(alert.status.strip().lower())
+    return [status for status in statuses if status]
+
+
+def _is_resolved_alert(payload: AlertmanagerWebhook) -> bool:
+    statuses = _alert_statuses(payload)
+    if not statuses:
+        return False
+    if "firing" in statuses:
+        return False
+    return all(status == "resolved" for status in statuses)
+
+
 @app.post("/webhooks/alertmanager", response_model=IncidentResponse)
 async def alertmanager_webhook(payload: AlertmanagerWebhook) -> IncidentResponse:
     kind, namespace, name = _resolve_alert_target(payload)
-    log_event("alertmanager_webhook_received", kind=kind, namespace=namespace, name=name)
+    statuses = _alert_statuses(payload)
+    log_event(
+        "alertmanager_webhook_received",
+        kind=kind,
+        namespace=namespace,
+        name=name,
+        alert_statuses=",".join(statuses) if statuses else "unknown",
+    )
+    if _is_resolved_alert(payload):
+        incident = create_incident(
+            {
+                "kind": kind,
+                "namespace": namespace,
+                "name": name,
+                "source": "alertmanager",
+                "answer": "Alertmanager reported this alert as resolved; investigation and remediation were skipped.",
+                "evidence": f"Alert statuses: {', '.join(statuses)}",
+                "action_ids": [],
+                "proposed_actions": [],
+                "notification_status": "Skipped notification for resolved alert.",
+            }
+        )
+        log_event(
+            "alertmanager_webhook_skipped_resolved",
+            incident_id=incident["incident_id"],
+            kind=kind,
+            namespace=namespace,
+            name=name,
+        )
+        return IncidentResponse.model_validate(incident)
+
     result = await investigate_target(kind, namespace, name, emit_progress=False)
     result["source"] = "alertmanager"
     incident = create_incident(result)
