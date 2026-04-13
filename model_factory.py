@@ -5,7 +5,6 @@ from openai import AsyncOpenAI
 
 
 DEFAULT_MODEL_NAME = "openai/gpt-oss-20b"
-DEFAULT_MODEL_PROVIDER = "groq"
 DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
 
 
@@ -15,7 +14,6 @@ def create_model(model_name: str | None = None) -> OpenAIChatCompletionsModel:
         raise ValueError("MODEL_API_KEY environment variable is required")
 
     resolved_model = model_name or os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
-    provider = os.getenv("MODEL_PROVIDER", DEFAULT_MODEL_PROVIDER)
     base_url = os.getenv("MODEL_BASE_URL", DEFAULT_BASE_URL)
 
     client = AsyncOpenAI(
@@ -26,7 +24,6 @@ def create_model(model_name: str | None = None) -> OpenAIChatCompletionsModel:
     return OpenAIChatCompletionsModel(
         model=resolved_model,
         openai_client=client,
-        provider=provider,
     )
 
 
