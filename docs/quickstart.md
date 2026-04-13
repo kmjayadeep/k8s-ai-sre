@@ -1,5 +1,20 @@
 # Quick Start
 
+<div class="page-intro">
+  <p>Use this page when you want the shortest path to a working investigation loop. It covers both a local trial run and a Helm-based cluster install without forcing you through maintainer details first.</p>
+</div>
+
+<div class="card-grid compact">
+  <article class="doc-card">
+    <h3>Fast local path</h3>
+    <p>Best when you want to validate the HTTP investigation flow on your machine.</p>
+  </article>
+  <article class="doc-card">
+    <h3>Cluster path</h3>
+    <p>Best when you want to install into Kubernetes and verify the service in-cluster.</p>
+  </article>
+</div>
+
 ## Local Development
 
 ### 1. Install dependencies
@@ -142,6 +157,10 @@ For production, see [`docs/deployment.md`](deployment.md) for full deployment ru
 For local development, see [`docs/developer.md`](developer.md).
 
 ## Expected response fields
+
+<div class="summary-panel">
+  <p>After the first investigation, the operator workflow moves from request submission to approval review. The response shape below is the contract to expect before any write action is executed.</p>
+</div>
 
 Investigation creation endpoints return normalized incident payloads including:
 
