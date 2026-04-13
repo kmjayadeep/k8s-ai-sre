@@ -1,4 +1,5 @@
 import base64
+import hmac
 import os
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -25,6 +26,13 @@ def _parse_basic(token: str) -> tuple[str, str] | None:
         return None
 
 
+def _parse_configured_auth(raw: str | None) -> tuple[str, str] | None:
+    if raw is None or ":" not in raw:
+        return None
+    username, password = raw.split(":", 1)
+    return username, password
+
+
 class InspectorAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         if _INSPECTOR_AUTH_CONFIG is None:
@@ -39,6 +47,34 @@ class InspectorAuthMiddleware(BaseHTTPMiddleware):
         )
         if not is_protected:
             return await call_next(request)
+
+        configured = _parse_configured_auth(_INSPECTOR_AUTH_CONFIG)
+        if configured is None:
+            return _login_challenge()
+
+        token = None
+        authorization = request.headers.get("Authorization", "")
+        if authorization.startswith("Basic "):
+            token = authorization[6:].strip()
+        else:
+            token = (request.cookies.get("inspector_auth") or "").strip() or None
+
+        if token is None:
+            return _login_challenge()
+
+        parsed = _parse_basic(token)
+        if parsed is None:
+            return _login_challenge()
+
+        expected_username, expected_password = configured
+        actual_username, actual_password = parsed
+        if not (
+            hmac.compare_digest(actual_username, expected_username)
+            and hmac.compare_digest(actual_password, expected_password)
+        ):
+            return _login_challenge()
+
+        return await call_next(request)
 
 
 def _login_challenge() -> Response:
