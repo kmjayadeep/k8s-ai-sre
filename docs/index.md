@@ -31,3 +31,12 @@ This docs site must stay aligned with repository sources:
 - near-term priorities and constraints: `PLAN.md`
 
 When these sources change, update matching docs pages in the same pull request.
+
+## Contributor Navigation
+
+Use these pages for repository workflow:
+
+- `quickstart.md` for first-time local setup
+- `developer.md` for contributor validation commands and PR handoff
+- `testing.md` and `TESTING.md` for validation depth and end-to-end runbooks
+- `maintainers.md` for docs ownership and merge routing

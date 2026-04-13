@@ -108,9 +108,19 @@ Image: `ghcr.io/kmjayadeep/k8s-ai-sre:main`
 ## Documentation
 
 - [Quick Start](docs/quickstart.md)
+- [Developer Guide](docs/developer.md)
 - [Deployment Guide](docs/deployment.md)
 - [Testing Guide](TESTING.md)
+- [Maintainers Guide](docs/maintainers.md)
 - [Portkey Integration](docs/portkey.md)
+
+## Contributor Workflow
+
+For contributor-facing workflow, use:
+
+- `docs/developer.md` for local setup, validation commands, and PR handoff expectations
+- `TESTING.md` for end-to-end and kind-based validation
+- `docs/maintainers.md` for docs ownership and merge routing
 
 ---
 
