@@ -94,19 +94,48 @@ class HttpIntegrationTests(unittest.TestCase):
             "proposed_actions": [],
             "action_ids": [],
         }
-        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)):
-            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent."):
+        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)) as investigate_mock:
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent.") as notify_mock:
                 body = run(
                     alertmanager_webhook(
-                        AlertmanagerWebhook(commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"}, alerts=[])
+                        AlertmanagerWebhook(
+                            status="firing",
+                            commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"},
+                            alerts=[],
+                        )
                     )
                 ).model_dump()
 
         self.assertEqual("alertmanager", body["source"])
         self.assertEqual(INCIDENT_RESPONSE_KEYS, set(body.keys()))
+        investigate_mock.assert_awaited_once_with("deployment", "ai-sre-demo", "bad-deploy", emit_progress=False)
+        notify_mock.assert_called_once()
         stored = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual("alertmanager", stored["source"])
         self.assertEqual(INCIDENT_RESPONSE_KEYS, set(stored.keys()))
+
+    def test_alertmanager_webhook_resolved_skips_investigation_and_notification(self) -> None:
+        with patch("app.http.investigate_target", new=AsyncMock()) as investigate_mock:
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent.") as notify_mock:
+                body = run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(
+                            status="resolved",
+                            commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"},
+                            alerts=[],
+                        )
+                    )
+                ).model_dump()
+
+        self.assertEqual("alertmanager", body["source"])
+        self.assertEqual([], body["action_ids"])
+        self.assertEqual([], body["proposed_actions"])
+        self.assertIn("resolved", body["answer"])
+        self.assertEqual("Skipped notification for resolved alert.", body["notification_status"])
+        investigate_mock.assert_not_called()
+        notify_mock.assert_not_called()
+        stored = run(read_incident(body["incident_id"])).model_dump()
+        self.assertEqual("Skipped notification for resolved alert.", stored["notification_status"])
     def test_alertmanager_to_approval_executes_linked_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
         result = {
