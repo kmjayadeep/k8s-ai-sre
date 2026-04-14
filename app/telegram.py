@@ -10,6 +10,7 @@ from app.actions import approve_action, reject_action
 from app.error_taxonomy import telegram_error_message
 from app.log import log_event
 from app.stores import get_incident
+from app.telegram_text import format_target_lines, sanitize_telegram_answer
 
 
 TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
@@ -123,10 +124,11 @@ def _answer_callback_query(callback_query_id: str, text: str) -> str:
 
 
 def _format_incident(incident: dict[str, object]) -> str:
+    answer_text = sanitize_telegram_answer(incident.get("answer", "No answer stored."))[:2400]
     lines = [
         f"Incident {incident.get('incident_id', 'unknown')}",
-        f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}",
-        f"Answer:\n{incident.get('answer', 'No answer stored.')[:2400]}",
+        *format_target_lines(incident),
+        f"Answer:\n{answer_text}",
     ]
     proposed_actions = incident.get("proposed_actions", [])
     if proposed_actions:
@@ -143,9 +145,10 @@ def _format_incident(incident: dict[str, object]) -> str:
 def _format_status(incident: dict[str, object]) -> str:
     action_ids = incident.get("action_ids", [])
     action_summary = ", ".join(action_ids[:5]) if action_ids else "none"
+    target_text = "\n".join(format_target_lines(incident))
     return (
         f"Incident {incident.get('incident_id', 'unknown')}\n"
-        f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}\n"
+        f"{target_text}\n"
         f"Source: {incident.get('source', 'manual')}\n"
         f"Notification: {incident.get('notification_status', 'unknown')}\n"
         f"Action IDs: {action_summary}"
