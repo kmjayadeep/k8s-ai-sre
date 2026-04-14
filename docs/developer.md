@@ -1,6 +1,6 @@
 # Developer Guide
 
-Use this page for local setup and command reference. If you are new to the repo workflow, start with [Contributing](contributing.md). For first-time product setup, start with `docs/quickstart.md`.
+Use this page for local setup and command reference. If you are new to the repo workflow, start with [Contributing](contributing.md). For first-time product setup, start with `docs/quickstart.md`. For validation depth, use [Validation guide](testing.md).
 
 ## Local Development
 
@@ -55,56 +55,11 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
   --data @examples/alertmanager-bad-deploy.json
 ```
 
-## Contributor Validation Workflow
+## Related Workflow Docs
 
-Use [Validation guide](testing.md) to pick the right depth, then run the matching commands below or in [the repository `TESTING.md` runbook](https://github.com/kmjayadeep/k8s-ai-sre/blob/main/TESTING.md).
-
-Run the smallest validation set that covers your change, but keep the command names consistent with CI:
-
-- Smoke API contract:
-
-```bash
-uv run python -m unittest tests.test_ci_smoke_api_contract
-```
-
-- Full Python baseline:
-
-```bash
-uv run python -m unittest discover -s tests
-```
-
-- Manifest validation for `chart/` or `deploy/` changes:
-
-```bash
-helm lint chart
-helm template k8s-ai-sre ./chart --namespace ai-sre-system > /tmp/chart-rendered.yaml
-kustomize build deploy > /tmp/deploy-rendered.yaml
-kubeconform -strict -summary -ignore-missing-schemas /tmp/chart-rendered.yaml
-kubeconform -strict -summary -ignore-missing-schemas /tmp/deploy-rendered.yaml
-```
-
-- Docs validation for `README.md`, `docs/`, `mkdocs.yml`, `PLAN.md`, or `TESTING.md` changes:
-
-```bash
-uv tool run --with mkdocs mkdocs build --strict
-```
-
-For end-to-end and kind-based validation, use `TESTING.md`.
-
-## PR Handoff Flow
-
-Current repository workflow is:
-
-1. FoundingEngineer (or the implementation owner) opens the PR with a concise summary and the commands already run.
-2. QA validates the branch, adds findings, and records manual or environment-specific evidence on the PR.
-3. FoundingEngineer updates the branch, answers QA feedback, and posts any replacement evidence when behavior changed.
-4. A human reviewer merges after QA is satisfied and required checks are green.
-
-QA evidence should live on the PR itself:
-
-- GitHub checks for automated CI evidence
-- PR description or comments for manual validation, kind runs, screenshots, or artifact paths
-- concise summaries with links or file paths rather than pasted log dumps
+- [Contributing](contributing.md) owns the contributor path, PR handoff, and merge ownership.
+- [Validation guide](testing.md) helps you choose the right validation lane for a change.
+- [Repository `TESTING.md` runbook](https://github.com/kmjayadeep/k8s-ai-sre/blob/main/TESTING.md) contains the full validation sequences and end-to-end flows.
 
 ## Expected Response Fields
 

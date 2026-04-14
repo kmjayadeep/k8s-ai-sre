@@ -45,9 +45,9 @@
       <strong>I need the cluster runbook</strong>
       <span>Use the canonical deploy, preflight, validation, and rollback instructions.</span>
     </a>
-    <a class="card" href="developer/">
+    <a class="card" href="contributing/">
       <strong>I’m changing the product</strong>
-      <span>Use the developer guide for local setup, endpoint examples, and test commands.</span>
+      <span>Start with the contributor path, then drop into setup and validation docs only where needed.</span>
     </a>
     <a class="card" href="architecture/">
       <strong>I need the system model</strong>
