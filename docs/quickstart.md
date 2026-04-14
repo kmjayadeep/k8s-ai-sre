@@ -1,20 +1,5 @@
 # Quick Start
 
-<div class="page-intro">
-  <p>Use this page when you want the shortest path to a working investigation loop. It covers both a local trial run and a Helm-based cluster install without forcing you through maintainer details first.</p>
-</div>
-
-<div class="card-grid compact">
-  <article class="doc-card">
-    <h3>Fast local path</h3>
-    <p>Best when you want to validate the HTTP investigation flow on your machine.</p>
-  </article>
-  <article class="doc-card">
-    <h3>Cluster path</h3>
-    <p>Best when you want to install into Kubernetes and verify the service in-cluster.</p>
-  </article>
-</div>
-
 ## Local Development
 
 ### 1. Install dependencies
@@ -90,6 +75,34 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
   --data @examples/alertmanager-bad-deploy.json
 ```
 
+Expected API response shape:
+
+```json
+{
+  "incident_id": "a1b2c3d4e5",
+  "kind": "deployment",
+  "namespace": "ai-sre-demo",
+  "name": "bad-deploy",
+  "answer": "Summary: image pull failure",
+  "evidence": "",
+  "source": "manual",
+  "action_ids": ["abc12345"],
+  "proposed_actions": [
+    {
+      "action_id": "abc12345",
+      "action_type": "rollout-restart",
+      "namespace": "ai-sre-demo",
+      "name": "bad-deploy",
+      "params": {},
+      "expires_at": null,
+      "approve_command": "/approve abc12345",
+      "reject_command": "/reject abc12345"
+    }
+  ],
+  "notification_status": "Telegram notification sent."
+}
+```
+
 ## Kubernetes Deployment
 
 Deploy `k8s-ai-sre` on Kubernetes using the Helm chart.
@@ -156,16 +169,17 @@ For production, see [`docs/deployment.md`](deployment.md) for full deployment ru
 
 For local development, see [`docs/developer.md`](developer.md).
 
-## Expected response fields
+## Telegram Approval Experience
 
-<div class="summary-panel">
-  <p>After the first investigation, the operator workflow moves from request submission to approval review. The response shape below is the contract to expect before any write action is executed.</p>
-</div>
+The `/incident <incident-id>` command returns a compact operator-facing summary:
 
-Investigation creation endpoints return normalized incident payloads including:
+```text
+Incident a1b2c3d4e5
+Target: deployment ai-sre-demo/bad-deploy
+Answer:
+Summary: image pull failure
+Actions:
+- abc12345: rollout-restart ai-sre-demo/bad-deploy
+```
 
-- `incident_id`
-- `source`
-- `answer`
-- `action_ids`
-- `proposed_actions`
+Use `/status <incident-id>` to confirm the notification state and action IDs, then `/approve <action-id>` or `/reject <action-id>` to decide the proposal.

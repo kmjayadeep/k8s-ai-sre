@@ -6,6 +6,21 @@ Stop spending hours debugging production. `k8s-ai-sre` is an AI co-pilot that in
 
 ---
 
+## Start Here
+
+- Prefer the published docs site? Open [kmjayadeep.github.io/k8s-ai-sre](https://kmjayadeep.github.io/k8s-ai-sre/).
+- Want a local trial run? Read the [Quick Start](docs/quickstart.md).
+- Deploying to a cluster? Use the [Deployment Guide](docs/deployment.md).
+- Validating the full loop? Follow the [Testing Guide](TESTING.md).
+- Understanding the internals? Read the [Architecture Guide](docs/architecture.md).
+
+## Why Teams Use It
+
+- Investigates incidents with real cluster evidence instead of guesswork
+- Requires explicit approval before any mutating action runs
+- Works through both HTTP and Telegram so operators can respond quickly
+- Preserves an audit trail for incident, proposal, and approval state
+
 ## The Loop
 
 ```
@@ -28,20 +43,20 @@ Alert → Investigate → Propose → Approve → Execute
 ## Quick Start
 
 ```bash
-# 1. Install
+# 1. Install dependencies
 uv sync
 
-# 2. Configure
+# 2. Configure model access
 export MODEL_API_KEY=***
 export MODEL_PROVIDER=groq
 export MODEL_BASE_URL=https://api.groq.com/openai/v1
 export MODEL_NAME=openai/gpt-oss-20b
 export WRITE_ALLOWED_NAMESPACES=ai-sre-demo
 
-# 3. Run
+# 3. Start the service
 uv run main.py
 
-# 4. Investigate
+# 4. Trigger an investigation
 curl -X POST http://127.0.0.1:8080/investigate \
   -H 'Content-Type: application/json' \
   -d '{"kind":"deployment","namespace":"ai-sre-demo","name":"my-deploy"}'
@@ -49,17 +64,58 @@ curl -X POST http://127.0.0.1:8080/investigate \
 
 Or trigger via Alertmanager — see the [Quick Start guide](docs/quickstart.md).
 
+## What You See Next
+
+The API returns a normalized incident payload, including the investigation summary, proposed actions, and notification result:
+
+```json
+{
+  "incident_id": "a1b2c3d4e5",
+  "kind": "deployment",
+  "namespace": "ai-sre-demo",
+  "name": "bad-deploy",
+  "answer": "Summary: image pull failure. The deployment is failing because the referenced image tag cannot be pulled.",
+  "evidence": "",
+  "source": "manual",
+  "action_ids": ["abc12345"],
+  "proposed_actions": [
+    {
+      "action_id": "abc12345",
+      "action_type": "rollout-restart",
+      "namespace": "ai-sre-demo",
+      "name": "bad-deploy",
+      "params": {},
+      "expires_at": null,
+      "approve_command": "/approve abc12345",
+      "reject_command": "/reject abc12345"
+    }
+  ],
+  "notification_status": "Telegram notification sent."
+}
+```
+
+Telegram operators get a concise incident summary with the next approval step ready to copy:
+
+```text
+Incident a1b2c3d4e5
+Target: deployment ai-sre-demo/bad-deploy
+Answer:
+Summary: image pull failure. The deployment is failing because the referenced image tag cannot be pulled.
+Actions:
+- abc12345: rollout-restart ai-sre-demo/bad-deploy
+```
+
 ---
 
-## Features
+## Operator Workflow
 
-| | |
+| Step | Operator experience |
 |---|---|
-| **Multiple input channels** | HTTP API, Alertmanager webhooks |
-| **Telegram integration** | Approve/reject incidents from your phone |
-| **Guardrails built-in** | Namespace allowlists, kubectl auth checks, audit trail |
-| **Prometheus metrics** | Investigation latency, approval times, action success rates |
-| **Deterministic fallbacks** | Proposes safe recovery even if model skips a tool call |
+| Investigate | Send an HTTP request or receive an Alertmanager webhook |
+| Review | Read the incident summary, evidence, and proposed action list |
+| Approve | Use Telegram (`/approve <action-id>`) or the HTTP operator endpoint |
+| Reject | Discard unsafe or irrelevant actions with `/reject <action-id>` |
+| Verify | Check `/status <incident-id>`, the incident inspector UI, or Prometheus metrics |
 
 ---
 
@@ -74,6 +130,16 @@ Or trigger via Alertmanager — see the [Quick Start guide](docs/quickstart.md).
 
 ---
 
+## Built-In Guardrails
+
+| Guardrail | Why it matters |
+|---|---|
+| Explicit approval | No action runs automatically |
+| Namespace allow-list | Limits where write actions may execute |
+| `kubectl auth can-i` checks | Fails closed when the service lacks authority |
+| Audit trail | Keeps incident, proposal, and decision state inspectable |
+| Deterministic fallback proposals | Still suggests safe actions if the model omits a tool call |
+
 ## Supported Actions
 
 | Action | When to Use |
@@ -82,8 +148,6 @@ Or trigger via Alertmanager — see the [Quick Start guide](docs/quickstart.md).
 | `rollout-restart` | Deployment needs a fresh start without changing config |
 | `scale` | Replica count too low or too high |
 | `rollout-undo` | Bad deployment — roll back to the previous revision |
-
-All actions require approval. Nothing executes automatically.
 
 ---
 
@@ -105,25 +169,14 @@ Image: `ghcr.io/kmjayadeep/k8s-ai-sre:main`
 
 ---
 
-## Documentation
+## Documentation Map
 
 - [Quick Start](docs/quickstart.md)
-- [Contributing Guide](docs/contributing.md)
-- [Developer Guide](docs/developer.md)
 - [Deployment Guide](docs/deployment.md)
+- [Developer Guide](docs/developer.md)
 - [Testing Guide](TESTING.md)
-- [Maintainers Guide](docs/maintainers.md)
+- [Architecture Guide](docs/architecture.md)
 - [Portkey Integration](docs/portkey.md)
-
-## Contributor Workflow
-
-Contributing changes? Start with [docs/contributing.md](docs/contributing.md).
-
-From there, use:
-
-- `docs/developer.md` for local setup, validation commands, and PR handoff expectations
-- `TESTING.md` for end-to-end and kind-based validation
-- `docs/maintainers.md` for docs ownership and merge routing
 
 ---
 

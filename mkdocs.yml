@@ -1,23 +1,27 @@
 site_name: k8s-ai-sre Docs
 site_description: Documentation for the k8s-ai-sre Kubernetes incident investigator
+site_url: https://kmjayadeep.github.io/k8s-ai-sre/
 repo_name: kmjayadeep/k8s-ai-sre
 repo_url: https://github.com/kmjayadeep/k8s-ai-sre
 nav:
-  - Overview: index.md
-  - Architecture: architecture.md
-  - Quick Start: quickstart.md
-  - Contributing: contributing.md
-  - Developer Guide: developer.md
-  - Validation: testing.md
-  - Deployment: deployment.md
-  - Prometheus Alerts: prometheus-alerts.md
-  - Portkey Integration: portkey.md
-  - Plan: plan.md
-  - Maintainers: maintainers.md
+  - Start Here:
+      - Overview: index.md
+      - Quick Start: quickstart.md
+      - Deployment: deployment.md
+  - Operate:
+      - Testing: testing.md
+      - Architecture: architecture.md
+      - Prometheus Alerts: prometheus-alerts.md
+  - Build:
+      - Developer Guide: developer.md
+      - Portkey Integration: portkey.md
+      - Maintainers: maintainers.md
+  - Project:
+      - Plan: plan.md
 theme:
   name: mkdocs
 extra_css:
-  - assets/stylesheets/extra.css
+  - stylesheets/extra.css
 markdown_extensions:
   - admonition
   - tables
