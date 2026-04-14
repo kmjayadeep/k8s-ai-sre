@@ -4,7 +4,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from app.telegram_text import format_target_lines, sanitize_telegram_answer
+from app.telegram_text import format_target_lines
 
 
 def _inline_keyboard(incident: dict[str, object]) -> list[list[dict[str, str]]]:
@@ -50,7 +50,7 @@ def send_telegram_notification(incident: dict[str, object]) -> str:
     if not token or not chat_id:
         return "Telegram is not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to enable notifications."
 
-    answer_text = sanitize_telegram_answer(incident.get("answer", ""))[:2200]
+    answer_text = str(incident.get("answer", ""))[:2200]
     message_lines = [
         f"Incident {incident.get('incident_id', 'unknown')}",
         *format_target_lines(incident),

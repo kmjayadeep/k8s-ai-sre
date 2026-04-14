@@ -1,13 +1,21 @@
 import unittest
 
-from app.telegram_text import sanitize_telegram_answer
+from app.telegram_text import format_target_lines
 
 
 class TelegramTextTests(unittest.TestCase):
-    def test_sanitize_removes_think_block(self) -> None:
-        answer = "before\n<think>hidden reasoning</think>\nafter"
-        self.assertEqual("before\n\nafter", sanitize_telegram_answer(answer))
+    def test_format_target_lines_without_cluster(self) -> None:
+        incident = {"kind": "deployment", "namespace": "ai-sre-demo", "name": "bad-deploy"}
+        self.assertEqual(["Target: deployment ai-sre-demo/bad-deploy"], format_target_lines(incident))
 
-    def test_sanitize_truncates_after_unclosed_think_tag(self) -> None:
-        answer = "Final summary\n<thinking>hidden reasoning"
-        self.assertEqual("Final summary", sanitize_telegram_answer(answer))
+    def test_format_target_lines_with_cluster_name_in_incident(self) -> None:
+        incident = {
+            "kind": "deployment",
+            "namespace": "ai-sre-demo",
+            "name": "bad-deploy",
+            "cluster_name": "kind-local",
+        }
+        self.assertEqual(
+            ["Target: deployment ai-sre-demo/bad-deploy", "Cluster: kind-local"],
+            format_target_lines(incident),
+        )

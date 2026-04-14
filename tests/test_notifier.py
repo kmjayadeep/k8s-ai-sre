@@ -72,7 +72,7 @@ class TelegramNotifierTests(unittest.TestCase):
         parsed = parse_qs(request.data.decode("utf-8"))
         self.assertNotIn("reply_markup", parsed)
 
-    def test_send_notification_includes_cluster_and_sanitized_answer(self) -> None:
+    def test_send_notification_includes_cluster_line(self) -> None:
         incident = {
             "incident_id": "incident-789",
             "kind": "deployment",
@@ -101,6 +101,4 @@ class TelegramNotifierTests(unittest.TestCase):
         request = urlopen.call_args.args[0]
         parsed = parse_qs(request.data.decode("utf-8"))
         self.assertIn("Cluster: kind-local", parsed["text"][0])
-        self.assertNotIn("<think>", parsed["text"][0])
-        self.assertNotIn("internal chain of thought", parsed["text"][0])
-        self.assertIn("Summary: image pull failure", parsed["text"][0])
+        self.assertIn("<think>internal chain of thought</think>", parsed["text"][0])

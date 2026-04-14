@@ -1,4 +1,5 @@
-from agents import Agent, Runner
+from agents import Agent, ModelSettings, Runner
+from openai.types.shared import Reasoning
 
 from app.actions import begin_proposal_capture, finish_proposal_capture, propose_action
 from app.log import log_event
@@ -34,6 +35,7 @@ def create_agent() -> Agent:
         name="K8s SRE Investigator",
         instructions=AGENT_INSTRUCTIONS,
         model=model,
+        model_settings=ModelSettings(reasoning=Reasoning(effort="none")),
         tools=[
             get_k8s_resource,
             get_pod_status,

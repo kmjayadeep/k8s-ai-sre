@@ -40,7 +40,7 @@ class TelegramIntegrationTests(unittest.TestCase):
         self.assertIn("Actions:", reply)
         self.assertIn("abc12345", reply)
 
-    def test_incident_command_sanitizes_answer_and_includes_cluster_when_configured(self) -> None:
+    def test_incident_command_includes_cluster_when_configured(self) -> None:
         incident = incident_store.create_incident(
             {
                 "kind": "deployment",
@@ -56,9 +56,7 @@ class TelegramIntegrationTests(unittest.TestCase):
             reply = telegram._handle_command(f"/incident {incident['incident_id']}")
 
         self.assertIn("Cluster: kind-dev", reply)
-        self.assertIn("Final summary", reply)
-        self.assertNotIn("<thinking>", reply)
-        self.assertNotIn("scratch pad", reply)
+        self.assertIn("<thinking>scratch pad</thinking>", reply)
 
     def test_approve_command_executes_pending_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")

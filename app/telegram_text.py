@@ -1,10 +1,4 @@
 import os
-import re
-
-
-_THINK_BLOCK_RE = re.compile(r"<\s*(think|thinking)\b[^>]*>.*?<\s*/\s*\1\s*>", re.IGNORECASE | re.DOTALL)
-_THINK_OPEN_RE = re.compile(r"<\s*(think|thinking)\b[^>]*>", re.IGNORECASE)
-_THINK_CLOSE_RE = re.compile(r"<\s*/\s*(think|thinking)\s*>", re.IGNORECASE)
 
 
 def _first_non_empty(*values: object) -> str | None:
@@ -31,13 +25,3 @@ def format_target_lines(incident: dict[str, object]) -> list[str]:
     if cluster_name:
         lines.append(f"Cluster: {cluster_name}")
     return lines
-
-
-def sanitize_telegram_answer(answer: object) -> str:
-    text = str(answer or "")
-    text = _THINK_BLOCK_RE.sub("", text)
-    open_match = _THINK_OPEN_RE.search(text)
-    if open_match:
-        text = text[: open_match.start()]
-    text = _THINK_CLOSE_RE.sub("", text)
-    return text.strip()
