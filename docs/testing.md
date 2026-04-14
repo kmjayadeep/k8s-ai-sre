@@ -16,13 +16,13 @@ Use this page to choose the right validation lane. For the full contributor flow
 ## CI And Local Baseline
 
 ```bash
-uv run python -m unittest tests.test_ci_smoke_api_contract
+scripts/smoke.sh
 uv run python -m unittest discover -s tests
 ```
 
 Current `main` runs three validation lanes in `.github/workflows/tests.yml`:
 
-- smoke API contract checks for fast failure feedback
+- smoke API contract + alertmanager approval-loop checks for fast failure feedback
 - full Python test discovery for the baseline suite
 - manifest validation for Helm and Kustomize output
 

@@ -26,6 +26,16 @@ CI (`.github/workflows/tests.yml`) now runs a two-stage pipeline:
 
 The full job still calls `scripts/baseline.sh` so local and CI correctness stay aligned while smoke shortens first failure feedback.
 
+`scripts/smoke.sh` currently executes:
+
+```bash
+uv run python -m unittest \
+  tests.test_ci_smoke_api_contract \
+  tests.test_ci_smoke_alert_approval_loop
+```
+
+This smoke lane validates a deterministic alertmanager -> incident -> proposal -> token-guarded approve/reject loop and contract-level response keys without requiring Telegram or Kubernetes.
+
 Local equivalent timing snapshot (2026-04-13):
 
 - baseline-only path: `scripts/baseline.sh` -> `2.160s`

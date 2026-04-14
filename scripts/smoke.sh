@@ -6,7 +6,5 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 uv sync --locked
 uv run python -m unittest \
-  tests.test_startup \
-  tests.test_investigate \
-  tests.test_http_integration \
-  tests.test_tool_actions
+  tests.test_ci_smoke_api_contract \
+  tests.test_ci_smoke_alert_approval_loop
