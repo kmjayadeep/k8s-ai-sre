@@ -5,6 +5,7 @@ import urllib.parse
 import urllib.request
 
 from app.telegram_text import format_target_lines
+from app.telegram_brief import action_item_lines, quick_summary_lines
 
 
 def _inline_keyboard(incident: dict[str, object]) -> list[list[dict[str, str]]]:
@@ -25,40 +26,19 @@ def _inline_keyboard(incident: dict[str, object]) -> list[list[dict[str, str]]]:
     return keyboard
 
 
-def _format_proposed_actions(incident: dict[str, object]) -> str:
-    proposed_actions = incident.get("proposed_actions", [])
-    if not proposed_actions:
-        return "Proposed actions:\n- none"
-
-    lines = ["Proposed actions:"]
-    for action in proposed_actions[:4]:
-        if not isinstance(action, dict):
-            continue
-        action_id = action.get("action_id", "unknown")
-        action_type = action.get("action_type", "unknown")
-        namespace = action.get("namespace", "unknown")
-        name = action.get("name", "unknown")
-        lines.append(f"- {action_id}: {action_type} {namespace}/{name}")
-        lines.append(f"  approve: /approve {action_id}")
-        lines.append(f"  reject: /reject {action_id}")
-    return "\n".join(lines)
-
-
 def send_telegram_notification(incident: dict[str, object]) -> str:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
     if not token or not chat_id:
         return "Telegram is not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to enable notifications."
 
-    answer_text = str(incident.get("answer", ""))[:2200]
-    message_lines = [
+    lines = [
         f"Incident {incident.get('incident_id', 'unknown')}",
         *format_target_lines(incident),
-        f"Answer:\n{answer_text}",
-        "",
-        _format_proposed_actions(incident),
+        *quick_summary_lines(incident),
+        *action_item_lines(incident),
     ]
-    message = "\n".join(message_lines)
+    message = "\n".join(lines)[:3900]
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload_data = {"chat_id": chat_id, "text": message}
     keyboard = _inline_keyboard(incident)

@@ -13,7 +13,12 @@ class TelegramNotifierTests(unittest.TestCase):
             "kind": "pod",
             "namespace": "ai-sre-demo",
             "name": "crashy",
-            "answer": "summary",
+            "answer": (
+                "<think>internal chain of thought</think>\n"
+                "Summary: pod repeatedly crashes after bad sidecar config.\n"
+                "Most likely cause: invalid sidecar env value prevents process startup.\n"
+                "Confidence: high"
+            ),
             "proposed_actions": [
                 {"action_id": "abc12345", "action_type": "delete-pod", "namespace": "ai-sre-demo", "name": "crashy"}
             ],
@@ -37,8 +42,10 @@ class TelegramNotifierTests(unittest.TestCase):
         request = urlopen.call_args.args[0]
         parsed = parse_qs(request.data.decode("utf-8"))
         self.assertEqual("123", parsed["chat_id"][0])
-        self.assertIn("Incident incident-123", parsed["text"][0])
-        self.assertIn("Target: pod ai-sre-demo/crashy", parsed["text"][0])
+        self.assertIn("Quick summary: pod repeatedly crashes after bad sidecar config.", parsed["text"][0])
+        self.assertIn("Root cause: invalid sidecar env value prevents process startup.", parsed["text"][0])
+        self.assertIn("Action items:", parsed["text"][0])
+        self.assertNotIn("<think>", parsed["text"][0])
         reply_markup = json.loads(parsed["reply_markup"][0])
         self.assertEqual("Approve abc12345", reply_markup["inline_keyboard"][0][0]["text"])
         self.assertEqual("approve:abc12345", reply_markup["inline_keyboard"][0][0]["callback_data"])
@@ -70,6 +77,7 @@ class TelegramNotifierTests(unittest.TestCase):
         self.assertEqual("Telegram notification sent.", result)
         request = urlopen.call_args.args[0]
         parsed = parse_qs(request.data.decode("utf-8"))
+        self.assertIn("Action items:\n1. No proposed automated remediation. Continue manual triage.", parsed["text"][0])
         self.assertNotIn("reply_markup", parsed)
 
     def test_send_notification_includes_cluster_line(self) -> None:
@@ -101,4 +109,4 @@ class TelegramNotifierTests(unittest.TestCase):
         request = urlopen.call_args.args[0]
         parsed = parse_qs(request.data.decode("utf-8"))
         self.assertIn("Cluster: kind-local", parsed["text"][0])
-        self.assertIn("<think>internal chain of thought</think>", parsed["text"][0])
+        self.assertNotIn("<think>internal chain of thought</think>", parsed["text"][0])

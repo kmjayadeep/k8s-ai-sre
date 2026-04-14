@@ -29,7 +29,12 @@ class TelegramIntegrationTests(unittest.TestCase):
                 "kind": "deployment",
                 "namespace": "ai-sre-demo",
                 "name": "bad-deploy",
-                "answer": "Summary: image pull failure",
+                "answer": (
+                    "<thinking>verbose internal reasoning should be hidden</thinking>\n"
+                    "Summary: image pull failure blocks deployment rollout.\n"
+                    "Most likely cause: deployment references an image tag that does not exist.\n"
+                    "Confidence: high"
+                ),
                 "proposed_actions": [{"action_id": "abc12345", "action_type": "rollout-restart", "namespace": "ai-sre-demo", "name": "bad-deploy"}],
                 "action_ids": ["abc12345"],
             }
@@ -37,8 +42,25 @@ class TelegramIntegrationTests(unittest.TestCase):
 
         reply = telegram._handle_command(f"/incident {incident['incident_id']}")
 
-        self.assertIn("Actions:", reply)
+        self.assertIn("Quick summary: image pull failure blocks deployment rollout.", reply)
+        self.assertIn("Root cause: deployment references an image tag that does not exist.", reply)
+        self.assertIn("Action items:", reply)
         self.assertIn("abc12345", reply)
+        self.assertNotIn("<thinking>", reply)
+
+    def test_status_command_includes_quick_summary_line(self) -> None:
+        incident = incident_store.create_incident(
+            {
+                "kind": "pod",
+                "namespace": "ai-sre-demo",
+                "name": "crashy",
+                "answer": "Summary: pod is crash-looping due to startup probe failures.",
+                "action_ids": ["abc12345"],
+            }
+        )
+
+        reply = telegram._handle_command(f"/status {incident['incident_id']}")
+        self.assertIn("Quick summary: pod is crash-looping due to startup probe failures.", reply)
 
     def test_incident_command_includes_cluster_when_configured(self) -> None:
         incident = incident_store.create_incident(
@@ -56,7 +78,8 @@ class TelegramIntegrationTests(unittest.TestCase):
             reply = telegram._handle_command(f"/incident {incident['incident_id']}")
 
         self.assertIn("Cluster: kind-dev", reply)
-        self.assertIn("<thinking>scratch pad</thinking>", reply)
+        self.assertIn("Quick summary: Final summary", reply)
+        self.assertNotIn("<thinking>scratch pad</thinking>", reply)
 
     def test_approve_command_executes_pending_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
