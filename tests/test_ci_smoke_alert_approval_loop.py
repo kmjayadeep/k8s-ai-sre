@@ -21,6 +21,7 @@ REQUIRED_INCIDENT_KEYS = {
     "answer",
     "evidence",
     "source",
+    "brief",
     "action_ids",
     "proposed_actions",
     "notification_status",

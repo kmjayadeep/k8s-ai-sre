@@ -59,6 +59,13 @@ class ProposedActionResponse(BaseModel):
     reject_command: str
 
 
+class InvestigationBriefResponse(BaseModel):
+    summary: str = ""
+    root_cause: str = ""
+    confidence: str = ""
+    action_items: list[str] = Field(default_factory=list)
+
+
 class IncidentResponse(BaseModel):
     incident_id: str
     kind: str
@@ -67,6 +74,7 @@ class IncidentResponse(BaseModel):
     answer: str = ""
     evidence: str = ""
     source: str = "manual"
+    brief: InvestigationBriefResponse = Field(default_factory=InvestigationBriefResponse)
     action_ids: list[str] = Field(default_factory=list)
     proposed_actions: list[ProposedActionResponse] = Field(default_factory=list)
     notification_status: str | None = None

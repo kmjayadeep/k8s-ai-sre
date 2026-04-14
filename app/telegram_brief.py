@@ -4,6 +4,13 @@ from __future__ import annotations
 SECTION_ORDER = ("summary", "most likely cause", "confidence", "proposed actions")
 
 
+def _brief_payload(incident: dict[str, object]) -> dict[str, object]:
+    candidate = incident.get("brief")
+    if not isinstance(candidate, dict):
+        return {}
+    return candidate
+
+
 def _strip_reasoning_blocks(text: str) -> str:
     if not text:
         return ""
@@ -67,9 +74,15 @@ def _to_single_line(text: str, max_chars: int = 260) -> str:
 
 
 def quick_summary_lines(incident: dict[str, object]) -> list[str]:
+    brief = _brief_payload(incident)
+    summary = _to_single_line(str(brief.get("summary", "")).strip(), max_chars=260)
+    cause = _to_single_line(str(brief.get("root_cause", "")).strip(), max_chars=260)
+
     answer = str(incident.get("answer", "") or "")
-    summary = _extract_section(answer, "summary")
-    cause = _extract_section(answer, "most likely cause")
+    if not summary:
+        summary = _extract_section(answer, "summary")
+    if not cause:
+        cause = _extract_section(answer, "most likely cause")
 
     if not summary:
         summary = _to_single_line(_strip_reasoning_blocks(answer), max_chars=260)
@@ -86,12 +99,25 @@ def quick_summary_lines(incident: dict[str, object]) -> list[str]:
 
 
 def action_item_lines(incident: dict[str, object]) -> list[str]:
+    brief = _brief_payload(incident)
+    brief_items = brief.get("action_items", [])
+    summarized_items: list[str] = []
+    if isinstance(brief_items, list):
+        for item in brief_items[:4]:
+            text = _to_single_line(str(item).strip(), max_chars=260)
+            if text:
+                summarized_items.append(text)
+
     proposed_actions = incident.get("proposed_actions", [])
-    if not proposed_actions:
+    if not proposed_actions and not summarized_items:
         return ["Action items:", "1. No proposed automated remediation. Continue manual triage."]
 
     lines = ["Action items:"]
     item_number = 0
+    for item in summarized_items:
+        item_number += 1
+        lines.append(f"{item_number}. {item}")
+
     for action in proposed_actions[:4]:
         if not isinstance(action, dict):
             continue
@@ -100,7 +126,7 @@ def action_item_lines(incident: dict[str, object]) -> list[str]:
         namespace = str(action.get("namespace", "unknown"))
         name = str(action.get("name", "unknown"))
         item_number += 1
-        lines.append(f"{item_number}. {action_type} {namespace}/{name}")
+        lines.append(f"{item_number}. Automated option: {action_type} {namespace}/{name}")
         lines.append(f"   approve: /approve {action_id}")
         lines.append(f"   reject: /reject {action_id}")
     if item_number == 0:

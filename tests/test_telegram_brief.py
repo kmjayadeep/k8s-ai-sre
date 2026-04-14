@@ -32,3 +32,22 @@ class TelegramBriefTests(unittest.TestCase):
         lines = action_item_lines({"proposed_actions": []})
         self.assertEqual("Action items:", lines[0])
         self.assertIn("No proposed automated remediation", lines[1])
+
+    def test_prefers_structured_brief_fields_when_available(self) -> None:
+        incident = {
+            "brief": {
+                "summary": "Deployment unavailable due to bad image tag.",
+                "root_cause": "Container registry tag typo.",
+                "action_items": ["Fix image tag in manifest", "Redeploy workload"],
+            },
+            "answer": "Summary: stale fallback",
+            "proposed_actions": [],
+        }
+
+        summary_lines = quick_summary_lines(incident)
+        action_lines = action_item_lines(incident)
+
+        self.assertEqual("Quick summary: Deployment unavailable due to bad image tag.", summary_lines[0])
+        self.assertEqual("Root cause: Container registry tag typo.", summary_lines[1])
+        self.assertIn("1. Fix image tag in manifest", action_lines)
+        self.assertIn("2. Redeploy workload", action_lines)

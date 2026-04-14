@@ -56,3 +56,22 @@ class InvestigateTargetTests(unittest.TestCase):
 
         self.assertEqual([], result["action_ids"])
         self.assertEqual([], result["proposed_actions"])
+
+    def test_json_output_populates_structured_brief(self) -> None:
+        payload = (
+            '{"summary":"Deployment rollout is blocked.",' 
+            '"root_cause":"Image tag does not exist.",' 
+            '"confidence":"high",' 
+            '"action_items":["Fix image tag","Redeploy"]}'
+        )
+        with patch("app.investigate.create_agent", return_value=object()):
+            with patch("app.investigate.collect_investigation_evidence", return_value="events and logs"):
+                with patch(
+                    "app.investigate.Runner.run",
+                    new=AsyncMock(return_value=SimpleNamespace(final_output=payload)),
+                ):
+                    result = run(investigate_target("deployment", "ai-sre-demo", "bad-deploy", emit_progress=False))
+
+        self.assertEqual("Deployment rollout is blocked.", result["brief"]["summary"])
+        self.assertEqual("Image tag does not exist.", result["brief"]["root_cause"])
+        self.assertEqual(["Fix image tag", "Redeploy"], result["brief"]["action_items"])
