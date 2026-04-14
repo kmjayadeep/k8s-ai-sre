@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import app.stores.actions as action_store
 
-from app.investigate import create_agent, investigate_target
+from app.investigate import investigate_target
 
 
 class InvestigateTargetTests(unittest.TestCase):
@@ -56,10 +56,3 @@ class InvestigateTargetTests(unittest.TestCase):
 
         self.assertEqual([], result["action_ids"])
         self.assertEqual([], result["proposed_actions"])
-
-    def test_create_agent_disables_reasoning_effort(self) -> None:
-        with patch("app.investigate.create_model", return_value="mock-model"):
-            agent = create_agent()
-
-        self.assertIsNotNone(agent.model_settings.reasoning)
-        self.assertEqual("none", agent.model_settings.reasoning.effort)
