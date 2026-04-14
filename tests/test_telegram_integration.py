@@ -40,6 +40,24 @@ class TelegramIntegrationTests(unittest.TestCase):
         self.assertIn("Actions:", reply)
         self.assertIn("abc12345", reply)
 
+    def test_incident_command_includes_cluster_when_configured(self) -> None:
+        incident = incident_store.create_incident(
+            {
+                "kind": "deployment",
+                "namespace": "ai-sre-demo",
+                "name": "bad-deploy",
+                "answer": "<thinking>scratch pad</thinking>\nFinal summary",
+                "proposed_actions": [],
+                "action_ids": [],
+            }
+        )
+
+        with patch.dict("os.environ", {"K8S_CLUSTER_NAME": "kind-dev"}, clear=False):
+            reply = telegram._handle_command(f"/incident {incident['incident_id']}")
+
+        self.assertIn("Cluster: kind-dev", reply)
+        self.assertIn("<thinking>scratch pad</thinking>", reply)
+
     def test_approve_command_executes_pending_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
         action_service.attach_actions_to_incident([action["id"]], "incident-123")

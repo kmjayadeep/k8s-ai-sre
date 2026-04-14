@@ -4,6 +4,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from app.telegram_text import format_target_lines
+
 
 def _inline_keyboard(incident: dict[str, object]) -> list[list[dict[str, str]]]:
     proposed_actions = incident.get("proposed_actions", [])
@@ -48,12 +50,15 @@ def send_telegram_notification(incident: dict[str, object]) -> str:
     if not token or not chat_id:
         return "Telegram is not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to enable notifications."
 
-    message = (
-        f"Incident {incident.get('incident_id', 'unknown')}\n"
-        f"Target: {incident.get('kind')} {incident.get('namespace')}/{incident.get('name')}\n"
-        f"Answer:\n{incident.get('answer', '')[:2200]}\n\n"
-        f"{_format_proposed_actions(incident)}"
-    )
+    answer_text = str(incident.get("answer", ""))[:2200]
+    message_lines = [
+        f"Incident {incident.get('incident_id', 'unknown')}",
+        *format_target_lines(incident),
+        f"Answer:\n{answer_text}",
+        "",
+        _format_proposed_actions(incident),
+    ]
+    message = "\n".join(message_lines)
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload_data = {"chat_id": chat_id, "text": message}
     keyboard = _inline_keyboard(incident)
