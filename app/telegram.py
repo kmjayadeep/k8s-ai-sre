@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -14,7 +15,7 @@ from app.telegram_text import format_target_lines
 from app.telegram_brief import action_item_lines, quick_summary_lines
 
 
-TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
+DEFAULT_TELEGRAM_OFFSET_PATH = Path("/tmp/k8s-ai-sre-telegram-offset.json")
 COMMAND_HELP_TEXT = "Commands: /incident <incident-id>, /status <incident-id>, /approve <action-id>, /reject <action-id>"
 TELEGRAM_COMMAND_EXECUTION_FAILED = telegram_error_message(
     "telegram_command_execution_failed",
@@ -82,15 +83,64 @@ def _timeout_text(value: float) -> str:
     return str(value)
 
 
+def _offset_path() -> Path:
+    configured = os.getenv("TELEGRAM_OFFSET_PATH", "").strip()
+    if configured:
+        return Path(configured)
+    store_path = os.getenv("K8S_AI_SRE_STORE_PATH", "").strip()
+    if store_path:
+        return Path(store_path).with_name("k8s-ai-sre-telegram-offset.json")
+    return DEFAULT_TELEGRAM_OFFSET_PATH
+
+
 def _load_offset() -> int | None:
-    if not TELEGRAM_OFFSET_PATH.exists():
+    path = _offset_path()
+    if not path.exists():
         return None
-    payload = json.loads(TELEGRAM_OFFSET_PATH.read_text(encoding="utf-8"))
-    return payload.get("offset")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        log_event("telegram_offset_load_failed", path=str(path), error=str(exc))
+        return None
+
+    if not isinstance(payload, dict):
+        log_event("telegram_offset_invalid", path=str(path), payload_type=type(payload).__name__)
+        return None
+
+    offset = payload.get("offset")
+    if isinstance(offset, int) and offset >= 0:
+        return offset
+    log_event("telegram_offset_invalid", path=str(path), payload_type=type(payload).__name__)
+    return None
 
 
 def _save_offset(offset: int) -> None:
-    TELEGRAM_OFFSET_PATH.write_text(json.dumps({"offset": offset}, indent=2), encoding="utf-8")
+    path = _offset_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            json.dump({"offset": offset}, handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+            temp_path = Path(handle.name)
+        os.replace(temp_path, path)
+    except OSError as exc:
+        log_event("telegram_offset_save_failed", path=str(path), error=str(exc))
+        raise
+    finally:
+        if temp_path is not None and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
 
 
 def _telegram_api(method: str, data: dict[str, str] | None = None) -> dict:
