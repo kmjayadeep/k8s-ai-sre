@@ -36,6 +36,25 @@ uv run python -m unittest \
 
 This smoke lane validates a deterministic alertmanager -> incident -> proposal -> token-guarded approve/reject loop and contract-level response keys without requiring Telegram or Kubernetes.
 
+Telegram output contracts are covered by fixture regressions in `tests/test_telegram_contracts.py`.
+
+Run contract checks locally:
+
+```bash
+uv run python -m unittest tests.test_telegram_contracts
+```
+
+CI path:
+
+- included in `scripts/baseline.sh` via `python -m unittest discover -s tests`
+- enforced in `.github/workflows/tests.yml` job `full-baseline`
+
+Regression risk now guarded:
+
+- missing operator-critical Telegram fields (incident id, target, quick summary, root cause)
+- missing `/approve` and `/reject` command hints in `/incident` output
+- noisy reasoning blocks (`<think>`) or whitespace-heavy output reducing readability
+
 Local equivalent timing snapshot (2026-04-13):
 
 - baseline-only path: `scripts/baseline.sh` -> `2.160s`

@@ -1,0 +1,84 @@
+[
+  {
+    "name": "missing_sections",
+    "incident": {
+      "incident_id": "incident-missing",
+      "kind": "deployment",
+      "namespace": "ai-sre-demo",
+      "name": "bad-deploy",
+      "proposed_actions": []
+    },
+    "assert_contains": [
+      "Incident incident-missing",
+      "Target: deployment ai-sre-demo/bad-deploy",
+      "Quick summary: No investigation summary available.",
+      "Root cause: Not explicitly identified.",
+      "Action items:\n1. No proposed automated remediation. Continue manual triage."
+    ],
+    "assert_not_contains": [
+      "<think>"
+    ]
+  },
+  {
+    "name": "think_blocks_and_commands",
+    "incident": {
+      "incident_id": "incident-think",
+      "kind": "pod",
+      "namespace": "ai-sre-demo",
+      "name": "crashy",
+      "answer": "<think>internal notes</think>\nSummary: Pod is crash-looping due to OOMKills.\nMost likely cause: memory limit is too low.\nConfidence: high",
+      "proposed_actions": [
+        {
+          "action_id": "abc12345",
+          "action_type": "delete-pod",
+          "namespace": "ai-sre-demo",
+          "name": "crashy"
+        }
+      ]
+    },
+    "assert_contains": [
+      "Incident incident-think",
+      "Target: pod ai-sre-demo/crashy",
+      "Quick summary: Pod is crash-looping due to OOMKills.",
+      "Root cause: memory limit is too low.",
+      "Action items:",
+      "1. Automated option: delete-pod ai-sre-demo/crashy",
+      "approve: /approve abc12345",
+      "reject: /reject abc12345"
+    ],
+    "assert_not_contains": [
+      "<think>internal notes</think>",
+      "Quick summary: <think>"
+    ]
+  },
+  {
+    "name": "unusual_whitespace",
+    "incident": {
+      "incident_id": "incident-whitespace",
+      "kind": "deployment",
+      "namespace": "prod",
+      "name": "api",
+      "answer": "   \n Summary: latency spike observed.   \n\tMost likely cause: CPU throttling.\n\n",
+      "proposed_actions": [
+        {
+          "action_id": "f00dbabe",
+          "action_type": "scale",
+          "namespace": "prod",
+          "name": "api"
+        }
+      ]
+    },
+    "assert_contains": [
+      "Incident incident-whitespace",
+      "Quick summary: latency spike observed.",
+      "Root cause: CPU throttling.",
+      "1. Automated option: scale prod/api",
+      "approve: /approve f00dbabe",
+      "reject: /reject f00dbabe"
+    ],
+    "assert_not_contains": [
+      "Quick summary:    ",
+      "Root cause:    "
+    ]
+  }
+]
