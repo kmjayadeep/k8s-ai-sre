@@ -1,6 +1,6 @@
 # Testing Guide
 
-Use this file as the current runbook. It intentionally keeps only a few representative flows. If you are starting from a contributor task, use [docs/contributing.md](docs/contributing.md) to choose the right lane first.
+Use this file as the current runbook. It intentionally keeps only a few representative flows. If you are starting from a contributor task, use [docs/contributing.md](docs/contributing.md) to choose the right lane first, [docs/testing.md](docs/testing.md) to match change type to validation depth, and [docs/developer.md](docs/developer.md) for local setup and request examples.
 
 ## Prerequisites
 

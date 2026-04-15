@@ -13,6 +13,7 @@ nav:
       - Architecture: architecture.md
       - Prometheus Alerts: prometheus-alerts.md
   - Build:
+      - Contributing: contributing.md
       - Developer Guide: developer.md
       - Portkey Integration: portkey.md
       - Maintainers: maintainers.md
