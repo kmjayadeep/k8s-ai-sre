@@ -24,6 +24,14 @@ Current `main` runs three validation lanes in `.github/workflows/tests.yml`:
 - full Python test discovery for the baseline suite
 - manifest validation for Helm and Kustomize output
 
+Telegram contract regressions run in the baseline lane through `tests/test_telegram_contracts.py`.
+
+Run only those checks locally:
+
+```bash
+uv run python -m unittest tests.test_telegram_contracts
+```
+
 When you change docs, also run:
 
 ```bash
