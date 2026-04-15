@@ -76,6 +76,30 @@ def _normalize_proposed_actions(payload: dict[str, object]) -> list[dict[str, ob
     return normalized
 
 
+def _normalize_brief(payload: dict[str, object]) -> dict[str, object]:
+    raw_brief = payload.get("brief")
+    if not isinstance(raw_brief, dict):
+        return {}
+    summary = _string(raw_brief.get("summary")).strip()
+    root_cause = _string(raw_brief.get("root_cause")).strip()
+    confidence = _string(raw_brief.get("confidence")).strip()
+    action_items_raw = raw_brief.get("action_items", [])
+    action_items: list[str] = []
+    if isinstance(action_items_raw, list):
+        for item in action_items_raw:
+            text = _string(item).strip()
+            if text:
+                action_items.append(text)
+    if not summary and not root_cause and not confidence and not action_items:
+        return {}
+    return {
+        "summary": summary,
+        "root_cause": root_cause,
+        "confidence": confidence,
+        "action_items": action_items,
+    }
+
+
 def normalize_incident_payload(payload: dict[str, object], incident_id: str | None = None) -> dict[str, object]:
     normalized = dict(payload)
     if incident_id is not None:
@@ -86,6 +110,7 @@ def normalize_incident_payload(payload: dict[str, object], incident_id: str | No
     normalized["answer"] = _string(normalized.get("answer"))
     normalized["evidence"] = _string(normalized.get("evidence"))
     normalized["source"] = _string(normalized.get("source"), "manual")
+    normalized["brief"] = _normalize_brief(normalized)
     normalized["proposed_actions"] = _normalize_proposed_actions(normalized)
     action_ids = _normalize_action_ids(normalized)
     if not action_ids:

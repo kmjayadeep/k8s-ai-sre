@@ -32,6 +32,7 @@ INCIDENT_RESPONSE_KEYS = {
     "answer",
     "evidence",
     "source",
+    "brief",
     "action_ids",
     "proposed_actions",
     "notification_status",

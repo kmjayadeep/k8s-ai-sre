@@ -1,6 +1,7 @@
 from agents import Agent, Runner
 
 from app.actions import begin_proposal_capture, finish_proposal_capture, propose_action
+from app.investigation_brief import parse_investigation_brief
 from app.log import log_event
 from app.prompts import AGENT_INSTRUCTIONS, build_demo_prompt
 from app.tools.k8s import (
@@ -75,12 +76,14 @@ async def investigate_target(kind: str, namespace: str, name: str, emit_progress
                 name=name,
                 action_type=fallback_action_type,
             )
+    raw_output = str(result.final_output)
     response = {
         "kind": kind,
         "namespace": namespace,
         "name": name,
         "evidence": evidence,
-        "answer": result.final_output,
+        "answer": raw_output,
+        "brief": parse_investigation_brief(raw_output),
         "proposed_actions": proposed_actions,
         "action_ids": [str(item["action_id"]) for item in proposed_actions],
     }
