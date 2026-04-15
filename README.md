@@ -94,16 +94,21 @@ The API returns a normalized incident payload, including the investigation summa
 }
 ```
 
-Telegram operators get a concise incident summary with the next approval step ready to copy:
+Telegram operators get a concise, action-first incident summary with inline approve/reject commands ready to copy. Model reasoning traces (`<think>` blocks) are automatically stripped before sending:
 
 ```text
 Incident a1b2c3d4e5
 Target: deployment ai-sre-demo/bad-deploy
-Answer:
-Summary: image pull failure. The deployment is failing because the referenced image tag cannot be pulled.
-Actions:
-- abc12345: rollout-restart ai-sre-demo/bad-deploy
+Cluster: prod-cluster  (shown when K8S_CLUSTER_NAME is set)
+Quick summary: image pull failure. The deployment is failing because the referenced image tag cannot be pulled.
+Root cause: image pull failure
+Action items:
+1. Automated option: rollout-restart ai-sre-demo/bad-deploy
+   approve: /approve abc12345
+   reject: /reject abc12345
 ```
+
+Use `/status <incident-id>` to confirm the notification state and action IDs.
 
 ---
 

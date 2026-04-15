@@ -171,15 +171,20 @@ For local development, see [`docs/developer.md`](developer.md).
 
 ## Telegram Approval Experience
 
-The `/incident <incident-id>` command returns a compact operator-facing summary:
+The `/incident <incident-id>` command returns a concise, action-first operator summary:
 
 ```text
 Incident a1b2c3d4e5
 Target: deployment ai-sre-demo/bad-deploy
-Answer:
-Summary: image pull failure
-Actions:
-- abc12345: rollout-restart ai-sre-demo/bad-deploy
+Cluster: prod-cluster  (shown when K8S_CLUSTER_NAME is set)
+Quick summary: image pull failure
+Root cause: image pull failure
+Action items:
+1. Automated option: rollout-restart ai-sre-demo/bad-deploy
+   approve: /approve abc12345
+   reject: /reject abc12345
 ```
 
 Use `/status <incident-id>` to confirm the notification state and action IDs, then `/approve <action-id>` or `/reject <action-id>` to decide the proposal.
+
+**Note:** Set `K8S_CLUSTER_NAME` (or `CLUSTER_NAME`, `KUBE_CLUSTER_NAME`, `KUBERNETES_CLUSTER_NAME`) to include the cluster name in Telegram output. Model `<think>` reasoning blocks are automatically stripped before sending.

@@ -53,6 +53,7 @@ serviceAccount:
 #   OPERATOR_API_TOKEN
 #   K8S_AI_SRE_STORE_PATH         (default: /tmp/k8s-ai-sre-store.sqlite3)
 #   PORT                            (default: 8080)
+#   K8S_CLUSTER_NAME               (sets cluster name in Telegram output)
 #
 secretMode: auto  # 'existing' | 'inline' | 'auto' (auto=use existing if set, else inline)
 
@@ -77,6 +78,7 @@ secretData: {}
 # Use this for non-sensitive config or to override secret values.
 extraEnv: {}
   # PORT: "8080"
+  # K8S_CLUSTER_NAME: "prod-cluster"
 
 # Pod resource requests and limits
 resources:
