@@ -34,6 +34,7 @@ Secret name expected by the manifest: `k8s-ai-sre-env` in namespace `ai-sre-syst
 | `TELEGRAM_POLL_BACKOFF_SECONDS` | No | Backoff after poll failure. |
 | `OPERATOR_API_TOKEN` | Required for HTTP approve/reject endpoints | `/actions/{id}/approve|reject` returns `503` when not set. |
 | `WRITE_ALLOWED_NAMESPACES` | Yes | Process startup fails when empty or unset; mutating actions are allowed only inside this allow-list. |
+| `K8S_CLUSTER_NAME` | No | Sets cluster name in Telegram output (also: `CLUSTER_NAME`, `KUBE_CLUSTER_NAME`, `KUBERNETES_CLUSTER_NAME`). |
 
 Important current behavior:
 
