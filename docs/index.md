@@ -87,6 +87,6 @@ This docs site must stay aligned with repository sources:
 - product behavior: `README.md`
 - validation runbook: `TESTING.md`
 - deploy/rollback and startup contract: `docs/deployment.md`
-- near-term priorities and constraints: `PLAN.md`
+- active backlog and priorities: Paperclip issues for this project
 
 When these sources change, update matching docs pages in the same pull request.

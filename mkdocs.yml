@@ -17,8 +17,6 @@ nav:
       - Developer Guide: developer.md
       - Portkey Integration: portkey.md
       - Maintainers: maintainers.md
-  - Project:
-      - Plan: plan.md
 theme:
   name: mkdocs
 extra_css:

@@ -53,4 +53,4 @@ For E2E flows, see `TESTING.md`.
 - Never commit or push directly to `main` or `master`
 - Always rebase, never merge `main` into PR branch
 - Do not merge your own work without explicit review
-- Treat `PLAN.md` as a live management document; update it when completed work, priorities, or architecture diverge from reality
+- Track active priorities and follow-ups in Paperclip issues instead of repo plan files
