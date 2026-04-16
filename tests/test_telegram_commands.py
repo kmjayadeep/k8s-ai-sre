@@ -36,7 +36,26 @@ class TelegramCommandParsingTests(unittest.TestCase):
             reply = telegram._handle_callback("approve:f314980d")
 
         self.assertEqual("ok", reply)
-        approve_action.assert_called_once_with("f314980d")
+        approve_action.assert_called_once_with(
+            "f314980d",
+            approver_id="telegram:unknown",
+            approval_source="telegram_callback",
+        )
+
+    def test_handle_callback_dispatches_approve_with_actor_metadata(self) -> None:
+        with patch("app.telegram.approve_action", return_value="ok") as approve_action:
+            reply = telegram._handle_callback(
+                "approve:f314980d",
+                approver_id="telegram:alice",
+                approval_source="telegram_callback",
+            )
+
+        self.assertEqual("ok", reply)
+        approve_action.assert_called_once_with(
+            "f314980d",
+            approver_id="telegram:alice",
+            approval_source="telegram_callback",
+        )
 
     def test_handle_callback_rejects_unknown_payload(self) -> None:
         reply = telegram._handle_callback("bogus")
@@ -141,6 +160,7 @@ class TelegramCommandParsingTests(unittest.TestCase):
                     "update_id": 12,
                     "callback_query": {
                         "id": "cb-1",
+                        "from": {"id": 99},
                         "data": "approve:deadbeef",
                         "message": {"chat": {"id": 123}},
                     },
@@ -157,7 +177,11 @@ class TelegramCommandParsingTests(unittest.TestCase):
                                     result = telegram.poll_telegram_updates_once()
 
         self.assertEqual("Processed 1 Telegram command(s).", result)
-        handle_callback.assert_called_once_with("approve:deadbeef")
+        handle_callback.assert_called_once_with(
+            "approve:deadbeef",
+            approver_id="telegram:99",
+            approval_source="telegram_callback",
+        )
         send_message.assert_called_once_with("123", "approved")
         ack.assert_called_once_with("cb-1", "approved")
 

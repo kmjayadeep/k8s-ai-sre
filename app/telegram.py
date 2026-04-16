@@ -236,14 +236,18 @@ def _handle_command(text: str, approver_id: str = "unknown", approval_source: st
     return COMMAND_HELP_TEXT
 
 
-def _handle_callback(data: str) -> str:
+def _handle_callback(
+    data: str,
+    approver_id: str = "telegram:unknown",
+    approval_source: str = "telegram_callback",
+) -> str:
     verb, separator, action_id = data.strip().partition(":")
     if not separator or not action_id:
         return TELEGRAM_CALLBACK_PAYLOAD_INVALID
     if verb == "approve":
-        return approve_action(action_id)
+        return approve_action(action_id, approver_id=approver_id, approval_source=approval_source)
     if verb == "reject":
-        return reject_action(action_id)
+        return reject_action(action_id, approver_id=approver_id, approval_source=approval_source)
     return TELEGRAM_CALLBACK_PAYLOAD_INVALID
 
 
@@ -276,9 +280,20 @@ def poll_telegram_updates_once() -> str:
         callback_query = update.get("callback_query", {})
         callback_message = callback_query.get("message", {})
         callback_chat = callback_message.get("chat", {})
+        callback_actor = callback_query.get("from", {})
         callback_chat_id = str(callback_chat.get("id", ""))
         callback_data = str(callback_query.get("data", "")).strip()
         callback_id = str(callback_query.get("id", "")).strip()
+        callback_actor_id = str(callback_actor.get("id", "")).strip()
+        callback_actor_username = str(callback_actor.get("username", "")).strip()
+        if callback_actor_username:
+            callback_approver_id = f"telegram:{callback_actor_username}"
+        elif callback_actor_id:
+            callback_approver_id = f"telegram:{callback_actor_id}"
+        elif callback_chat_id:
+            callback_approver_id = f"telegram-chat:{callback_chat_id}"
+        else:
+            callback_approver_id = "telegram:unknown"
         if callback_query and callback_chat_id and callback_data:
             allowed_chat_ids = _allowed_chat_ids()
             if allowed_chat_ids and callback_chat_id not in allowed_chat_ids:
@@ -286,7 +301,11 @@ def poll_telegram_updates_once() -> str:
                 continue
             log_event("telegram_callback_received", chat_id=callback_chat_id, data=callback_data)
             try:
-                reply = _handle_callback(callback_data)
+                reply = _handle_callback(
+                    callback_data,
+                    approver_id=callback_approver_id,
+                    approval_source="telegram_callback",
+                )
             except Exception as exc:
                 log_event("telegram_callback_failed", chat_id=callback_chat_id, data=callback_data, error=str(exc))
                 reply = TELEGRAM_CALLBACK_EXECUTION_FAILED

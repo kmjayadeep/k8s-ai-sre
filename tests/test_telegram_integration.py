@@ -146,3 +146,38 @@ class TelegramIntegrationTests(unittest.TestCase):
 
         self.assertEqual("Processed 0 Telegram command(s).", result)
         send_message.assert_not_called()
+
+    def test_callback_approval_persists_operator_attribution_and_source(self) -> None:
+        action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
+        body = {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 42,
+                    "callback_query": {
+                        "id": "cb-42",
+                        "from": {"id": 555, "username": "alice"},
+                        "data": f"approve:{action['id']}",
+                        "message": {"chat": {"id": 123}},
+                    },
+                }
+            ],
+        }
+
+        with patch("app.telegram._telegram_token", return_value="token"):
+            with patch("app.telegram._telegram_api", return_value=body):
+                with patch("app.telegram._allowed_chat_ids", return_value=set()):
+                    with patch("app.telegram._save_offset"):
+                        with patch("app.actions.delete_pod", return_value='pod "crashy" deleted'):
+                            with patch("app.telegram._send_message", return_value="Telegram reply sent."):
+                                with patch(
+                                    "app.telegram._answer_callback_query",
+                                    return_value="Telegram callback acknowledged.",
+                                ):
+                                    result = telegram.poll_telegram_updates_once()
+
+        self.assertEqual("Processed 1 Telegram command(s).", result)
+        stored = action_store.get_action(action["id"])
+        self.assertEqual("approved", stored["status"])
+        self.assertEqual("telegram:alice", stored["approved_by"])
+        self.assertEqual("telegram_callback", stored["approval_source"])
