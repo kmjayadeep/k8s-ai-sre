@@ -6,7 +6,7 @@ This docs site is intentionally small and should track shipped behavior only.
 
 - `README.md`: public product behavior, quick-start snippets, guardrails
 - `TESTING.md`: current validation runbook and verification checks
-- `PLAN.md`: active priorities and known limits
+- Paperclip issues: active priorities and known limits
 
 If any of these files change, update corresponding docs pages in the same PR.
 
