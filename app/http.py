@@ -15,7 +15,15 @@ from app.log import log_event
 from app.metrics import render_prometheus_metrics
 from app.notifier import send_telegram_notification
 from app.stores.actions import list_pending_actions
-from app.stores import create_incident, get_action, get_incident, list_incidents, update_incident
+from app.stores import (
+    append_incident_event,
+    create_incident,
+    find_active_incident_by_target,
+    get_action,
+    get_incident,
+    list_incidents,
+    update_incident,
+)
 from app.telegram import start_telegram_polling_thread
 
 
@@ -173,6 +181,22 @@ async def metrics() -> PlainTextResponse:
 async def investigate(request: InvestigateRequest) -> IncidentResponse:
     if not all([request.kind, request.namespace, request.name]):
         raise HTTPException(status_code=400, detail="kind, namespace, and name are required")
+    existing = find_active_incident_by_target(request.kind, request.namespace, request.name)
+    if existing is not None:
+        merged = append_incident_event(
+            existing["incident_id"],
+            event_name="duplicate_investigate_request",
+            source="manual",
+            details={"kind": request.kind, "namespace": request.namespace, "name": request.name},
+        )
+        log_event(
+            "http_investigate_deduplicated",
+            incident_id=existing["incident_id"],
+            kind=request.kind,
+            namespace=request.namespace,
+            name=request.name,
+        )
+        return IncidentResponse.model_validate(merged or existing)
     log_event("http_investigate_received", kind=request.kind, namespace=request.namespace, name=request.name)
     result = await investigate_target(request.kind, request.namespace, request.name, emit_progress=False)
     incident = create_incident(result)
@@ -238,13 +262,32 @@ async def alertmanager_webhook(
         name=name,
         alert_statuses=",".join(statuses) if statuses else "unknown",
     )
+    existing = find_active_incident_by_target(kind, namespace, name)
     if _is_resolved_alert(payload):
+        if existing is not None:
+            append_incident_event(
+                existing["incident_id"],
+                event_name="alertmanager_resolved",
+                source="alertmanager",
+                details={"alert_statuses": statuses},
+                lifecycle_status="resolved",
+            )
+            merged = update_incident(existing["incident_id"], {"notification_status": "Skipped notification for resolved alert."})
+            log_event(
+                "alertmanager_webhook_deduplicated_resolved",
+                incident_id=existing["incident_id"],
+                kind=kind,
+                namespace=namespace,
+                name=name,
+            )
+            return IncidentResponse.model_validate(merged or existing)
         incident = create_incident(
             {
                 "kind": kind,
                 "namespace": namespace,
                 "name": name,
                 "source": "alertmanager",
+                "lifecycle_status": "resolved",
                 "answer": "Alertmanager reported this alert as resolved; investigation and remediation were skipped.",
                 "evidence": f"Alert statuses: {', '.join(statuses)}",
                 "action_ids": [],
@@ -260,6 +303,22 @@ async def alertmanager_webhook(
             name=name,
         )
         return IncidentResponse.model_validate(incident)
+
+    if existing is not None:
+        merged = append_incident_event(
+            existing["incident_id"],
+            event_name="alertmanager_duplicate_firing",
+            source="alertmanager",
+            details={"alert_statuses": statuses},
+        )
+        log_event(
+            "alertmanager_webhook_deduplicated",
+            incident_id=existing["incident_id"],
+            kind=kind,
+            namespace=namespace,
+            name=name,
+        )
+        return IncidentResponse.model_validate(merged or existing)
 
     result = await investigate_target(kind, namespace, name, emit_progress=False)
     result["source"] = "alertmanager"

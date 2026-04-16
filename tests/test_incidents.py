@@ -67,3 +67,28 @@ class IncidentStoreTests(unittest.TestCase):
         self.assertEqual("", stored["answer"])
         self.assertEqual("manual", stored["source"])
         self.assertEqual([], stored["action_ids"])
+
+    def test_find_active_incident_by_target_ignores_resolved_incidents(self) -> None:
+        active = incident_store.create_incident({"kind": "pod", "namespace": "ai-sre-demo", "name": "crashy"})
+        resolved = incident_store.create_incident(
+            {"kind": "pod", "namespace": "ai-sre-demo", "name": "crashy", "lifecycle_status": "resolved"}
+        )
+
+        found = incident_store.find_active_incident_by_target("pod", "ai-sre-demo", "crashy")
+
+        self.assertEqual(active["incident_id"], found["incident_id"])
+        self.assertNotEqual(resolved["incident_id"], found["incident_id"])
+
+    def test_append_incident_event_updates_history_and_dedup_count(self) -> None:
+        incident = incident_store.create_incident({"kind": "pod", "namespace": "ai-sre-demo", "name": "crashy"})
+
+        updated = incident_store.append_incident_event(
+            incident["incident_id"],
+            event_name="duplicate_investigate_request",
+            source="manual",
+            details={"reason": "same target retriggered"},
+        )
+
+        self.assertEqual(1, updated["dedup_count"])
+        self.assertEqual(2, len(updated["event_history"]))
+        self.assertEqual("duplicate_investigate_request", updated["event_history"][-1]["event"])

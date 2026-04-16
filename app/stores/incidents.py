@@ -1,4 +1,5 @@
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -26,6 +27,10 @@ def _string(value: object, default: str = "") -> str:
     if value is None:
         return default
     return str(value)
+
+
+def _utc_now() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 def _normalize_action_ids(payload: dict[str, object]) -> list[str]:
@@ -100,6 +105,32 @@ def _normalize_brief(payload: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _normalize_event_history(payload: dict[str, object]) -> list[dict[str, object]]:
+    raw_history = payload.get("event_history", [])
+    if not isinstance(raw_history, list):
+        return []
+
+    normalized: list[dict[str, object]] = []
+    for item in raw_history:
+        if not isinstance(item, dict):
+            continue
+        event_name = _string(item.get("event")).strip()
+        if not event_name:
+            continue
+        source = _string(item.get("source"), "unknown").strip() or "unknown"
+        occurred_at = _string(item.get("occurred_at")).strip() or _utc_now()
+        event: dict[str, object] = {"event": event_name, "source": source, "occurred_at": occurred_at}
+        details = item.get("details")
+        if isinstance(details, dict) and details:
+            event["details"] = details
+        normalized.append(event)
+    return normalized
+
+
+def _target_dedup_key(kind: str, namespace: str, name: str) -> str:
+    return f"{kind.strip().lower()}:{namespace.strip().lower()}:{name.strip().lower()}"
+
+
 def normalize_incident_payload(payload: dict[str, object], incident_id: str | None = None) -> dict[str, object]:
     normalized = dict(payload)
     if incident_id is not None:
@@ -110,12 +141,29 @@ def normalize_incident_payload(payload: dict[str, object], incident_id: str | No
     normalized["answer"] = _string(normalized.get("answer"))
     normalized["evidence"] = _string(normalized.get("evidence"))
     normalized["source"] = _string(normalized.get("source"), "manual")
+    normalized["dedup_key"] = _target_dedup_key(normalized["kind"], normalized["namespace"], normalized["name"])
+    lifecycle_status = _string(normalized.get("lifecycle_status"), "active").strip().lower() or "active"
+    normalized["lifecycle_status"] = "resolved" if lifecycle_status == "resolved" else "active"
     normalized["brief"] = _normalize_brief(normalized)
     normalized["proposed_actions"] = _normalize_proposed_actions(normalized)
+    normalized["event_history"] = _normalize_event_history(normalized)
+    dedup_count = normalized.get("dedup_count", 0)
+    try:
+        normalized["dedup_count"] = max(int(dedup_count), 0)
+    except (TypeError, ValueError):
+        normalized["dedup_count"] = 0
     action_ids = _normalize_action_ids(normalized)
     if not action_ids:
         action_ids = [item["action_id"] for item in normalized["proposed_actions"]]
     normalized["action_ids"] = action_ids
+    created_at = _string(normalized.get("created_at")).strip()
+    updated_at = _string(normalized.get("updated_at")).strip()
+    if not created_at:
+        created_at = _utc_now()
+    if not updated_at:
+        updated_at = created_at
+    normalized["created_at"] = created_at
+    normalized["updated_at"] = updated_at
     notification_status = normalized.get("notification_status")
     if notification_status is not None:
         normalized["notification_status"] = _string(notification_status)
@@ -126,6 +174,11 @@ def create_incident(payload: dict[str, object]) -> dict[str, object]:
     incidents = _load_incidents()
     incident_id = uuid4().hex[:10]
     record = normalize_incident_payload(payload, incident_id=incident_id)
+    now = _utc_now()
+    record["created_at"] = now
+    record["updated_at"] = now
+    record["event_history"] = list(record["event_history"])
+    record["event_history"].append({"event": "incident_created", "source": record["source"], "occurred_at": now})
     incidents[incident_id] = record
     _save_incidents(incidents)
     return record
@@ -164,7 +217,62 @@ def update_incident(incident_id: str, updates: dict[str, object]) -> dict[str, o
     if incident is None:
         return None
     incident.update(updates)
+    incident["updated_at"] = _utc_now()
     normalized = normalize_incident_payload(incident, incident_id=incident_id)
     incidents[incident_id] = normalized
     _save_incidents(incidents)
     return normalized
+
+
+def find_active_incident_by_target(kind: str, namespace: str, name: str) -> dict[str, object] | None:
+    incidents = _load_incidents()
+    dedup_key = _target_dedup_key(kind, namespace, name)
+    dirty = False
+    matches: list[dict[str, object]] = []
+
+    for incident_id, incident in incidents.items():
+        normalized = normalize_incident_payload(incident, incident_id=incident_id)
+        if normalized != incident:
+            incidents[incident_id] = normalized
+            dirty = True
+        if normalized["dedup_key"] == dedup_key and normalized["lifecycle_status"] == "active":
+            matches.append(normalized)
+
+    if dirty:
+        _save_incidents(incidents)
+    if not matches:
+        return None
+    matches.sort(key=lambda item: (_string(item.get("updated_at")), _string(item.get("created_at")), _string(item.get("incident_id"))))
+    return matches[-1]
+
+
+def append_incident_event(
+    incident_id: str,
+    *,
+    event_name: str,
+    source: str,
+    details: dict[str, object] | None = None,
+    lifecycle_status: str | None = None,
+) -> dict[str, object] | None:
+    incidents = _load_incidents()
+    incident = incidents.get(incident_id)
+    if incident is None:
+        return None
+
+    normalized = normalize_incident_payload(incident, incident_id=incident_id)
+    now = _utc_now()
+    history = list(normalized["event_history"])
+    entry: dict[str, object] = {"event": event_name, "source": source, "occurred_at": now}
+    if details:
+        entry["details"] = details
+    history.append(entry)
+    normalized["event_history"] = history
+    normalized["dedup_count"] = int(normalized["dedup_count"]) + 1
+    normalized["updated_at"] = now
+    if lifecycle_status is not None:
+        lifecycle = _string(lifecycle_status).strip().lower()
+        normalized["lifecycle_status"] = "resolved" if lifecycle == "resolved" else "active"
+
+    incidents[incident_id] = normalize_incident_payload(normalized, incident_id=incident_id)
+    _save_incidents(incidents)
+    return incidents[incident_id]

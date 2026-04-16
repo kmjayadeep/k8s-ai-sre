@@ -115,6 +115,50 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual("alertmanager", stored["source"])
         self.assertEqual(INCIDENT_RESPONSE_KEYS, set(stored.keys()))
 
+    def test_alertmanager_webhook_deduplicates_repeated_firing_target(self) -> None:
+        result = {
+            "kind": "pod",
+            "namespace": "ai-sre-demo",
+            "name": "crashy",
+            "answer": "Summary: CrashLoopBackOff",
+            "proposed_actions": [],
+            "action_ids": [],
+        }
+        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)) as investigate_mock:
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent.") as notify_mock:
+                first = run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(status="firing", commonLabels={"namespace": "ai-sre-demo", "pod": "crashy"}, alerts=[])
+                    )
+                ).model_dump()
+                second = run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(status="firing", commonLabels={"namespace": "ai-sre-demo", "pod": "crashy"}, alerts=[])
+                    )
+                ).model_dump()
+
+        self.assertEqual(first["incident_id"], second["incident_id"])
+        investigate_mock.assert_awaited_once_with("pod", "ai-sre-demo", "crashy", emit_progress=False)
+        notify_mock.assert_called_once()
+
+    def test_investigate_deduplicates_repeated_manual_target(self) -> None:
+        result = {
+            "kind": "deployment",
+            "namespace": "ai-sre-demo",
+            "name": "bad-deploy",
+            "answer": "Summary: image pull failure",
+            "proposed_actions": [],
+            "action_ids": [],
+        }
+        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)) as investigate_mock:
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent.") as notify_mock:
+                first = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy"))).model_dump()
+                second = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy"))).model_dump()
+
+        self.assertEqual(first["incident_id"], second["incident_id"])
+        investigate_mock.assert_awaited_once_with("deployment", "ai-sre-demo", "bad-deploy", emit_progress=False)
+        notify_mock.assert_called_once()
+
     def test_alertmanager_webhook_resolved_skips_investigation_and_notification(self) -> None:
         with patch("app.http.investigate_target", new=AsyncMock()) as investigate_mock:
             with patch("app.http.send_telegram_notification", return_value="Telegram notification sent.") as notify_mock:
@@ -137,6 +181,41 @@ class HttpIntegrationTests(unittest.TestCase):
         notify_mock.assert_not_called()
         stored = run(read_incident(body["incident_id"])).model_dump()
         self.assertEqual("Skipped notification for resolved alert.", stored["notification_status"])
+
+    def test_alertmanager_webhook_resolved_merges_into_existing_active_incident(self) -> None:
+        result = {
+            "kind": "deployment",
+            "namespace": "ai-sre-demo",
+            "name": "bad-deploy",
+            "answer": "Summary: image pull failure",
+            "proposed_actions": [],
+            "action_ids": [],
+        }
+        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)) as investigate_mock:
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent.") as notify_mock:
+                firing = run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(
+                            status="firing",
+                            commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"},
+                            alerts=[],
+                        )
+                    )
+                ).model_dump()
+                resolved = run(
+                    alertmanager_webhook(
+                        AlertmanagerWebhook(
+                            status="resolved",
+                            commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"},
+                            alerts=[],
+                        )
+                    )
+                ).model_dump()
+
+        self.assertEqual(firing["incident_id"], resolved["incident_id"])
+        self.assertEqual("Skipped notification for resolved alert.", resolved["notification_status"])
+        investigate_mock.assert_awaited_once_with("deployment", "ai-sre-demo", "bad-deploy", emit_progress=False)
+        notify_mock.assert_called_once()
 
     def test_alertmanager_webhook_requires_api_key_when_configured(self) -> None:
         with patch("app.http._ALERTMANAGER_API_KEY", "expected-token"):
