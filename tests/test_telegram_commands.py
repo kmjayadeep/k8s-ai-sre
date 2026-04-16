@@ -1,5 +1,7 @@
 import unittest
 from os import environ
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -229,3 +231,57 @@ class TelegramCommandParsingTests(unittest.TestCase):
         ):
             self.assertEqual(30.0, telegram._poll_timeout_seconds())
             self.assertEqual(35.0, telegram._http_timeout_seconds())
+
+    def test_offset_path_prefers_explicit_env(self) -> None:
+        with patch.dict(environ, {"TELEGRAM_OFFSET_PATH": "/var/lib/telegram-offset.json"}, clear=False):
+            self.assertEqual(Path("/var/lib/telegram-offset.json"), telegram._offset_path())
+
+    def test_save_and_load_offset_with_store_path_fallback(self) -> None:
+        with TemporaryDirectory() as tempdir:
+            store_path = Path(tempdir) / "state" / "store.sqlite3"
+            with patch.dict(environ, {"K8S_AI_SRE_STORE_PATH": str(store_path)}, clear=False):
+                telegram._save_offset(321)
+                loaded = telegram._load_offset()
+                offset_path = store_path.with_name("k8s-ai-sre-telegram-offset.json")
+                self.assertTrue(offset_path.exists())
+                self.assertEqual(321, loaded)
+
+    def test_load_offset_returns_none_for_invalid_json(self) -> None:
+        with TemporaryDirectory() as tempdir:
+            offset_path = Path(tempdir) / "telegram-offset.json"
+            offset_path.write_text("{", encoding="utf-8")
+            with patch.dict(environ, {"TELEGRAM_OFFSET_PATH": str(offset_path)}, clear=False):
+                with patch("app.telegram.log_event") as log_event:
+                    loaded = telegram._load_offset()
+
+        self.assertIsNone(loaded)
+        log_event.assert_called_once()
+
+    def test_poll_restart_uses_persisted_offset_to_prevent_replay(self) -> None:
+        with TemporaryDirectory() as tempdir:
+            offset_path = Path(tempdir) / "telegram-offset.json"
+            observed_methods: list[str] = []
+
+            def telegram_api(method: str) -> dict:
+                observed_methods.append(method)
+                if "offset=11" in method:
+                    return {"ok": True, "result": []}
+                return {
+                    "ok": True,
+                    "result": [{"update_id": 10, "message": {"chat": {"id": 123}, "text": "/status incident-1"}}],
+                }
+
+            with patch.dict(environ, {"TELEGRAM_OFFSET_PATH": str(offset_path)}, clear=False):
+                with patch("app.telegram._telegram_token", return_value="token"):
+                    with patch("app.telegram._telegram_api", side_effect=telegram_api):
+                        with patch("app.telegram._allowed_chat_ids", return_value=set()):
+                            with patch("app.telegram._handle_command", return_value="ok") as handle_command:
+                                with patch("app.telegram._send_message", return_value="Telegram reply sent."):
+                                    first = telegram.poll_telegram_updates_once()
+                                    second = telegram.poll_telegram_updates_once()
+
+        self.assertEqual("Processed 1 Telegram command(s).", first)
+        self.assertEqual("No new Telegram updates.", second)
+        self.assertEqual(1, handle_command.call_count)
+        self.assertIn("getUpdates?timeout=30", observed_methods[0])
+        self.assertIn("offset=11", observed_methods[1])
