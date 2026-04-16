@@ -31,10 +31,11 @@ The full job still calls `scripts/baseline.sh` so local and CI correctness stay 
 ```bash
 uv run python -m unittest \
   tests.test_ci_smoke_api_contract \
-  tests.test_ci_smoke_alert_approval_loop
+  tests.test_ci_smoke_alert_approval_loop \
+  tests.test_ci_smoke_telegram_approval_protocol
 ```
 
-This smoke lane validates a deterministic alertmanager -> incident -> proposal -> token-guarded approve/reject loop and contract-level response keys without requiring Telegram or Kubernetes.
+This smoke lane validates a deterministic alertmanager -> incident -> proposal -> token-guarded approve/reject loop, contract-level response keys, and Telegram callback approval protocol — without requiring a live Telegram bot or Kubernetes.
 
 Telegram output contracts are covered by fixture regressions in `tests/test_telegram_contracts.py`.
 

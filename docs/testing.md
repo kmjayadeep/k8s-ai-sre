@@ -20,7 +20,7 @@ Use this page to choose the right validation lane. For the full contributor flow
 
 Current `main` runs three validation lanes in `.github/workflows/tests.yml`:
 
-- smoke API contract + alertmanager approval-loop checks for fast failure feedback
+- smoke API contract + alertmanager approval-loop + Telegram approval protocol checks for fast failure feedback
 - full Python test discovery for the baseline suite
 - manifest validation for Helm and Kustomize output
 
