@@ -96,3 +96,18 @@ class IncidentStoreTests(unittest.TestCase):
         self.assertEqual(1, updated["dedup_count"])
         self.assertEqual(2, len(updated["event_history"]))
         self.assertEqual("duplicate_investigate_request", updated["event_history"][-1]["event"])
+
+    def test_list_incidents_backfills_relationship_metadata_for_shared_target(self) -> None:
+        first = incident_store.create_incident({"kind": "deployment", "namespace": "ai-sre-demo", "name": "bad-deploy"})
+        second = incident_store.create_incident(
+            {"kind": "deployment", "namespace": "ai-sre-demo", "name": "bad-deploy", "lifecycle_status": "resolved"}
+        )
+
+        listed = incident_store.list_incidents()
+        indexed = {item["incident_id"]: item for item in listed}
+        ordered = sorted([first["incident_id"], second["incident_id"]], key=lambda incident_id: indexed[incident_id]["created_at"])
+
+        self.assertEqual([ordered[1]], indexed[ordered[0]]["related_incident_ids"])
+        self.assertEqual(None, indexed[ordered[0]]["supersedes_incident_id"])
+        self.assertEqual([ordered[0]], indexed[ordered[1]]["related_incident_ids"])
+        self.assertEqual(ordered[0], indexed[ordered[1]]["supersedes_incident_id"])
