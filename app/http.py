@@ -79,6 +79,10 @@ class IncidentResponse(BaseModel):
     kind: str
     namespace: str
     name: str
+    lifecycle_status: str = "active"
+    created_at: str = ""
+    updated_at: str = ""
+    last_event_at: str = ""
     answer: str = ""
     evidence: str = ""
     source: str = "manual"

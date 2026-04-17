@@ -66,6 +66,10 @@ class IncidentStoreTests(unittest.TestCase):
 
         self.assertEqual("", stored["answer"])
         self.assertEqual("manual", stored["source"])
+        self.assertEqual("active", stored["lifecycle_status"])
+        self.assertTrue(stored["created_at"])
+        self.assertTrue(stored["updated_at"])
+        self.assertTrue(stored["last_event_at"])
         self.assertEqual([], stored["action_ids"])
 
     def test_find_active_incident_by_target_ignores_resolved_incidents(self) -> None:

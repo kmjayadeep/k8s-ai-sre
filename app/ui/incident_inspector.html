@@ -110,6 +110,40 @@
       font-size: 0.82rem;
     }
 
+    .incident-meta {
+      margin-top: 0.35rem;
+      display: flex;
+      gap: 0.45rem;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.12rem 0.45rem;
+      font-size: 0.74rem;
+      font-weight: 700;
+      line-height: 1.2;
+      text-transform: capitalize;
+      border: 1px solid transparent;
+    }
+
+    .chip.active {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+
+    .chip.resolved {
+      background: #e5e7eb;
+      color: #374151;
+      border-color: #d1d5db;
+    }
+
     .empty {
       margin: 0.4rem;
       padding: 0.8rem;
@@ -237,6 +271,21 @@
       return `<li><strong>${actionType}</strong> on <code>${target}</code><br />Approve: <code>${approve}</code> Reject: <code>${reject}</code></li>`;
     }
 
+    function formatTimestamp(value) {
+      if (!value) {
+        return "n/a";
+      }
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return escapeHtml(value);
+      }
+      return escapeHtml(parsed.toLocaleString());
+    }
+
+    function lifecycleClass(lifecycleStatus) {
+      return lifecycleStatus === "resolved" ? "chip resolved" : "chip active";
+    }
+
     function renderIncidentDetail(incident) {
       const answer = incident.answer && incident.answer.trim() ? escapeHtml(incident.answer) : "No summary available.";
       const notification = incident.notification_status ? escapeHtml(incident.notification_status) : "not sent";
@@ -249,7 +298,11 @@
           <dl class="kv">
             <dt>Incident ID</dt><dd><code>${escapeHtml(incident.incident_id)}</code></dd>
             <dt>Target</dt><dd>${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}</dd>
+            <dt>Lifecycle</dt><dd><span class="${lifecycleClass(incident.lifecycle_status)}">${escapeHtml(incident.lifecycle_status || "active")}</span></dd>
             <dt>Source</dt><dd>${escapeHtml(incident.source || "manual")}</dd>
+            <dt>Created</dt><dd>${formatTimestamp(incident.created_at)}</dd>
+            <dt>Updated</dt><dd>${formatTimestamp(incident.updated_at)}</dd>
+            <dt>Last Event</dt><dd>${formatTimestamp(incident.last_event_at)}</dd>
             <dt>Notifications</dt><dd>${notification}</dd>
           </dl>
         </article>
@@ -312,6 +365,10 @@
         button.innerHTML = `
           <p class="incident-title">${escapeHtml(incident.incident_id)}</p>
           <p class="incident-subtitle">${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}</p>
+          <p class="incident-meta">
+            <span class="${lifecycleClass(incident.lifecycle_status)}">${escapeHtml(incident.lifecycle_status || "active")}</span>
+            <span>Updated: ${formatTimestamp(incident.updated_at)}</span>
+          </p>
         `;
         button.addEventListener("click", () => inspectIncident(incident.incident_id));
         listEl.appendChild(button);

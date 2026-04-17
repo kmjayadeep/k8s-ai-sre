@@ -164,6 +164,14 @@ def normalize_incident_payload(payload: dict[str, object], incident_id: str | No
         updated_at = created_at
     normalized["created_at"] = created_at
     normalized["updated_at"] = updated_at
+    last_event_at = _string(normalized.get("last_event_at")).strip()
+    if not last_event_at and normalized["event_history"]:
+        tail = normalized["event_history"][-1]
+        if isinstance(tail, dict):
+            last_event_at = _string(tail.get("occurred_at")).strip()
+    if not last_event_at:
+        last_event_at = updated_at
+    normalized["last_event_at"] = last_event_at
     notification_status = normalized.get("notification_status")
     if notification_status is not None:
         normalized["notification_status"] = _string(notification_status)
@@ -177,6 +185,7 @@ def create_incident(payload: dict[str, object]) -> dict[str, object]:
     now = _utc_now()
     record["created_at"] = now
     record["updated_at"] = now
+    record["last_event_at"] = now
     record["event_history"] = list(record["event_history"])
     record["event_history"].append({"event": "incident_created", "source": record["source"], "occurred_at": now})
     incidents[incident_id] = record
@@ -269,6 +278,7 @@ def append_incident_event(
     normalized["event_history"] = history
     normalized["dedup_count"] = int(normalized["dedup_count"]) + 1
     normalized["updated_at"] = now
+    normalized["last_event_at"] = now
     if lifecycle_status is not None:
         lifecycle = _string(lifecycle_status).strip().lower()
         normalized["lifecycle_status"] = "resolved" if lifecycle == "resolved" else "active"

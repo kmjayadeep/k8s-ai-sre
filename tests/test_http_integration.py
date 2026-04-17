@@ -29,6 +29,10 @@ INCIDENT_RESPONSE_KEYS = {
     "kind",
     "namespace",
     "name",
+    "lifecycle_status",
+    "created_at",
+    "updated_at",
+    "last_event_at",
     "answer",
     "evidence",
     "source",
@@ -78,6 +82,10 @@ class HttpIntegrationTests(unittest.TestCase):
                 body = run(investigate(InvestigateRequest(kind="deployment", namespace="ai-sre-demo", name="bad-deploy"))).model_dump()
 
         self.assertEqual("Telegram notification sent.", body["notification_status"])
+        self.assertEqual("active", body["lifecycle_status"])
+        self.assertTrue(body["created_at"])
+        self.assertTrue(body["updated_at"])
+        self.assertTrue(body["last_event_at"])
         self.assertEqual(INCIDENT_RESPONSE_KEYS, set(body.keys()))
         self.assertEqual(PROPOSED_ACTION_RESPONSE_KEYS, set(body["proposed_actions"][0].keys()))
         stored = run(read_incident(body["incident_id"])).model_dump()
@@ -108,6 +116,7 @@ class HttpIntegrationTests(unittest.TestCase):
                 ).model_dump()
 
         self.assertEqual("alertmanager", body["source"])
+        self.assertEqual("active", body["lifecycle_status"])
         self.assertEqual(INCIDENT_RESPONSE_KEYS, set(body.keys()))
         investigate_mock.assert_awaited_once_with("deployment", "ai-sre-demo", "bad-deploy", emit_progress=False)
         notify_mock.assert_called_once()
@@ -175,6 +184,7 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual("alertmanager", body["source"])
         self.assertEqual([], body["action_ids"])
         self.assertEqual([], body["proposed_actions"])
+        self.assertEqual("resolved", body["lifecycle_status"])
         self.assertIn("resolved", body["answer"])
         self.assertEqual("Skipped notification for resolved alert.", body["notification_status"])
         investigate_mock.assert_not_called()
