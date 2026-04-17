@@ -9,17 +9,21 @@ import app.stores.actions as action_store
 import app.stores.incidents as incident_store
 from fastapi import HTTPException
 
+from app.alert_ingestion import reset_ingestion_state_for_tests
 from app.http import (
+    AlertmanagerReconcileRequest,
     AlertmanagerWebhook,
     InvestigateRequest,
     alertmanager_webhook,
     approve_action_http,
+    ingestion_status,
     incident_inspector,
     investigate,
     metrics,
     queue_status,
     read_incident,
     read_incidents,
+    reconcile_alertmanager,
     reject_action_http,
 )
 from app.metrics import reset_metrics_for_tests
@@ -65,6 +69,7 @@ PROPOSED_ACTION_RESPONSE_KEYS = {
 class HttpIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         reset_metrics_for_tests()
+        reset_ingestion_state_for_tests()
         self.tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(self.tempdir.cleanup)
         self.incident_path = Path(self.tempdir.name) / "incidents.json"
@@ -288,6 +293,61 @@ class HttpIntegrationTests(unittest.TestCase):
 
         self.assertEqual("alertmanager", body["source"])
         self.assertEqual(INCIDENT_RESPONSE_KEYS, set(body.keys()))
+
+    def test_alertmanager_reconcile_recovers_once_and_is_idempotent(self) -> None:
+        result = {
+            "kind": "deployment",
+            "namespace": "ai-sre-demo",
+            "name": "bad-deploy",
+            "answer": "Summary: image pull failure",
+            "proposed_actions": [],
+            "action_ids": [],
+        }
+        reconcile_payload = AlertmanagerReconcileRequest(
+            receiver="k8s-ai-sre-webhook",
+            alerts=[
+                {
+                    "status": "firing",
+                    "labels": {"namespace": "ai-sre-demo", "deployment": "bad-deploy"},
+                }
+            ],
+        )
+        with patch("app.http.investigate_target", new=AsyncMock(return_value=result)) as investigate_mock:
+            with patch("app.http.send_telegram_notification", return_value="Telegram notification sent.") as notify_mock:
+                first = run(reconcile_alertmanager(reconcile_payload)).model_dump()
+                second = run(reconcile_alertmanager(reconcile_payload)).model_dump()
+
+        self.assertEqual(1, first["recovered_incidents"])
+        self.assertEqual(0, first["skipped_existing_incidents"])
+        self.assertEqual(0, first["failed_alerts"])
+        self.assertEqual(0, second["recovered_incidents"])
+        self.assertEqual(1, second["skipped_existing_incidents"])
+        self.assertEqual(0, second["failed_alerts"])
+        self.assertEqual(1, len(first["recovered_incident_ids"]))
+        self.assertEqual([], second["recovered_incident_ids"])
+        investigate_mock.assert_awaited_once_with("deployment", "ai-sre-demo", "bad-deploy", emit_progress=False)
+        notify_mock.assert_called_once()
+
+    def test_ingestion_status_reports_degraded_on_repeated_failures(self) -> None:
+        payload = AlertmanagerWebhook(
+            status="firing",
+            receiver="k8s-ai-sre-webhook",
+            commonLabels={"namespace": "ai-sre-demo", "deployment": "bad-deploy"},
+            alerts=[],
+        )
+
+        with patch("app.http.investigate_target", new=AsyncMock(side_effect=RuntimeError("simulated failure"))):
+            for _ in range(5):
+                with self.assertRaises(RuntimeError):
+                    run(alertmanager_webhook(payload))
+
+        status = run(ingestion_status()).model_dump()
+        self.assertEqual("degraded", status["status"])
+        self.assertEqual(5, status["window_size"])
+        self.assertEqual(5, status["failed_deliveries"])
+        self.assertEqual(1.0, status["failure_rate"])
+        self.assertEqual(5, status["failed_by_receiver"]["k8s-ai-sre-webhook"])
+
     def test_alertmanager_to_approval_executes_linked_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")
         result = {

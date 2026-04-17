@@ -12,10 +12,13 @@ _proposals_total: Counter
 _execution_outcomes: Counter
 _investigation_latency: Histogram
 _approval_latency: Histogram
+_alertmanager_ingestion_events: Counter
+_alertmanager_reconciliation_runs: Counter
 
 
 def _make_metrics(reg: CollectorRegistry) -> None:
     global _proposals_total, _execution_outcomes, _investigation_latency, _approval_latency
+    global _alertmanager_ingestion_events, _alertmanager_reconciliation_runs
     _proposals_total = Counter(
         "k8s_ai_sre_action_proposals_total",
         "Number of proposed remediation actions.",
@@ -37,6 +40,18 @@ def _make_metrics(reg: CollectorRegistry) -> None:
         "k8s_ai_sre_approval_latency_seconds",
         "Latency between action proposal and terminal decision.",
         buckets=BUCKETS,
+        registry=reg,
+    )
+    _alertmanager_ingestion_events = Counter(
+        "k8s_ai_sre_alertmanager_ingestion_events_total",
+        "Alertmanager ingestion outcomes by receiver and target.",
+        ["receiver", "target", "outcome"],
+        registry=reg,
+    )
+    _alertmanager_reconciliation_runs = Counter(
+        "k8s_ai_sre_alertmanager_reconciliation_runs_total",
+        "Alertmanager reconciliation run outcomes.",
+        ["status"],
         registry=reg,
     )
 
@@ -96,6 +111,18 @@ def observe_event(event: str, fields: dict[str, Any]) -> None:
                 proposed_at = _action_proposed_at.pop(action_id, None)
                 if proposed_at is not None:
                     _approval_latency.observe(max(0.0, ts - proposed_at))
+
+
+def record_alertmanager_ingestion_event(receiver: str, target: str, outcome: str) -> None:
+    _alertmanager_ingestion_events.labels(
+        receiver=(receiver or "unknown"),
+        target=(target or "unknown"),
+        outcome=(outcome or "unknown"),
+    ).inc()
+
+
+def record_alertmanager_reconciliation_run(status: str) -> None:
+    _alertmanager_reconciliation_runs.labels(status=(status or "unknown")).inc()
 
 
 def render_prometheus_metrics() -> bytes:

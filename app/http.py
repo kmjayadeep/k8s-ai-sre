@@ -6,13 +6,14 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
+from app.alert_ingestion import ingestion_status_snapshot, record_ingestion_event
 from app.actions import approve_action, attach_actions_to_incident, reject_action
 from app.backpressure import get_queue_status
 from app.error_taxonomy import raise_http_error
 from app.ui.auth_middleware import InspectorAuthMiddleware, load_inspector_auth
 from app.investigate import investigate_target
 from app.log import log_event
-from app.metrics import render_prometheus_metrics
+from app.metrics import record_alertmanager_reconciliation_run, render_prometheus_metrics
 from app.notifier import send_telegram_notification
 from app.stores.actions import list_pending_actions
 from app.stores import (
@@ -40,6 +41,7 @@ class AlertmanagerAlert(BaseModel):
 
 class AlertmanagerWebhook(BaseModel):
     status: str | None = None
+    receiver: str | None = None
     commonLabels: dict[str, str] = Field(default_factory=dict)
     alerts: list[AlertmanagerAlert] = Field(default_factory=list)
 
@@ -121,6 +123,33 @@ class PendingActionsResponse(BaseModel):
     pending_actions: list[dict] = Field(default_factory=list)
 
 
+class IngestionStatusResponse(BaseModel):
+    status: str
+    window_size: int
+    failed_deliveries: int
+    failure_rate: float
+    degrade_threshold: float
+    min_samples: int
+    failed_by_receiver: dict[str, int] = Field(default_factory=dict)
+    failed_by_target: dict[str, int] = Field(default_factory=dict)
+    last_failure_at: str | None = None
+    last_failure_detail: str | None = None
+
+
+class AlertmanagerReconcileRequest(BaseModel):
+    receiver: str | None = None
+    alerts: list[AlertmanagerAlert] = Field(default_factory=list)
+
+
+class AlertmanagerReconcileResponse(BaseModel):
+    receiver: str
+    active_alerts_seen: int
+    recovered_incidents: int
+    skipped_existing_incidents: int
+    failed_alerts: int
+    recovered_incident_ids: list[str] = Field(default_factory=list)
+
+
 app = FastAPI()
 app.add_middleware(InspectorAuthMiddleware)
 
@@ -196,6 +225,22 @@ async def metrics() -> PlainTextResponse:
     return PlainTextResponse(content=render_prometheus_metrics(), media_type="text/plain; version=0.0.4")
 
 
+@app.get("/ingestion-status", response_model=IngestionStatusResponse)
+async def ingestion_status() -> IngestionStatusResponse:
+    threshold_raw = os.getenv("ALERTMANAGER_INGESTION_FAILURE_THRESHOLD", "").strip()
+    min_samples_raw = os.getenv("ALERTMANAGER_INGESTION_MIN_SAMPLES", "").strip()
+    try:
+        threshold = float(threshold_raw) if threshold_raw else 0.2
+    except ValueError:
+        threshold = 0.2
+    try:
+        min_samples = int(min_samples_raw) if min_samples_raw else 5
+    except ValueError:
+        min_samples = 5
+    snapshot = ingestion_status_snapshot(degrade_threshold=max(0.0, threshold), min_samples=max(1, min_samples))
+    return IngestionStatusResponse.model_validate(snapshot)
+
+
 @app.post("/investigate", response_model=IncidentResponse)
 async def investigate(request: InvestigateRequest) -> IncidentResponse:
     if not all([request.kind, request.namespace, request.name]):
@@ -232,6 +277,73 @@ async def investigate(request: InvestigateRequest) -> IncidentResponse:
     return IncidentResponse.model_validate(incident)
 
 
+@app.post("/reconcile/alertmanager", response_model=AlertmanagerReconcileResponse)
+async def reconcile_alertmanager(
+    payload: AlertmanagerReconcileRequest,
+    authorization: str | None = Header(default=None, alias="X-API-Key"),
+) -> AlertmanagerReconcileResponse:
+    _require_alertmanager_api_key(authorization)
+    receiver = _receiver_name(payload.receiver)
+    active_alerts = [alert for alert in payload.alerts if (alert.status or "").strip().lower() == "firing"]
+    recovered = 0
+    skipped_existing = 0
+    failed = 0
+    recovered_ids: list[str] = []
+
+    log_event(
+        "alertmanager_reconcile_started",
+        receiver=receiver,
+        active_alerts_seen=len(active_alerts),
+    )
+    for alert in active_alerts:
+        nested_payload = AlertmanagerWebhook(status=alert.status, receiver=receiver, commonLabels=alert.labels, alerts=[alert])
+        try:
+            kind, namespace, name = _resolve_alert_target(nested_payload)
+        except HTTPException as exc:
+            failed += 1
+            record_ingestion_event(receiver, "unknown", "failed", detail=str(exc.detail))
+            continue
+        target = _target_key(kind, namespace, name)
+        existing = find_active_incident_by_target(kind, namespace, name)
+        if existing is not None:
+            skipped_existing += 1
+            record_ingestion_event(receiver, target, "reconcile_skipped")
+            continue
+        try:
+            incident = await _ingest_alert_target(
+                kind=kind,
+                namespace=namespace,
+                name=name,
+                statuses=["firing"],
+                receiver=receiver,
+                success_outcome="recovered",
+            )
+            recovered += 1
+            recovered_ids.append(incident.incident_id)
+        except Exception as exc:
+            failed += 1
+            record_ingestion_event(receiver, target, "failed", detail=str(exc))
+
+    run_status = "failed" if failed else "ok"
+    record_alertmanager_reconciliation_run(run_status)
+    log_event(
+        "alertmanager_reconcile_completed",
+        receiver=receiver,
+        active_alerts_seen=len(active_alerts),
+        recovered_incidents=recovered,
+        skipped_existing_incidents=skipped_existing,
+        failed_alerts=failed,
+    )
+    return AlertmanagerReconcileResponse(
+        receiver=receiver,
+        active_alerts_seen=len(active_alerts),
+        recovered_incidents=recovered,
+        skipped_existing_incidents=skipped_existing,
+        failed_alerts=failed,
+        recovered_incident_ids=recovered_ids,
+    )
+
+
 def _resolve_alert_target(payload: AlertmanagerWebhook) -> tuple[str, str, str]:
     labels = dict(payload.commonLabels)
     if payload.alerts:
@@ -266,73 +378,37 @@ def _is_resolved_alert(payload: AlertmanagerWebhook) -> bool:
     return all(status == "resolved" for status in statuses)
 
 
-@app.post("/webhooks/alertmanager", response_model=IncidentResponse)
-async def alertmanager_webhook(
-    payload: AlertmanagerWebhook,
-    authorization: str | None = Header(default=None, alias="X-API-Key"),
-) -> IncidentResponse:
-    _require_alertmanager_api_key(authorization)
-    kind, namespace, name = _resolve_alert_target(payload)
-    statuses = _alert_statuses(payload)
-    log_event(
-        "alertmanager_webhook_received",
-        kind=kind,
-        namespace=namespace,
-        name=name,
-        alert_statuses=",".join(statuses) if statuses else "unknown",
-    )
-    existing = find_active_incident_by_target(kind, namespace, name)
-    if _is_resolved_alert(payload):
-        if existing is not None:
-            append_incident_event(
-                existing["incident_id"],
-                event_name="alertmanager_resolved",
-                source="alertmanager",
-                details={"alert_statuses": statuses},
-                lifecycle_status="resolved",
-            )
-            merged = update_incident(existing["incident_id"], {"notification_status": "Skipped notification for resolved alert."})
-            log_event(
-                "alertmanager_webhook_deduplicated_resolved",
-                incident_id=existing["incident_id"],
-                kind=kind,
-                namespace=namespace,
-                name=name,
-            )
-            return IncidentResponse.model_validate(merged or existing)
-        incident = create_incident(
-            {
-                "kind": kind,
-                "namespace": namespace,
-                "name": name,
-                "source": "alertmanager",
-                "lifecycle_status": "resolved",
-                "answer": "Alertmanager reported this alert as resolved; investigation and remediation were skipped.",
-                "evidence": f"Alert statuses: {', '.join(statuses)}",
-                "action_ids": [],
-                "proposed_actions": [],
-                "notification_status": "Skipped notification for resolved alert.",
-            }
-        )
-        log_event(
-            "alertmanager_webhook_skipped_resolved",
-            incident_id=incident["incident_id"],
-            kind=kind,
-            namespace=namespace,
-            name=name,
-        )
-        return IncidentResponse.model_validate(incident)
+def _receiver_name(receiver: str | None) -> str:
+    return (receiver or "").strip() or "unknown"
 
+
+def _target_key(kind: str, namespace: str, name: str) -> str:
+    return f"{kind}/{namespace}/{name}"
+
+
+async def _ingest_alert_target(
+    *,
+    kind: str,
+    namespace: str,
+    name: str,
+    statuses: list[str],
+    receiver: str,
+    success_outcome: str = "success",
+) -> IncidentResponse:
+    target = _target_key(kind, namespace, name)
+    existing = find_active_incident_by_target(kind, namespace, name)
     if existing is not None:
         merged = append_incident_event(
             existing["incident_id"],
             event_name="alertmanager_duplicate_firing",
             source="alertmanager",
-            details={"alert_statuses": statuses},
+            details={"alert_statuses": statuses, "receiver": receiver},
         )
+        record_ingestion_event(receiver, target, "deduplicated")
         log_event(
             "alertmanager_webhook_deduplicated",
             incident_id=existing["incident_id"],
+            receiver=receiver,
             kind=kind,
             namespace=namespace,
             name=name,
@@ -345,8 +421,95 @@ async def alertmanager_webhook(
     attach_actions_to_incident(incident.get("action_ids", []), incident["incident_id"])
     incident["notification_status"] = send_telegram_notification(incident)
     update_incident(incident["incident_id"], {"source": "alertmanager", "notification_status": incident["notification_status"]})
-    log_event("alertmanager_webhook_completed", incident_id=incident["incident_id"], kind=kind, namespace=namespace, name=name)
+    record_ingestion_event(receiver, target, success_outcome)
+    log_event(
+        "alertmanager_webhook_completed",
+        incident_id=incident["incident_id"],
+        receiver=receiver,
+        kind=kind,
+        namespace=namespace,
+        name=name,
+    )
     return IncidentResponse.model_validate(incident)
+
+
+@app.post("/webhooks/alertmanager", response_model=IncidentResponse)
+async def alertmanager_webhook(
+    payload: AlertmanagerWebhook,
+    authorization: str | None = Header(default=None, alias="X-API-Key"),
+) -> IncidentResponse:
+    _require_alertmanager_api_key(authorization)
+    receiver = _receiver_name(payload.receiver)
+    kind, namespace, name = _resolve_alert_target(payload)
+    target = _target_key(kind, namespace, name)
+    statuses = _alert_statuses(payload)
+    log_event(
+        "alertmanager_webhook_received",
+        receiver=receiver,
+        kind=kind,
+        namespace=namespace,
+        name=name,
+        alert_statuses=",".join(statuses) if statuses else "unknown",
+    )
+    try:
+        existing = find_active_incident_by_target(kind, namespace, name)
+        if _is_resolved_alert(payload):
+            if existing is not None:
+                append_incident_event(
+                    existing["incident_id"],
+                    event_name="alertmanager_resolved",
+                    source="alertmanager",
+                    details={"alert_statuses": statuses, "receiver": receiver},
+                    lifecycle_status="resolved",
+                )
+                merged = update_incident(existing["incident_id"], {"notification_status": "Skipped notification for resolved alert."})
+                record_ingestion_event(receiver, target, "resolved")
+                log_event(
+                    "alertmanager_webhook_deduplicated_resolved",
+                    incident_id=existing["incident_id"],
+                    receiver=receiver,
+                    kind=kind,
+                    namespace=namespace,
+                    name=name,
+                )
+                return IncidentResponse.model_validate(merged or existing)
+            incident = create_incident(
+                {
+                    "kind": kind,
+                    "namespace": namespace,
+                    "name": name,
+                    "source": "alertmanager",
+                    "lifecycle_status": "resolved",
+                    "answer": "Alertmanager reported this alert as resolved; investigation and remediation were skipped.",
+                    "evidence": f"Alert statuses: {', '.join(statuses)}",
+                    "action_ids": [],
+                    "proposed_actions": [],
+                    "notification_status": "Skipped notification for resolved alert.",
+                }
+            )
+            record_ingestion_event(receiver, target, "resolved")
+            log_event(
+                "alertmanager_webhook_skipped_resolved",
+                incident_id=incident["incident_id"],
+                receiver=receiver,
+                kind=kind,
+                namespace=namespace,
+                name=name,
+            )
+            return IncidentResponse.model_validate(incident)
+
+        return await _ingest_alert_target(kind=kind, namespace=namespace, name=name, statuses=statuses, receiver=receiver)
+    except Exception as exc:
+        record_ingestion_event(receiver, target, "failed", detail=str(exc))
+        log_event(
+            "alertmanager_webhook_failed",
+            receiver=receiver,
+            kind=kind,
+            namespace=namespace,
+            name=name,
+            error=str(exc),
+        )
+        raise
 
 
 @app.get("/incidents", response_model=IncidentsResponse)
