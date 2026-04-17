@@ -27,6 +27,14 @@ REQUIRED_INCIDENT_KEYS = {
     "action_ids",
     "proposed_actions",
     "notification_status",
+    "dedup_key",
+    "lifecycle_status",
+    "dedup_count",
+    "event_history",
+    "created_at",
+    "updated_at",
+    "supersedes_incident_id",
+    "related_incident_ids",
 }
 
 
