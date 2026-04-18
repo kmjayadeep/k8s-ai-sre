@@ -6,7 +6,15 @@
 
 Use this as the canonical deploy + rollback runbook for Kubernetes.
 
-**Recommended:** Use the [Helm chart](https://github.com/kmjayadeep/k8s-ai-sre/tree/main/chart) for production deployments. The Helm chart handles namespace, RBAC, ServiceAccount, and Secret creation automatically. See [docs/quickstart.md](quickstart.md) for a quick Helm install guide, or `chart/examples/` for inline and existing-secret modes.
+**Recommended:** Use the published Helm repository for production installs. The Helm chart handles namespace, RBAC, ServiceAccount, and Secret creation automatically.
+
+```bash
+helm repo add k8s-ai-sre https://raw.githubusercontent.com/kmjayadeep/k8s-ai-sre/gh-pages/
+helm repo update
+helm install k8s-ai-sre k8s-ai-sre/k8s-ai-sre --namespace ai-sre-system --create-namespace --version 0.1.0 --values my-values.yaml
+```
+
+See [docs/quickstart.md](quickstart.md) for the full Helm install guide, or `chart/examples/` for inline and existing-secret modes.
 
 **Alternative:** Use `kubectl apply -k deploy` (see below).
 

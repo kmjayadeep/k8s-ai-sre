@@ -129,18 +129,26 @@ secretData:
   WRITE_ALLOWED_NAMESPACES: "ai-sre-demo"
 ```
 
-### 2. Install the chart
+### 2. Add the published Helm repository
 
 ```bash
-helm install k8s-ai-sre ./chart \
+helm repo add k8s-ai-sre https://raw.githubusercontent.com/kmjayadeep/k8s-ai-sre/gh-pages/
+helm repo update
+```
+
+### 3. Install the chart
+
+```bash
+helm install k8s-ai-sre k8s-ai-sre/k8s-ai-sre \
   --namespace ai-sre-system \
   --create-namespace \
+  --version 0.1.0 \
   --values my-values.yaml \
   --timeout 2m \
   --wait
 ```
 
-### 3. Verify
+### 4. Verify
 
 ```bash
 kubectl -n ai-sre-system get pods,svc
@@ -151,12 +159,15 @@ curl -s $(kubectl -n ai-sre-system get svc k8s-ai-sre -o jsonpath='{.spec.cluste
 ### Upgrading
 
 ```bash
-helm upgrade --install k8s-ai-sre ./chart \
+helm upgrade --install k8s-ai-sre k8s-ai-sre/k8s-ai-sre \
   --namespace ai-sre-system \
+  --version 0.1.0 \
   --values my-values.yaml \
   --timeout 2m \
   --wait
 ```
+
+For local chart development, you can still install from source with `helm install k8s-ai-sre ./chart ...`.
 
 ### Uninstalling
 
