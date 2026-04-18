@@ -1,0 +1,43 @@
+name: Helm Chart Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - chart/**
+      - .github/workflows/helm-chart-release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: helm-chart-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint chart
+        run: helm lint chart
+
+      - name: Package and publish chart repository
+        uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: chart
+          charts_repo_url: https://raw.githubusercontent.com/kmjayadeep/k8s-ai-sre/gh-pages
+          pages_branch: gh-pages
+          skip_existing: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}

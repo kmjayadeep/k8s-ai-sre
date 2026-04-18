@@ -158,6 +158,20 @@ Use `/status <incident-id>` to confirm the notification state and action IDs.
 
 ## Kubernetes Deployment
 
+Install via the published Helm repository (no repo clone required):
+
+```bash
+helm repo add k8s-ai-sre https://raw.githubusercontent.com/kmjayadeep/k8s-ai-sre/gh-pages/
+helm repo update
+helm install k8s-ai-sre k8s-ai-sre/k8s-ai-sre \
+  --namespace ai-sre-system \
+  --create-namespace \
+  --version 0.1.0 \
+  --values my-values.yaml
+```
+
+The chart repository is published from `chart/` by `.github/workflows/helm-chart-release.yml` whenever chart files change on `main`.
+
 ```bash
 # Create namespace and secret
 kubectl create namespace ai-sre-system
