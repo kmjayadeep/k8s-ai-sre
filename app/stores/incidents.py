@@ -127,6 +127,26 @@ def _normalize_event_history(payload: dict[str, object]) -> list[dict[str, objec
     return normalized
 
 
+def _normalize_related_incident_ids(payload: dict[str, object], incident_id: str) -> list[str]:
+    raw_related = payload.get("related_incident_ids", [])
+    if not isinstance(raw_related, list):
+        return []
+    normalized: list[str] = []
+    for item in raw_related:
+        candidate = _string(item).strip()
+        if not candidate or candidate == incident_id or candidate in normalized:
+            continue
+        normalized.append(candidate)
+    return normalized
+
+
+def _normalize_supersedes_incident_id(payload: dict[str, object], incident_id: str) -> str | None:
+    candidate = _string(payload.get("supersedes_incident_id")).strip()
+    if not candidate or candidate == incident_id:
+        return None
+    return candidate
+
+
 def _target_dedup_key(kind: str, namespace: str, name: str) -> str:
     return f"{kind.strip().lower()}:{namespace.strip().lower()}:{name.strip().lower()}"
 
@@ -156,6 +176,9 @@ def normalize_incident_payload(payload: dict[str, object], incident_id: str | No
     if not action_ids:
         action_ids = [item["action_id"] for item in normalized["proposed_actions"]]
     normalized["action_ids"] = action_ids
+    current_incident_id = _string(normalized.get("incident_id")).strip()
+    normalized["related_incident_ids"] = _normalize_related_incident_ids(normalized, current_incident_id)
+    normalized["supersedes_incident_id"] = _normalize_supersedes_incident_id(normalized, current_incident_id)
     created_at = _string(normalized.get("created_at")).strip()
     updated_at = _string(normalized.get("updated_at")).strip()
     if not created_at:
@@ -178,6 +201,45 @@ def normalize_incident_payload(payload: dict[str, object], incident_id: str | No
     return normalized
 
 
+def _incident_sort_key(incident: dict[str, object]) -> tuple[str, str, str]:
+    return (
+        _string(incident.get("created_at")),
+        _string(incident.get("updated_at")),
+        _string(incident.get("incident_id")),
+    )
+
+
+def _normalize_and_backfill_incidents(incidents: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+    normalized_records: dict[str, dict[str, object]] = {}
+    dirty = False
+    grouped_by_target: dict[str, list[dict[str, object]]] = {}
+
+    for incident_id, incident in incidents.items():
+        normalized = normalize_incident_payload(incident, incident_id=incident_id)
+        if normalized != incident:
+            dirty = True
+        normalized_records[incident_id] = normalized
+        grouped_by_target.setdefault(_string(normalized.get("dedup_key")), []).append(normalized)
+
+    for group in grouped_by_target.values():
+        group.sort(key=_incident_sort_key)
+        ordered_ids = [_string(item.get("incident_id")) for item in group]
+        for index, incident in enumerate(group):
+            incident_id = _string(incident.get("incident_id"))
+            expected_supersedes = ordered_ids[index - 1] if index > 0 else None
+            expected_related = [candidate for candidate in ordered_ids if candidate != incident_id]
+            if incident.get("supersedes_incident_id") != expected_supersedes:
+                incident["supersedes_incident_id"] = expected_supersedes
+                dirty = True
+            if incident.get("related_incident_ids") != expected_related:
+                incident["related_incident_ids"] = expected_related
+                dirty = True
+
+    if dirty:
+        _save_incidents(normalized_records)
+    return normalized_records
+
+
 def create_incident(payload: dict[str, object]) -> dict[str, object]:
     incidents = _load_incidents()
     incident_id = uuid4().hex[:10]
@@ -190,33 +252,17 @@ def create_incident(payload: dict[str, object]) -> dict[str, object]:
     record["event_history"].append({"event": "incident_created", "source": record["source"], "occurred_at": now})
     incidents[incident_id] = record
     _save_incidents(incidents)
-    return record
+    incidents = _normalize_and_backfill_incidents(incidents)
+    return incidents[incident_id]
 
 
 def get_incident(incident_id: str) -> dict[str, object] | None:
-    incidents = _load_incidents()
-    incident = incidents.get(incident_id)
-    if incident is None:
-        return None
-    normalized = normalize_incident_payload(incident, incident_id=incident_id)
-    if normalized != incident:
-        incidents[incident_id] = normalized
-        _save_incidents(incidents)
-    return normalized
+    incidents = _normalize_and_backfill_incidents(_load_incidents())
+    return incidents.get(incident_id)
 
 
 def list_incidents() -> list[dict[str, object]]:
-    incidents = _load_incidents()
-    normalized_records: dict[str, dict[str, object]] = {}
-    dirty = False
-    for incident_id, incident in incidents.items():
-        normalized = normalize_incident_payload(incident, incident_id=incident_id)
-        if normalized != incident:
-            incidents[incident_id] = normalized
-            dirty = True
-        normalized_records[incident_id] = normalized
-    if dirty:
-        _save_incidents(incidents)
+    normalized_records = _normalize_and_backfill_incidents(_load_incidents())
     return [normalized_records[incident_id] for incident_id in sorted(normalized_records.keys(), reverse=True)]
 
 
@@ -230,25 +276,18 @@ def update_incident(incident_id: str, updates: dict[str, object]) -> dict[str, o
     normalized = normalize_incident_payload(incident, incident_id=incident_id)
     incidents[incident_id] = normalized
     _save_incidents(incidents)
-    return normalized
+    incidents = _normalize_and_backfill_incidents(incidents)
+    return incidents[incident_id]
 
 
 def find_active_incident_by_target(kind: str, namespace: str, name: str) -> dict[str, object] | None:
-    incidents = _load_incidents()
+    incidents = _normalize_and_backfill_incidents(_load_incidents())
     dedup_key = _target_dedup_key(kind, namespace, name)
-    dirty = False
     matches: list[dict[str, object]] = []
 
-    for incident_id, incident in incidents.items():
-        normalized = normalize_incident_payload(incident, incident_id=incident_id)
-        if normalized != incident:
-            incidents[incident_id] = normalized
-            dirty = True
-        if normalized["dedup_key"] == dedup_key and normalized["lifecycle_status"] == "active":
-            matches.append(normalized)
-
-    if dirty:
-        _save_incidents(incidents)
+    for incident in incidents.values():
+        if incident["dedup_key"] == dedup_key and incident["lifecycle_status"] == "active":
+            matches.append(incident)
     if not matches:
         return None
     matches.sort(key=lambda item: (_string(item.get("updated_at")), _string(item.get("created_at")), _string(item.get("incident_id"))))
@@ -285,4 +324,5 @@ def append_incident_event(
 
     incidents[incident_id] = normalize_incident_payload(normalized, incident_id=incident_id)
     _save_incidents(incidents)
+    incidents = _normalize_and_backfill_incidents(incidents)
     return incidents[incident_id]

@@ -74,6 +74,13 @@ class InvestigationBriefResponse(BaseModel):
     action_items: list[str] = Field(default_factory=list)
 
 
+class IncidentEventResponse(BaseModel):
+    event: str
+    source: str
+    occurred_at: str
+    details: dict[str, object] = Field(default_factory=dict)
+
+
 class IncidentResponse(BaseModel):
     incident_id: str
     kind: str
@@ -90,6 +97,14 @@ class IncidentResponse(BaseModel):
     action_ids: list[str] = Field(default_factory=list)
     proposed_actions: list[ProposedActionResponse] = Field(default_factory=list)
     notification_status: str | None = None
+    dedup_key: str = ""
+    lifecycle_status: str = "active"
+    dedup_count: int = 0
+    event_history: list[IncidentEventResponse] = Field(default_factory=list)
+    created_at: str = ""
+    updated_at: str = ""
+    supersedes_incident_id: str | None = None
+    related_incident_ids: list[str] = Field(default_factory=list)
 
 
 class IncidentsResponse(BaseModel):

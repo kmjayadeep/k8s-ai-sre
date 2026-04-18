@@ -218,6 +218,36 @@
       padding: 0.12rem 0.28rem;
     }
 
+    .timeline-list {
+      margin: 0;
+      padding-left: 1rem;
+      display: grid;
+      gap: 0.55rem;
+      font-size: 0.88rem;
+    }
+
+    .timeline-event {
+      color: #111827;
+      line-height: 1.4;
+    }
+
+    .timeline-meta {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      font-size: 0.78rem;
+      color: #0f172a;
+      background: #f8fafc;
+      margin-right: 0.35rem;
+    }
+
     @media (max-width: 900px) {
       .shell {
         grid-template-columns: 1fr;
@@ -237,7 +267,7 @@
   <main class="shell">
     <section class="panel">
       <h1>Incident Feed</h1>
-      <p class="subline">Select an incident to inspect the summary, source, and proposed actions.</p>
+      <p class="subline">One row per target. Open a row to inspect linked incidents and full lifecycle timeline.</p>
       <div id="incident-list"></div>
     </section>
 
@@ -252,7 +282,8 @@
     const listEl = document.getElementById("incident-list");
     const hintEl = document.getElementById("detail-hint");
     const detailGridEl = document.getElementById("detail-grid");
-    let selectedId = null;
+    let selectedTargetKey = null;
+    let groupedTimeline = [];
 
     function escapeHtml(value) {
       return String(value)
@@ -286,58 +317,125 @@
       return lifecycleStatus === "resolved" ? "chip resolved" : "chip active";
     }
 
-    function renderIncidentDetail(incident) {
-      const answer = incident.answer && incident.answer.trim() ? escapeHtml(incident.answer) : "No summary available.";
-      const notification = incident.notification_status ? escapeHtml(incident.notification_status) : "not sent";
-      const actions = (incident.proposed_actions || []).map(renderAction).join("");
+    function targetLabel(incident) {
+      return `${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}`;
+    }
+
+    function timelineSortValue(incident) {
+      const parsed = Date.parse(incident.updated_at || incident.created_at || "");
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+      return 0;
+    }
+
+    function groupIncidentsByTarget(incidents) {
+      const groups = new Map();
+      for (const incident of incidents) {
+        const key = `${incident.kind || ""}:${incident.namespace || ""}:${incident.name || ""}`;
+        if (!groups.has(key)) {
+          groups.set(key, []);
+        }
+        groups.get(key).push(incident);
+      }
+
+      const grouped = [];
+      for (const [key, items] of groups.entries()) {
+        const sorted = [...items].sort((a, b) => timelineSortValue(a) - timelineSortValue(b));
+        const latest = sorted[sorted.length - 1];
+        grouped.push({ key, incidents: sorted, latest, label: targetLabel(latest) });
+      }
+
+      grouped.sort((a, b) => timelineSortValue(b.latest) - timelineSortValue(a.latest));
+      return grouped;
+    }
+
+    function renderTimeline(group) {
+      const entries = [];
+      for (const incident of group.incidents) {
+        const incidentPill = `<span class="pill">Incident ${escapeHtml(incident.incident_id)}</span>`;
+        const statusPill = `<span class="pill">${escapeHtml((incident.lifecycle_status || "active").toUpperCase())}</span>`;
+        entries.push(`
+          <li class="timeline-event">
+            ${incidentPill}${statusPill}
+            <div class="timeline-meta">Created ${escapeHtml(incident.created_at || "unknown")} · Updated ${escapeHtml(incident.updated_at || "unknown")}</div>
+          </li>
+        `);
+        for (const event of incident.event_history || []) {
+          entries.push(`
+            <li class="timeline-event">
+              ${escapeHtml(event.event || "event")}
+              <div class="timeline-meta">${escapeHtml(event.occurred_at || "unknown")} · source=${escapeHtml(event.source || "unknown")}</div>
+            </li>
+          `);
+        }
+      }
+
+      if (!entries.length) {
+        return '<p class="answer">No timeline events recorded.</p>';
+      }
+      return `<ul class="timeline-list">${entries.join("")}</ul>`;
+    }
+
+    function renderIncidentDetail(group) {
+      const latest = group.latest;
+      const answer = latest.answer && latest.answer.trim() ? escapeHtml(latest.answer) : "No summary available.";
+      const notification = latest.notification_status ? escapeHtml(latest.notification_status) : "not sent";
+      const actions = (latest.proposed_actions || []).map(renderAction).join("");
       const actionsMarkup = actions ? `<ul class="action-list">${actions}</ul>` : '<p class="answer">No proposed actions.</p>';
+      const linkedIds = group.incidents.map((item) => `<code>${escapeHtml(item.incident_id)}</code>`).join(", ");
+      const timelineMarkup = renderTimeline(group);
 
       detailGridEl.innerHTML = `
         <article class="card">
-          <h3>Incident Overview</h3>
+          <h3>Target Overview</h3>
           <dl class="kv">
-            <dt>Incident ID</dt><dd><code>${escapeHtml(incident.incident_id)}</code></dd>
-            <dt>Target</dt><dd>${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}</dd>
-            <dt>Lifecycle</dt><dd><span class="${lifecycleClass(incident.lifecycle_status)}">${escapeHtml(incident.lifecycle_status || "active")}</span></dd>
-            <dt>Source</dt><dd>${escapeHtml(incident.source || "manual")}</dd>
-            <dt>Created</dt><dd>${formatTimestamp(incident.created_at)}</dd>
-            <dt>Updated</dt><dd>${formatTimestamp(incident.updated_at)}</dd>
-            <dt>Last Event</dt><dd>${formatTimestamp(incident.last_event_at)}</dd>
+            <dt>Target</dt><dd>${targetLabel(latest)}</dd>
+            <dt>Latest Incident</dt><dd><code>${escapeHtml(latest.incident_id)}</code></dd>
+            <dt>Lifecycle</dt><dd><span class="${lifecycleClass(latest.lifecycle_status)}">${escapeHtml(latest.lifecycle_status || "active")}</span></dd>
+            <dt>Source</dt><dd>${escapeHtml(latest.source || "manual")}</dd>
+            <dt>Created</dt><dd>${formatTimestamp(latest.created_at)}</dd>
+            <dt>Updated</dt><dd>${formatTimestamp(latest.updated_at)}</dd>
+            <dt>Last Event</dt><dd>${formatTimestamp(latest.last_event_at)}</dd>
             <dt>Notifications</dt><dd>${notification}</dd>
+            <dt>Linked Incidents</dt><dd>${linkedIds}</dd>
           </dl>
         </article>
 
         <article class="card">
-          <h3>Investigation Summary</h3>
+          <h3>Latest Investigation Summary</h3>
           <p class="answer">${answer}</p>
         </article>
 
         <article class="card">
-          <h3>Proposed Actions</h3>
+          <h3>Latest Proposed Actions</h3>
           ${actionsMarkup}
+        </article>
+
+        <article class="card">
+          <h3>Incident Timeline</h3>
+          ${timelineMarkup}
         </article>
       `;
     }
 
-    function setSelectedButton(incidentId) {
+    function setSelectedButton(targetKey) {
       for (const element of listEl.querySelectorAll(".incident-item")) {
-        element.classList.toggle("active", element.dataset.incidentId === incidentId);
+        element.classList.toggle("active", element.dataset.targetKey === targetKey);
       }
     }
 
-    async function inspectIncident(incidentId) {
-      selectedId = incidentId;
-      setSelectedButton(incidentId);
-      const response = await fetch(`/incidents/${incidentId}`);
-      if (!response.ok) {
-        hintEl.textContent = "Incident not found.";
+    function inspectTarget(targetKey) {
+      selectedTargetKey = targetKey;
+      setSelectedButton(targetKey);
+      const group = groupedTimeline.find((item) => item.key === targetKey);
+      if (!group) {
+        hintEl.textContent = "Target timeline not found.";
         detailGridEl.innerHTML = "";
         return;
       }
-
-      const incident = await response.json();
-      hintEl.textContent = `Inspecting ${incident.incident_id}`;
-      renderIncidentDetail(incident);
+      hintEl.textContent = `Inspecting ${group.label}`;
+      renderIncidentDetail(group);
     }
 
     async function loadIncidents() {
@@ -356,28 +454,29 @@
         return;
       }
 
+      groupedTimeline = groupIncidentsByTarget(incidents);
       listEl.innerHTML = "";
-      for (const incident of incidents) {
+      for (const group of groupedTimeline) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "incident-item";
-        button.dataset.incidentId = incident.incident_id;
+        button.dataset.targetKey = group.key;
         button.innerHTML = `
-          <p class="incident-title">${escapeHtml(incident.incident_id)}</p>
-          <p class="incident-subtitle">${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}</p>
+          <p class="incident-title">${group.label}</p>
+          <p class="incident-subtitle">${group.incidents.length} linked incident(s)</p>
           <p class="incident-meta">
-            <span class="${lifecycleClass(incident.lifecycle_status)}">${escapeHtml(incident.lifecycle_status || "active")}</span>
-            <span>Updated: ${formatTimestamp(incident.updated_at)}</span>
+            <span class="${lifecycleClass(group.latest.lifecycle_status)}">${escapeHtml(group.latest.lifecycle_status || "active")}</span>
+            <span>Updated: ${formatTimestamp(group.latest.updated_at || group.latest.created_at)}</span>
           </p>
         `;
-        button.addEventListener("click", () => inspectIncident(incident.incident_id));
+        button.addEventListener("click", () => inspectTarget(group.key));
         listEl.appendChild(button);
       }
 
-      if (!selectedId) {
-        await inspectIncident(incidents[0].incident_id);
+      if (!selectedTargetKey) {
+        inspectTarget(groupedTimeline[0].key);
       } else {
-        await inspectIncident(selectedId);
+        inspectTarget(selectedTargetKey);
       }
     }
 
