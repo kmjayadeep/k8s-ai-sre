@@ -163,28 +163,24 @@ Install via the published Helm repository (no repo clone required):
 ```bash
 helm repo add k8s-ai-sre https://raw.githubusercontent.com/kmjayadeep/k8s-ai-sre/gh-pages/
 helm repo update
+kubectl create namespace ai-sre-system
+kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
+  --from-literal=MODEL_API_KEY="$MODEL_API_KEY" \
+  --from-literal=MODEL_NAME="$MODEL_NAME" \
+  --from-literal=WRITE_ALLOWED_NAMESPACES="$WRITE_ALLOWED_NAMESPACES"
 helm install k8s-ai-sre k8s-ai-sre/k8s-ai-sre \
   --namespace ai-sre-system \
   --create-namespace \
-  --version 0.1.0 \
-  --values my-values.yaml
+  --set secretMode=existing \
+  --set existingSecret.name=k8s-ai-sre-env \
+  --set writeAllowedNamespaces[0]=ai-sre-demo \
+  --timeout 2m \
+  --wait
 ```
 
 The chart repository is published from `chart/` by `.github/workflows/helm-chart-release.yml` whenever chart files change on `main`.
 
-```bash
-# Create namespace and secret
-kubectl create namespace ai-sre-system
-kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
-  --from-literal=MODEL_API_KEY="***" \
-  --from-literal=MODEL_NAME="$MODEL_NAME" \
-  --from-literal=WRITE_ALLOWED_NAMESPACES="$WRITE_ALLOWED_NAMESPACES"
-
-# Deploy
-kubectl apply -k deploy
-```
-
-Image: `ghcr.io/kmjayadeep/k8s-ai-sre:main`
+**Alternative:** Use `kubectl apply -k deploy` — see [Deployment Guide](docs/deployment.md) for the manifest path and rollback runbook.
 
 ---
 

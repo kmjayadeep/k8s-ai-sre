@@ -11,7 +11,19 @@ Use this as the canonical deploy + rollback runbook for Kubernetes.
 ```bash
 helm repo add k8s-ai-sre https://raw.githubusercontent.com/kmjayadeep/k8s-ai-sre/gh-pages/
 helm repo update
-helm install k8s-ai-sre k8s-ai-sre/k8s-ai-sre --namespace ai-sre-system --create-namespace --version 0.1.0 --values my-values.yaml
+kubectl create namespace ai-sre-system
+kubectl -n ai-sre-system create secret generic k8s-ai-sre-env \
+  --from-literal=MODEL_API_KEY="$MODEL_API_KEY" \
+  --from-literal=MODEL_NAME="$MODEL_NAME" \
+  --from-literal=WRITE_ALLOWED_NAMESPACES="$WRITE_ALLOWED_NAMESPACES"
+helm install k8s-ai-sre k8s-ai-sre/k8s-ai-sre \
+  --namespace ai-sre-system \
+  --create-namespace \
+  --set secretMode=existing \
+  --set existingSecret.name=k8s-ai-sre-env \
+  --set writeAllowedNamespaces[0]=ai-sre-demo \
+  --timeout 2m \
+  --wait
 ```
 
 See [docs/quickstart.md](quickstart.md) for the full Helm install guide, or `chart/examples/` for inline and existing-secret modes.
