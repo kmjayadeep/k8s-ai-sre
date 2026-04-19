@@ -139,6 +139,62 @@ kubectl -n ai-sre-system rollout status deployment/k8s-ai-sre
 
 After rollback, repeat `/healthz` and one investigation smoke check.
 
+## Incident response: Alertmanager ingestion
+
+The service tracks Alertmanager delivery outcomes and exposes visibility and recovery endpoints.
+
+### Ingestion status
+
+`GET /ingestion-status` returns the current Alertmanager ingestion health snapshot:
+
+```json
+{
+  "status": "healthy",
+  "window_size": 300,
+  "failed_deliveries": 0,
+  "failure_rate": 0.0,
+  "degrade_threshold": 0.2,
+  "min_samples": 5,
+  "failed_by_receiver": {},
+  "failed_by_target": {},
+  "last_failure_at": null,
+  "last_failure_detail": null
+}
+```
+
+Threshold and sample size are controlled by environment variables:
+
+- `ALERTMANAGER_INGESTION_FAILURE_THRESHOLD` (default `0.2`): failure rate above which `status` becomes `"degraded"`
+- `ALERTMANAGER_INGESTION_MIN_SAMPLES` (default `5`): minimum samples required before declaring degradation
+
+### Reconciliation
+
+`POST /reconcile/alertmanager` re-processes an Alertmanager firing payload to recover incidents that may have been missed during a degraded ingestion window:
+
+```bash
+curl -X POST http://127.0.0.1:8080/reconcile/alertmanager \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: <ALERTMANAGER_API_KEY>' \
+  -d @examples/alertmanager-bad-deploy.json
+```
+
+Idempotent: re-running the same payload is safe and skips already-resolved incidents.
+
+Response:
+
+```json
+{
+  "receiver": "kubernetes-alerting",
+  "active_alerts_seen": 1,
+  "recovered_incidents": 1,
+  "skipped_existing_incidents": 0,
+  "failed_alerts": 0,
+  "recovered_incident_ids": ["a1b2c3d4e5"]
+}
+```
+
+When to use: after resolving an Alertmanager delivery outage, run `/reconcile/alertmanager` with the missed alerts to ensure the service processes the firing events and recreates open incidents.
+
 ## Incident response: Telegram/API degradation
 
 ### Telegram degradation
