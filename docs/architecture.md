@@ -37,3 +37,23 @@ Guardrails currently enforced include:
 - namespace allow-list via `WRITE_ALLOWED_NAMESPACES`
 - deployment existence checks for `scale` and `rollout-undo`
 - non-negative replica checks for `scale`
+
+## Operator Diagnostics
+
+Queue pressure and investigation worker heartbeat are exposed through `GET /queue-status`.
+
+Example payload:
+
+```json
+{
+  "queue_depth": 2,
+  "max_queue_size": 50,
+  "active_investigations": 1,
+  "max_concurrent_investigations": 5,
+  "queue_utilization": 0.04,
+  "last_processing_heartbeat_at": "2026-04-23T06:58:01.531275+00:00",
+  "last_processing_heartbeat_age_seconds": 3.417,
+  "last_processing_target": "deployment/ai-sre-demo/bad-deploy",
+  "last_processing_state": "completed"
+}
+```
