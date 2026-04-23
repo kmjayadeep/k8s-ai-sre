@@ -10,6 +10,7 @@ import app.stores.incidents as incident_store
 from fastapi import HTTPException
 
 from app.alert_ingestion import reset_ingestion_state_for_tests
+from app.backpressure import _reset_queue, record_processing_heartbeat
 from app.http import (
     AlertmanagerReconcileRequest,
     AlertmanagerWebhook,
@@ -70,6 +71,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         reset_metrics_for_tests()
         reset_ingestion_state_for_tests()
+        _reset_queue()
         self.tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(self.tempdir.cleanup)
         self.incident_path = Path(self.tempdir.name) / "incidents.json"
@@ -347,6 +349,34 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual(5, status["failed_deliveries"])
         self.assertEqual(1.0, status["failure_rate"])
         self.assertEqual(5, status["failed_by_receiver"]["k8s-ai-sre-webhook"])
+
+    def test_queue_status_exposes_backpressure_and_processing_heartbeat_contract(self) -> None:
+        empty = run(queue_status()).model_dump()
+        self.assertEqual(
+            {
+                "queue_depth",
+                "max_queue_size",
+                "active_investigations",
+                "max_concurrent_investigations",
+                "queue_utilization",
+                "last_processing_heartbeat_at",
+                "last_processing_heartbeat_age_seconds",
+                "last_processing_target",
+                "last_processing_state",
+            },
+            set(empty.keys()),
+        )
+        self.assertIsNone(empty["last_processing_heartbeat_at"])
+        self.assertIsNone(empty["last_processing_heartbeat_age_seconds"])
+        self.assertIsNone(empty["last_processing_target"])
+        self.assertIsNone(empty["last_processing_state"])
+
+        record_processing_heartbeat("deployment", "ai-sre-demo", "bad-deploy", state="completed")
+        active = run(queue_status()).model_dump()
+        self.assertEqual("deployment/ai-sre-demo/bad-deploy", active["last_processing_target"])
+        self.assertEqual("completed", active["last_processing_state"])
+        self.assertIsInstance(active["last_processing_heartbeat_at"], str)
+        self.assertIsInstance(active["last_processing_heartbeat_age_seconds"], float)
 
     def test_alertmanager_to_approval_executes_linked_action(self) -> None:
         action = action_service.propose_action("delete-pod", "ai-sre-demo", "crashy")

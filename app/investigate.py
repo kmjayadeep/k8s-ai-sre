@@ -1,6 +1,7 @@
 from agents import Agent, Runner
 
 from app.actions import begin_proposal_capture, finish_proposal_capture, propose_action
+from app.backpressure import record_processing_heartbeat
 from app.investigation_brief import parse_investigation_brief
 from app.log import log_event
 from app.prompts import AGENT_INSTRUCTIONS, build_demo_prompt
@@ -52,42 +53,48 @@ def create_agent() -> Agent:
 
 
 async def investigate_target(kind: str, namespace: str, name: str, emit_progress: bool = True) -> dict[str, object]:
+    record_processing_heartbeat(kind, namespace, name, state="started")
     log_event("investigation_started", kind=kind, namespace=namespace, name=name)
-    agent = create_agent()
-    evidence = collect_investigation_evidence(kind, namespace, name)
-    if emit_progress:
-        print("Agent: Processing request...")
-        print("Collected evidence:")
-        print(evidence)
+    try:
+        agent = create_agent()
+        evidence = collect_investigation_evidence(kind, namespace, name)
+        if emit_progress:
+            print("Agent: Processing request...")
+            print("Collected evidence:")
+            print(evidence)
 
-    capture_token = begin_proposal_capture()
-    result = await Runner.run(agent, build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence)
-    proposed_actions = finish_proposal_capture(capture_token)
-    fallback_action_type: str | None = None
-    if not proposed_actions:
-        fallback_token = begin_proposal_capture()
-        fallback_action_type = _create_deterministic_fallback_proposal(kind, namespace, name)
-        proposed_actions = finish_proposal_capture(fallback_token)
-        if proposed_actions and fallback_action_type is not None:
-            log_event(
-                "investigation_fallback_proposal_created",
-                kind=kind,
-                namespace=namespace,
-                name=name,
-                action_type=fallback_action_type,
-            )
-    raw_output = str(result.final_output)
-    response = {
-        "kind": kind,
-        "namespace": namespace,
-        "name": name,
-        "evidence": evidence,
-        "answer": raw_output,
-        "brief": parse_investigation_brief(raw_output),
-        "proposed_actions": proposed_actions,
-        "action_ids": [str(item["action_id"]) for item in proposed_actions],
-    }
-    log_event("investigation_completed", kind=kind, namespace=namespace, name=name)
-    if emit_progress:
-        print(f"Agent: {result.final_output}")
-    return response
+        capture_token = begin_proposal_capture()
+        result = await Runner.run(agent, build_demo_prompt(kind, namespace, name) + "\n\nEvidence:\n" + evidence)
+        proposed_actions = finish_proposal_capture(capture_token)
+        fallback_action_type: str | None = None
+        if not proposed_actions:
+            fallback_token = begin_proposal_capture()
+            fallback_action_type = _create_deterministic_fallback_proposal(kind, namespace, name)
+            proposed_actions = finish_proposal_capture(fallback_token)
+            if proposed_actions and fallback_action_type is not None:
+                log_event(
+                    "investigation_fallback_proposal_created",
+                    kind=kind,
+                    namespace=namespace,
+                    name=name,
+                    action_type=fallback_action_type,
+                )
+        raw_output = str(result.final_output)
+        response = {
+            "kind": kind,
+            "namespace": namespace,
+            "name": name,
+            "evidence": evidence,
+            "answer": raw_output,
+            "brief": parse_investigation_brief(raw_output),
+            "proposed_actions": proposed_actions,
+            "action_ids": [str(item["action_id"]) for item in proposed_actions],
+        }
+        log_event("investigation_completed", kind=kind, namespace=namespace, name=name)
+        record_processing_heartbeat(kind, namespace, name, state="completed")
+        if emit_progress:
+            print(f"Agent: {result.final_output}")
+        return response
+    except Exception:
+        record_processing_heartbeat(kind, namespace, name, state="failed")
+        raise

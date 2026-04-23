@@ -56,6 +56,10 @@ class QueueStatusResponse(BaseModel):
     active_investigations: int
     max_concurrent_investigations: int
     queue_utilization: float
+    last_processing_heartbeat_at: str | None = None
+    last_processing_heartbeat_age_seconds: float | None = None
+    last_processing_target: str | None = None
+    last_processing_state: str | None = None
 
 
 class ProposedActionResponse(BaseModel):

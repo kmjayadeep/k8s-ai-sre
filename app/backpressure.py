@@ -16,6 +16,10 @@ _investigation_locks: dict[str, Lock] = {}
 _investigation_locks_lock = Lock()
 _active_investigations: dict[str, datetime] = {}
 _active_investigations_lock = Lock()
+_last_processing_heartbeat_at: datetime | None = None
+_last_processing_target: str | None = None
+_last_processing_state: str | None = None
+_processing_heartbeat_lock = Lock()
 
 
 def _get_queue() -> Queue[tuple[str, str, str, str]]:
@@ -49,6 +53,14 @@ def _mark_investigation_done(kind: str, namespace: str, name: str) -> None:
     key = f"{namespace}/{kind}/{name}"
     with _active_investigations_lock:
         _active_investigations.pop(key, None)
+
+
+def record_processing_heartbeat(kind: str, namespace: str, name: str, state: str = "processing") -> None:
+    global _last_processing_heartbeat_at, _last_processing_target, _last_processing_state
+    with _processing_heartbeat_lock:
+        _last_processing_heartbeat_at = datetime.now(UTC)
+        _last_processing_target = f"{kind}/{namespace}/{name}"
+        _last_processing_state = state
 
 
 def enqueue_investigation(kind: str, namespace: str, name: str) -> tuple[bool, str]:
@@ -86,16 +98,33 @@ def get_active_investigation_count() -> int:
 
 def get_queue_status() -> dict[str, Any]:
     """Return current queue and backpressure status."""
+    with _processing_heartbeat_lock:
+        heartbeat_at = _last_processing_heartbeat_at
+        heartbeat_target = _last_processing_target
+        heartbeat_state = _last_processing_state
+    heartbeat_age_seconds = None
+    if heartbeat_at is not None:
+        heartbeat_age_seconds = round((datetime.now(UTC) - heartbeat_at).total_seconds(), 3)
     return {
         "queue_depth": get_queue_depth(),
         "max_queue_size": MAX_QUEUE_SIZE,
         "active_investigations": get_active_investigation_count(),
         "max_concurrent_investigations": MAX_CONCURRENT_INVESTIGATIONS,
         "queue_utilization": get_queue_depth() / MAX_QUEUE_SIZE if MAX_QUEUE_SIZE > 0 else 0,
+        "last_processing_heartbeat_at": heartbeat_at.isoformat() if heartbeat_at is not None else None,
+        "last_processing_heartbeat_age_seconds": heartbeat_age_seconds,
+        "last_processing_target": heartbeat_target,
+        "last_processing_state": heartbeat_state,
     }
 
 
 def _reset_queue() -> None:
     """Reset the queue (for testing purposes)."""
-    global _investigation_queue
+    global _investigation_queue, _last_processing_heartbeat_at, _last_processing_target, _last_processing_state
     _investigation_queue = None
+    with _active_investigations_lock:
+        _active_investigations.clear()
+    with _processing_heartbeat_lock:
+        _last_processing_heartbeat_at = None
+        _last_processing_target = None
+        _last_processing_state = None

@@ -5,6 +5,7 @@ from app.backpressure import (
     get_queue_depth,
     get_queue_status,
     get_active_investigation_count,
+    record_processing_heartbeat,
     MAX_QUEUE_SIZE,
     _reset_queue,
 )
@@ -43,9 +44,28 @@ class BackpressureTests(unittest.TestCase):
         self.assertIn("active_investigations", status)
         self.assertIn("max_concurrent_investigations", status)
         self.assertIn("queue_utilization", status)
+        self.assertIn("last_processing_heartbeat_at", status)
+        self.assertIn("last_processing_heartbeat_age_seconds", status)
+        self.assertIn("last_processing_target", status)
+        self.assertIn("last_processing_state", status)
         self.assertEqual(MAX_QUEUE_SIZE, status["max_queue_size"])
+        self.assertIsNone(status["last_processing_heartbeat_at"])
+        self.assertIsNone(status["last_processing_heartbeat_age_seconds"])
+        self.assertIsNone(status["last_processing_target"])
+        self.assertIsNone(status["last_processing_state"])
 
     def test_get_active_investigation_count_returns_zero_initially(self) -> None:
         count = get_active_investigation_count()
         self.assertIsInstance(count, int)
         self.assertGreaterEqual(count, 0)
+
+    def test_queue_status_includes_last_processing_heartbeat_details(self) -> None:
+        record_processing_heartbeat("deployment", "ai-sre-demo", "api", state="started")
+
+        status = get_queue_status()
+
+        self.assertEqual("deployment/ai-sre-demo/api", status["last_processing_target"])
+        self.assertEqual("started", status["last_processing_state"])
+        self.assertIsNotNone(status["last_processing_heartbeat_at"])
+        self.assertIsInstance(status["last_processing_heartbeat_age_seconds"], float)
+        self.assertGreaterEqual(status["last_processing_heartbeat_age_seconds"], 0.0)
