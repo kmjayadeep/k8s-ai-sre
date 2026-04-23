@@ -32,13 +32,15 @@
         linear-gradient(160deg, var(--bg-1), var(--bg-2));
     }
 
+    /* ─── Shell layout ─── */
     .shell {
       max-width: 1180px;
       margin: 0 auto;
       padding: 1.2rem;
       display: grid;
-      grid-template-columns: 350px 1fr;
+      grid-template-columns: 340px 1fr;
       gap: 1rem;
+      align-items: start;
     }
 
     .panel {
@@ -48,47 +50,54 @@
       border-radius: 16px;
       box-shadow: 0 10px 36px rgba(15, 23, 42, 0.08);
       overflow: hidden;
+      min-height: 0;
     }
 
-    .panel h1,
-    .panel h2 {
+    .panel-header {
+      padding: 1rem 1rem 0.3rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-header h1,
+    .panel-header h2 {
       margin: 0;
-      padding: 1rem 1rem 0.35rem;
       font-family: "Space Grotesk", "Manrope", sans-serif;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       letter-spacing: 0.02em;
     }
 
-    .subline {
-      margin: 0;
-      padding: 0 1rem 0.9rem;
+    .panel-header p {
+      margin: 0.2rem 0 0;
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: 0.82rem;
+      line-height: 1.4;
     }
 
+    /* ─── Feed panel ─── */
     #incident-list {
-      max-height: 76vh;
+      max-height: 80vh;
       overflow-y: auto;
-      padding: 0.25rem 0.7rem 0.9rem;
+      padding: 0.5rem 0.6rem 0.8rem;
+      scrollbar-width: thin;
     }
 
     .incident-item {
       width: 100%;
       display: block;
       text-align: left;
-      margin: 0.4rem 0;
-      padding: 0.8rem;
-      border: 1px solid var(--line);
+      margin: 0.3rem 0;
+      padding: 0.7rem 0.85rem;
+      border: 1.5px solid var(--line);
       border-radius: 12px;
       background: #ffffff;
       cursor: pointer;
-      transition: 140ms ease;
+      transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
     }
 
     .incident-item:hover {
       transform: translateY(-1px);
-      border-color: var(--accent);
-      box-shadow: 0 6px 18px rgba(15, 118, 110, 0.12);
+      border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+      box-shadow: 0 4px 14px rgba(15, 118, 110, 0.1);
     }
 
     .incident-item.active {
@@ -97,37 +106,37 @@
       box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent), #fff 35%);
     }
 
-    .incident-title {
+    .item-title {
       margin: 0;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 700;
       color: #0f172a;
+      line-height: 1.3;
     }
 
-    .incident-subtitle {
-      margin-top: 0.25rem;
+    .item-subtitle {
+      margin: 0.2rem 0 0;
       color: var(--muted);
-      font-size: 0.82rem;
+      font-size: 0.78rem;
     }
 
-    .incident-meta {
-      margin-top: 0.35rem;
+    .item-meta {
+      margin: 0.35rem 0 0;
       display: flex;
-      gap: 0.45rem;
+      gap: 0.35rem;
       align-items: center;
       flex-wrap: wrap;
-      color: var(--muted);
-      font-size: 0.76rem;
     }
 
+    /* ─── Chips ─── */
     .chip {
       display: inline-flex;
       align-items: center;
       border-radius: 999px;
-      padding: 0.12rem 0.45rem;
-      font-size: 0.74rem;
+      padding: 0.1rem 0.4rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      line-height: 1.2;
+      line-height: 1.3;
       text-transform: capitalize;
       border: 1px solid transparent;
     }
@@ -144,19 +153,81 @@
       border-color: #d1d5db;
     }
 
-    .empty {
+    .chip.updated {
+      background: #f0f9ff;
+      color: #0c4a6e;
+      border-color: #bae6fd;
+    }
+
+    /* ─── States ─── */
+    .empty-state,
+    .loading-state,
+    .error-state {
       margin: 0.4rem;
-      padding: 0.8rem;
-      border: 1px dashed var(--line);
+      padding: 1rem 0.85rem;
+      border: 1.5px dashed var(--line);
       border-radius: 10px;
       color: var(--muted);
       background: rgba(255, 255, 255, 0.75);
+      font-size: 0.84rem;
+      line-height: 1.5;
+      text-align: center;
     }
 
+    .error-state {
+      border-color: #fca5a5;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .error-retry {
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.35rem 0.85rem;
+      background: #dc2626;
+      color: #ffffff;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 140ms;
+    }
+
+    .error-retry:hover {
+      background: #b91c1c;
+    }
+
+    /* Skeleton loader */
+    .skeleton {
+      animation: pulse 1.4s ease-in-out infinite;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      border-radius: 6px;
+    }
+
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-item {
+      margin: 0.4rem 0;
+      padding: 0.7rem 0.85rem;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .skeleton-line {
+      height: 0.75rem;
+      margin: 0.3rem 0;
+    }
+
+    /* ─── Detail panel ─── */
     #detail-grid {
       display: grid;
-      gap: 0.8rem;
-      padding: 0 1rem 1rem;
+      gap: 0.7rem;
+      padding: 0 0.9rem 0.9rem;
     }
 
     .card {
@@ -167,19 +238,35 @@
     }
 
     .card h3 {
-      margin: 0 0 0.45rem;
-      font-size: 0.9rem;
-      color: #111827;
+      margin: 0 0 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
       font-family: "Space Grotesk", "Manrope", sans-serif;
-      letter-spacing: 0.01em;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 700;
     }
 
+    .card-body h4 {
+      margin: 0 0 0.25rem;
+      font-size: 0.95rem;
+      color: #111827;
+      font-weight: 700;
+    }
+
+    .card-body p {
+      margin: 0;
+      color: #374151;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    /* Key-value grid */
     .kv {
       display: grid;
-      grid-template-columns: 140px 1fr;
-      gap: 0.3rem 0.6rem;
-      margin: 0;
-      font-size: 0.88rem;
+      grid-template-columns: 130px 1fr;
+      gap: 0.25rem 0.5rem;
+      font-size: 0.86rem;
     }
 
     .kv dt {
@@ -193,47 +280,119 @@
       word-break: break-word;
     }
 
-    .answer {
-      margin: 0;
-      white-space: pre-wrap;
-      color: #111827;
-      font-size: 0.9rem;
-      line-height: 1.45;
+    /* Summary card — tighter hierarchy */
+    .summary-block {
+      display: grid;
+      gap: 0.4rem;
     }
 
+    .summary-block .lead {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #0f172a;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .summary-block .meta-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* Actions card */
     .action-list {
       margin: 0;
-      padding-left: 1rem;
+      padding-left: 0;
+      list-style: none;
       display: grid;
-      gap: 0.45rem;
+      gap: 0.5rem;
       font-size: 0.88rem;
     }
 
-    .action-list code {
-      font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
-      font-size: 0.82rem;
+    .action-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.25rem 0.5rem;
+      align-items: start;
+      padding: 0.55rem 0.7rem;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 7px;
-      padding: 0.12rem 0.28rem;
+      border-radius: 8px;
     }
 
+    .action-type {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #0f172a;
+    }
+
+    .action-target {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.1rem;
+    }
+
+    .action-commands {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    code {
+      font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      font-size: 0.78rem;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 0.1rem 0.28rem;
+    }
+
+    .cmd-approve { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
+    .cmd-reject  { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+    /* Timeline */
     .timeline-list {
       margin: 0;
-      padding-left: 1rem;
+      padding: 0;
+      list-style: none;
       display: grid;
-      gap: 0.55rem;
-      font-size: 0.88rem;
+      gap: 0.5rem;
     }
 
     .timeline-event {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0 0.6rem;
+      font-size: 0.87rem;
       color: #111827;
       line-height: 1.4;
     }
 
-    .timeline-meta {
+    .timeline-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: 0.3rem;
+      flex-shrink: 0;
+    }
+
+    .timeline-dot.resolved { background: #9ca3af; }
+
+    .timeline-content { min-width: 0; }
+
+    .event-name {
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+
+    .event-meta {
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
+      margin-top: 0.1rem;
     }
 
     .pill {
@@ -241,24 +400,53 @@
       align-items: center;
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 0.1rem 0.5rem;
-      font-size: 0.78rem;
+      padding: 0.08rem 0.4rem;
+      font-size: 0.75rem;
       color: #0f172a;
       background: #f8fafc;
-      margin-right: 0.35rem;
+      margin-right: 0.25rem;
     }
 
+    /* ─── Mobile ─── */
     @media (max-width: 900px) {
       .shell {
         grid-template-columns: 1fr;
+        padding: 0.75rem;
+        gap: 0.75rem;
       }
 
       #incident-list {
-        max-height: 45vh;
+        max-height: 40vh;
       }
 
       .kv {
-        grid-template-columns: 110px 1fr;
+        grid-template-columns: 105px 1fr;
+        font-size: 0.83rem;
+      }
+
+      .panel-header h1,
+      .panel-header h2 {
+        font-size: 1rem;
+      }
+
+      .panel-header p {
+        font-size: 0.78rem;
+      }
+
+      .item-title {
+        font-size: 0.87rem;
+      }
+
+      .card {
+        padding: 0.7rem;
+      }
+
+      .summary-block .lead {
+        font-size: 0.9rem;
+      }
+
+      .cmd-approve, .cmd-reject {
+        font-size: 0.75rem;
       }
     }
   </style>
@@ -266,218 +454,296 @@
 <body>
   <main class="shell">
     <section class="panel">
-      <h1>Incident Feed</h1>
-      <p class="subline">One row per target. Open a row to inspect linked incidents and full lifecycle timeline.</p>
+      <div class="panel-header">
+        <h1>Incident Feed</h1>
+        <p>One row per target. Open a row to inspect linked incidents and full lifecycle timeline.</p>
+      </div>
       <div id="incident-list"></div>
     </section>
 
     <section class="panel">
-      <h2>Incident Inspector</h2>
-      <p class="subline" id="detail-hint">Choose an incident from the feed.</p>
+      <div class="panel-header">
+        <h2>Incident Inspector</h2>
+        <p id="detail-hint">Choose an incident from the feed.</p>
+      </div>
       <div id="detail-grid"></div>
     </section>
   </main>
 
   <script>
-    const listEl = document.getElementById("incident-list");
-    const hintEl = document.getElementById("detail-hint");
-    const detailGridEl = document.getElementById("detail-grid");
-    let selectedTargetKey = null;
-    let groupedTimeline = [];
+    const listEl    = document.getElementById("incident-list");
+    const hintEl    = document.getElementById("detail-hint");
+    const detailEl  = document.getElementById("detail-grid");
+    let selectedKey = null;
+    let grouped     = [];
 
-    function escapeHtml(value) {
-      return String(value)
+    /* ── Utilities ── */
+    function esc(v) {
+      return String(v ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll('"', "&quot;");
     }
 
-    function renderAction(action) {
-      const approve = escapeHtml(action.approve_command || "");
-      const reject = escapeHtml(action.reject_command || "");
-      const actionType = escapeHtml(action.action_type || "unknown");
-      const target = `${escapeHtml(action.namespace || "")}/${escapeHtml(action.name || "")}`;
-      return `<li><strong>${actionType}</strong> on <code>${target}</code><br />Approve: <code>${approve}</code> Reject: <code>${reject}</code></li>`;
+    function fmtTime(v) {
+      if (!v) return "n/a";
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return esc(v);
+      return esc(d.toLocaleString());
     }
 
-    function formatTimestamp(value) {
-      if (!value) {
-        return "n/a";
-      }
-      const parsed = new Date(value);
-      if (Number.isNaN(parsed.getTime())) {
-        return escapeHtml(value);
-      }
-      return escapeHtml(parsed.toLocaleString());
+    function lifecycleChip(status) {
+      const cls = status === "resolved" ? "chip resolved" : "chip active";
+      return `<span class="${cls}">${esc(status || "active")}</span>`;
     }
 
-    function lifecycleClass(lifecycleStatus) {
-      return lifecycleStatus === "resolved" ? "chip resolved" : "chip active";
+    function chipPill(txt) {
+      return `<span class="pill">${esc(txt)}</span>`;
     }
 
-    function targetLabel(incident) {
-      return `${escapeHtml(incident.kind)}/${escapeHtml(incident.namespace)}/${escapeHtml(incident.name)}`;
+    function targetLabel(inc) {
+      return `${esc(inc.kind)}/${esc(inc.namespace)}/${esc(inc.name)}`;
     }
 
-    function timelineSortValue(incident) {
-      const parsed = Date.parse(incident.updated_at || incident.created_at || "");
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-      return 0;
+    /* ── States ── */
+    function showLoading() {
+      listEl.innerHTML = [
+        ...Array(4)
+      ]
+        .map(
+          () => `<div class="skeleton-item">
+            <div class="skeleton skeleton-line" style="width:65%"></div>
+            <div class="skeleton skeleton-line" style="width:40%;margin-top:.5rem"></div>
+            <div class="skeleton skeleton-line" style="width:25%;margin-top:.5rem"></div>
+          </div>`
+        )
+        .join("");
     }
 
-    function groupIncidentsByTarget(incidents) {
-      const groups = new Map();
-      for (const incident of incidents) {
-        const key = `${incident.kind || ""}:${incident.namespace || ""}:${incident.name || ""}`;
-        if (!groups.has(key)) {
-          groups.set(key, []);
-        }
-        groups.get(key).push(incident);
-      }
-
-      const grouped = [];
-      for (const [key, items] of groups.entries()) {
-        const sorted = [...items].sort((a, b) => timelineSortValue(a) - timelineSortValue(b));
-        const latest = sorted[sorted.length - 1];
-        grouped.push({ key, incidents: sorted, latest, label: targetLabel(latest) });
-      }
-
-      grouped.sort((a, b) => timelineSortValue(b.latest) - timelineSortValue(a.latest));
-      return grouped;
+    function showEmpty(msg) {
+      listEl.innerHTML = `<div class="empty-state">${esc(msg)}</div>`;
     }
 
-    function renderTimeline(group) {
-      const entries = [];
-      for (const incident of group.incidents) {
-        const incidentPill = `<span class="pill">Incident ${escapeHtml(incident.incident_id)}</span>`;
-        const statusPill = `<span class="pill">${escapeHtml((incident.lifecycle_status || "active").toUpperCase())}</span>`;
-        entries.push(`
-          <li class="timeline-event">
-            ${incidentPill}${statusPill}
-            <div class="timeline-meta">Created ${escapeHtml(incident.created_at || "unknown")} · Updated ${escapeHtml(incident.updated_at || "unknown")}</div>
-          </li>
-        `);
-        for (const event of incident.event_history || []) {
-          entries.push(`
-            <li class="timeline-event">
-              ${escapeHtml(event.event || "event")}
-              <div class="timeline-meta">${escapeHtml(event.occurred_at || "unknown")} · source=${escapeHtml(event.source || "unknown")}</div>
-            </li>
-          `);
-        }
-      }
-
-      if (!entries.length) {
-        return '<p class="answer">No timeline events recorded.</p>';
-      }
-      return `<ul class="timeline-list">${entries.join("")}</ul>`;
+    function showError(msg, retry) {
+      listEl.innerHTML = `<div class="error-state">
+        ${esc(msg)}
+        ${retry ? `<button class="error-retry" onclick="loadIncidents()">Retry</button>` : ""}
+      </div>`;
     }
 
-    function renderIncidentDetail(group) {
-      const latest = group.latest;
-      const answer = latest.answer && latest.answer.trim() ? escapeHtml(latest.answer) : "No summary available.";
-      const notification = latest.notification_status ? escapeHtml(latest.notification_status) : "not sent";
-      const actions = (latest.proposed_actions || []).map(renderAction).join("");
-      const actionsMarkup = actions ? `<ul class="action-list">${actions}</ul>` : '<p class="answer">No proposed actions.</p>';
-      const linkedIds = group.incidents.map((item) => `<code>${escapeHtml(item.incident_id)}</code>`).join(", ");
-      const timelineMarkup = renderTimeline(group);
-
-      detailGridEl.innerHTML = `
-        <article class="card">
-          <h3>Target Overview</h3>
-          <dl class="kv">
-            <dt>Target</dt><dd>${targetLabel(latest)}</dd>
-            <dt>Latest Incident</dt><dd><code>${escapeHtml(latest.incident_id)}</code></dd>
-            <dt>Lifecycle</dt><dd><span class="${lifecycleClass(latest.lifecycle_status)}">${escapeHtml(latest.lifecycle_status || "active")}</span></dd>
-            <dt>Source</dt><dd>${escapeHtml(latest.source || "manual")}</dd>
-            <dt>Created</dt><dd>${formatTimestamp(latest.created_at)}</dd>
-            <dt>Updated</dt><dd>${formatTimestamp(latest.updated_at)}</dd>
-            <dt>Last Event</dt><dd>${formatTimestamp(latest.last_event_at)}</dd>
-            <dt>Notifications</dt><dd>${notification}</dd>
-            <dt>Linked Incidents</dt><dd>${linkedIds}</dd>
-          </dl>
-        </article>
-
-        <article class="card">
-          <h3>Latest Investigation Summary</h3>
-          <p class="answer">${answer}</p>
-        </article>
-
-        <article class="card">
-          <h3>Latest Proposed Actions</h3>
-          ${actionsMarkup}
-        </article>
-
-        <article class="card">
-          <h3>Incident Timeline</h3>
-          ${timelineMarkup}
-        </article>
-      `;
-    }
-
-    function setSelectedButton(targetKey) {
-      for (const element of listEl.querySelectorAll(".incident-item")) {
-        element.classList.toggle("active", element.dataset.targetKey === targetKey);
-      }
-    }
-
-    function inspectTarget(targetKey) {
-      selectedTargetKey = targetKey;
-      setSelectedButton(targetKey);
-      const group = groupedTimeline.find((item) => item.key === targetKey);
-      if (!group) {
-        hintEl.textContent = "Target timeline not found.";
-        detailGridEl.innerHTML = "";
-        return;
-      }
-      hintEl.textContent = `Inspecting ${group.label}`;
-      renderIncidentDetail(group);
-    }
-
-    async function loadIncidents() {
-      const response = await fetch("/incidents");
-      if (!response.ok) {
-        listEl.innerHTML = '<div class="empty">Failed to load incidents.</div>';
-        return;
-      }
-
-      const payload = await response.json();
-      const incidents = payload.incidents || [];
-      if (!incidents.length) {
-        listEl.innerHTML = '<div class="empty">No incidents recorded yet.</div>';
-        detailGridEl.innerHTML = "";
+    /* ── Feed rendering ── */
+    function renderFeed() {
+      if (!grouped.length) {
+        showEmpty("No incidents recorded yet.");
+        detailEl.innerHTML = "";
         hintEl.textContent = "Trigger /investigate or /webhooks/alertmanager to populate this view.";
         return;
       }
 
-      groupedTimeline = groupIncidentsByTarget(incidents);
       listEl.innerHTML = "";
-      for (const group of groupedTimeline) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "incident-item";
-        button.dataset.targetKey = group.key;
-        button.innerHTML = `
-          <p class="incident-title">${group.label}</p>
-          <p class="incident-subtitle">${group.incidents.length} linked incident(s)</p>
-          <p class="incident-meta">
-            <span class="${lifecycleClass(group.latest.lifecycle_status)}">${escapeHtml(group.latest.lifecycle_status || "active")}</span>
-            <span>Updated: ${formatTimestamp(group.latest.updated_at || group.latest.created_at)}</span>
-          </p>
-        `;
-        button.addEventListener("click", () => inspectTarget(group.key));
-        listEl.appendChild(button);
+      for (const group of grouped) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "incident-item" + (group.key === selectedKey ? " active" : "");
+        btn.dataset.targetKey = group.key;
+        btn.setAttribute("aria-pressed", group.key === selectedKey);
+
+        const ts = fmtTime(group.latest.updated_at || group.latest.created_at);
+        btn.innerHTML = `
+          <p class="item-title">${esc(group.label)}</p>
+          <p class="item-subtitle">${group.incidents.length} linked incident${group.incidents.length !== 1 ? "s" : ""}</p>
+          <div class="item-meta">
+            ${lifecycleChip(group.latest.lifecycle_status)}
+            <span class="chip updated">Updated&nbsp;${ts}</span>
+          </div>`;
+
+        btn.addEventListener("click", () => inspect(group.key));
+        listEl.appendChild(btn);
+      }
+    }
+
+    /* ── Detail rendering ── */
+    function renderActions(actions) {
+      if (!actions?.length) {
+        return '<p class="card-body"><em>No proposed actions.</em></p>';
+      }
+      const items = actions.map((a) => {
+        const approve = esc(a.approve_command || "—");
+        const reject  = esc(a.reject_command  || "—");
+        const type    = esc(a.action_type    || "unknown");
+        const tgt     = `${esc(a.namespace || "")}/${esc(a.name || "")}`;
+        return `<li class="action-item">
+          <div>
+            <div class="action-type">${type}</div>
+            <div class="action-target">${tgt}</div>
+          </div>
+          <div class="action-commands">
+            <code class="cmd-approve">${approve}</code>
+            <code class="cmd-reject">${reject}</code>
+          </div>
+        </li>`;
+      });
+      return `<ul class="action-list">${items.join("")}</ul>`;
+    }
+
+    function renderTimeline(group) {
+      const entries = [];
+      for (const inc of group.incidents) {
+        entries.push({
+          name:   `Incident ${esc(inc.incident_id)}`,
+          meta:   fmtTime(inc.created_at || "unknown"),
+          resolved: inc.lifecycle_status === "resolved",
+        });
+        for (const ev of inc.event_history || []) {
+          entries.push({
+            name:     esc(ev.event || "event"),
+            meta:     fmtTime(ev.occurred_at || ev.timestamp || "unknown"),
+            source:   esc(ev.source || ""),
+            resolved: false,
+          });
+        }
       }
 
-      if (!selectedTargetKey) {
-        inspectTarget(groupedTimeline[0].key);
-      } else {
-        inspectTarget(selectedTargetKey);
+      if (!entries.length) {
+        return '<p class="card-body"><em>No timeline events recorded.</em></p>';
       }
+
+      const items = entries.map((e) => {
+        const sourceLine = e.source ? `<span style="color:var(--muted)">source=${e.source}</span>` : "";
+        return `<li class="timeline-event">
+          <div class="timeline-dot${e.resolved ? " resolved" : ""}"></div>
+          <div class="timeline-content">
+            <div class="event-name">${e.name}</div>
+            <div class="event-meta">${e.meta}${sourceLine ? "&nbsp;&middot;&nbsp;" + sourceLine : ""}</div>
+          </div>
+        </li>`;
+      });
+
+      return `<ul class="timeline-list">${items.join("")}</ul>`;
+    }
+
+    function renderDetail(group) {
+      const latest     = group.latest;
+      const answer    = latest.answer?.trim() ? latest.answer.trim() : null;
+      const actions   = latest.proposed_actions || [];
+      const linkedIds = group.incidents.map((i) => codeTag(i.incident_id)).join(", ");
+
+      hintEl.textContent = `Inspecting ${group.label}`;
+
+      detailEl.innerHTML = `
+        <article class="card">
+          <h3>Target Overview</h3>
+          <dl class="kv">
+            <dt>Target</dt><dd>${esc(group.label)}</dd>
+            <dt>Latest Incident</dt><dd><code>${esc(latest.incident_id)}</code></dd>
+            <dt>Lifecycle</dt><dd>${lifecycleChip(latest.lifecycle_status)}</dd>
+            <dt>Source</dt><dd>${esc(latest.source || "manual")}</dd>
+            <dt>Created</dt><dd>${fmtTime(latest.created_at)}</dd>
+            <dt>Updated</dt><dd>${fmtTime(latest.updated_at)}</dd>
+            <dt>Last Event</dt><dd>${fmtTime(latest.last_event_at)}</dd>
+            <dt>Notifications</dt><dd>${esc(latest.notification_status || "not sent")}</dd>
+            <dt>Linked Incidents</dt><dd>${linkedIds || "—"}</dd>
+          </dl>
+        </article>
+
+        <article class="card">
+          <h3>Investigation Summary</h3>
+          <div class="card-body">
+            ${answer
+              ? `<p class="lead">${answer}</p>`
+              : `<p style="color:var(--muted);font-size:.88rem"><em>No summary available.</em></p>`}
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Proposed Actions</h3>
+          <div class="card-body">
+            ${renderActions(actions)}
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Incident Timeline</h3>
+          ${renderTimeline(group)}
+        </article>
+      `;
+    }
+
+    function codeTag(v) {
+      return `<code>${esc(v)}</code>`;
+    }
+
+    /* ── Selection ── */
+    function inspect(key) {
+      selectedKey = key;
+      for (const el of listEl.querySelectorAll(".incident-item")) {
+        el.classList.toggle("active", el.dataset.targetKey === key);
+        el.setAttribute("aria-pressed", el.dataset.targetKey === key);
+      }
+      const group = grouped.find((g) => g.key === key);
+      if (!group) {
+        hintEl.textContent = "Target timeline not found.";
+        detailEl.innerHTML = "";
+        return;
+      }
+      renderDetail(group);
+    }
+
+    /* ── Load ── */
+    async function loadIncidents() {
+      showLoading();
+      try {
+        const res = await fetch("/incidents");
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+
+        const payload = await res.json();
+        const incidents = payload.incidents || [];
+        grouped = groupIncidentsByTarget(incidents);
+
+        if (!incidents.length) {
+          showEmpty("No incidents recorded yet.");
+          detailEl.innerHTML = "";
+          hintEl.textContent = "Trigger /investigate or /webhooks/alertmanager to populate this view.";
+          return;
+        }
+
+        renderFeed();
+
+        if (selectedKey && grouped.find((g) => g.key === selectedKey)) {
+          inspect(selectedKey);
+        } else if (grouped.length) {
+          inspect(grouped[0].key);
+        }
+      } catch (err) {
+        showError("Failed to load incidents. Check the API is running.", true);
+        detailEl.innerHTML = "";
+        hintEl.textContent = "Could not load incidents.";
+      }
+    }
+
+    /* ── Grouping ── */
+    function groupIncidentsByTarget(incidents) {
+      const map = new Map();
+      for (const inc of incidents) {
+        const key = `${inc.kind || ""}:${inc.namespace || ""}:${inc.name || ""}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(inc);
+      }
+      const sorted = [];
+      for (const [key, items] of map.entries()) {
+        const byTime = [...items].sort(
+          (a, b) => (Date.parse(a.updated_at || a.created_at || 0)) -
+                    (Date.parse(b.updated_at || b.created_at || 0))
+        );
+        sorted.push({ key, incidents: byTime, latest: byTime[byTime.length - 1], label: targetLabel(byTime[0]) });
+      }
+      sorted.sort(
+        (a, b) =>
+          (Date.parse(b.latest.updated_at || b.latest.created_at || 0)) -
+          (Date.parse(a.latest.updated_at || a.latest.created_at || 0))
+      );
+      return sorted;
     }
 
     loadIncidents();
