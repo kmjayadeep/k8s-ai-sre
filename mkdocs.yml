@@ -8,11 +8,11 @@ nav:
       - Overview: index.md
       - Quick Start: quickstart.md
       - Deployment: deployment.md
-  - Operate:
+  - Validate:
       - Testing: testing.md
       - Architecture: architecture.md
       - Prometheus Alerts: prometheus-alerts.md
-  - Build:
+  - Contribute:
       - Contributing: contributing.md
       - Developer Guide: developer.md
       - Portkey Integration: portkey.md

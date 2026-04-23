@@ -57,6 +57,30 @@ Contributors do not merge by default. The expected route is:
 
 You should not need the [Maintainers Guide](maintainers.md) for the normal contributor route. Use it only when you are handling release or repository-owner responsibilities.
 
+## Contributor workflow summary
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│  CONTRIBUTOR CHECKLIST                                    │
+├──────────────────────────────────────────────────────────┤
+│  setup    │ 1. read developer.md                          │
+│           │ 2. install deps, configure model               │
+│           │ 3. run demo scenario                          │
+├───────────┼──────────────────────────────────────────────┤
+│  validate │ 4. pick lane (docs-only / smoke / manifest /  │
+│           │    kind / full stack)                         │
+│           │ 5. run commands from testing.md + TESTING.md   │
+├───────────┼──────────────────────────────────────────────┤
+│  ship     │ 6. open PR against main                       │
+│           │ 7. include validation evidence in PR desc    │
+│           │ 8. request QA when checks pass               │
+├───────────┼──────────────────────────────────────────────┤
+│  review   │ 9. address QA feedback                        │
+│           │ 10. re-request QA if commits changed         │
+│           │ 11. await human merge                        │
+└───────────┴──────────────────────────────────────────────┘
+```
+
 ## Related pages
 
 - [Developer Guide](developer.md)
