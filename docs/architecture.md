@@ -5,12 +5,14 @@
 ## Main Components
 
 - `main.py`: server entrypoint
-- `app/http.py`: investigation and webhook endpoints
+- `app/http.py`: investigation and webhook endpoints, incident inspector UI serving
 - `app/investigate.py`: orchestration flow
 - `app/tools/k8s.py`: Kubernetes and Prometheus read helpers
 - `app/tools/actions.py`: guarded write-action helpers
 - `app/telegram.py`: Telegram polling and command handling
 - `app/stores/`: SQLite-backed key-value stores (default path `/tmp/k8s-ai-sre-store.sqlite3`)
+- `app/ui/incident_inspector.html`: browser-based UI for incident inspection and lifecycle monitoring
+- `app/ui/auth_middleware.py`: basic auth enforcement for the incident inspector UI
 - `model_factory.py`: model client configuration
 
 ## End-to-End Flow
