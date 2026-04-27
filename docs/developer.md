@@ -63,10 +63,17 @@ curl -X POST http://127.0.0.1:8080/webhooks/alertmanager \
 
 ## Expected Response Fields
 
-Investigation creation endpoints return normalized incident payloads including:
+Investigation endpoints (`/investigate`, `/webhooks/alertmanager`) and incident queries (`GET /incidents`, `GET /incidents/<id>`) return normalized incident payloads with these fields:
 
-- `incident_id`
-- `source`
-- `answer`
-- `action_ids`
-- `proposed_actions`
+| Field | Description |
+|---|---|
+| `incident_id` | Unique identifier |
+| `source` | Origin: `manual` or `alertmanager` |
+| `lifecycle_status` | `active` or `resolved` |
+| `created_at` | ISO timestamp when the incident was created |
+| `updated_at` | ISO timestamp of the most recent event |
+| `answer` | LLM investigation summary and proposed cause |
+| `action_ids` | List of action identifiers pending approval |
+| `proposed_actions` | Array of `{id, description, kubectl_command}` objects |
+
+Query `/incidents` returns an array. The incident inspector UI at `app/ui/incident_inspector.html` renders grouped timelines — one row per target with all linked incidents and lifecycle metadata expanded inline.
