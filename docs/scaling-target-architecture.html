@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>k8s-ai-sre Incremental Scaling Architecture</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: rgba(17,24,39,.88);
+      --card2: rgba(15,23,42,.72);
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --line: #64748b;
+      --blue: #38bdf8;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #fb7185;
+      --purple: #a78bfa;
+      --orange: #fb923c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56,189,248,.16), transparent 34%),
+        radial-gradient(circle at top right, rgba(167,139,250,.14), transparent 30%),
+        var(--bg);
+      line-height: 1.45;
+    }
+    header, main { max-width: 1240px; margin: 0 auto; padding: 28px; }
+    header { padding-top: 42px; }
+    h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 54px); letter-spacing: -0.04em; }
+    h2 { margin: 0 0 14px; font-size: 24px; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    p { color: var(--muted); margin: 0; }
+    ul { color: var(--muted); margin: 12px 0 0; padding-left: 20px; }
+    li { margin: 7px 0; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.025));
+      border: 1px solid rgba(148,163,184,.25);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    }
+    .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 18px; align-items: stretch; }
+    .section { margin-top: 26px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .pill {
+      border: 1px solid rgba(148,163,184,.3);
+      background: rgba(15,23,42,.75);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+    .callout { border-left: 4px solid var(--green); background: rgba(52,211,153,.08); }
+    .warning { border-left: 4px solid var(--yellow); background: rgba(251,191,36,.08); }
+
+    .diagram-wrap { overflow-x: auto; padding: 24px; }
+    .diagram { min-width: 1060px; display: grid; gap: 18px; }
+    .external-row, .container-grid, .future-row {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+    .node {
+      position: relative;
+      border: 1px solid rgba(148,163,184,.28);
+      background: var(--card);
+      border-radius: 18px;
+      padding: 14px 16px;
+      min-height: 76px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: inset 0 1px rgba(255,255,255,.05), 0 14px 28px rgba(0,0,0,.18);
+    }
+    .node strong { font-size: 15px; }
+    .node span { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .node small { color: #cbd5e1; font-size: 11px; margin-top: 7px; }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+    .source { border-color: rgba(56,189,248,.55); }
+    .service { border-color: rgba(52,211,153,.55); }
+    .store { border-color: rgba(167,139,250,.62); }
+    .approval { border-color: rgba(251,146,60,.65); }
+    .danger { border-color: rgba(251,113,133,.7); }
+    .future { border-style: dashed; opacity: .82; }
+    .container {
+      grid-column: 1 / -1;
+      border: 2px solid rgba(56,189,248,.38);
+      border-radius: 24px;
+      padding: 18px;
+      background: rgba(2,6,23,.35);
+    }
+    .container-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      color: #dbeafe;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+    .tag { color: #bae6fd; font-size: 12px; border: 1px solid rgba(56,189,248,.32); padding: 5px 9px; border-radius: 999px; }
+    .arrow-right::after {
+      content: "";
+      position: absolute;
+      right: -17px;
+      top: 50%;
+      width: 16px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--line), transparent);
+    }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 15px; }
+    .legend div { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .phase { background: var(--card2); border: 1px solid rgba(148,163,184,.2); border-radius: 18px; padding: 16px; }
+    .phase.current { border-color: rgba(52,211,153,.65); background: rgba(52,211,153,.08); }
+    .phase b { color: #fff; }
+    .phase p { margin-top: 8px; font-size: 13px; }
+    .num { color: var(--blue); font-weight: 900; font-size: 13px; }
+
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    code { color: #bae6fd; background: rgba(15,23,42,.8); padding: 2px 6px; border-radius: 6px; }
+    pre { overflow-x: auto; color: #cbd5e1; background: rgba(15,23,42,.82); border: 1px solid rgba(148,163,184,.2); border-radius: 16px; padding: 16px; }
+
+    @media (max-width: 860px) {
+      header, main { padding: 20px; }
+      .hero, .compare, .phases { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero">
+      <section class="card">
+        <h1>Incremental Scaling Plan</h1>
+        <p>
+          Start by splitting the core responsibilities inside the same container. This creates clean boundaries without
+          introducing Kafka/NATS, Postgres, separate workers, or a multi-cluster agent too early.
+        </p>
+        <div class="pill-row">
+          <span class="pill">One container</span>
+          <span class="pill">One FastAPI deployment</span>
+          <span class="pill">Same SQLite store for now</span>
+          <span class="pill">Same synchronous investigation flow</span>
+          <span class="pill">Clear internal components</span>
+        </div>
+      </section>
+      <aside class="card callout">
+        <h2>Current decision</h2>
+        <p>
+          Do not refactor immediately into a distributed architecture. First make the app a modular monolith:
+          separate ingestion, investigation, notification, approval, and execution boundaries while keeping runtime behavior unchanged.
+        </p>
+      </aside>
+    </div>
+  </header>
+
+  <main>
+    <section class="card section diagram-wrap">
+      <h2>Phase 1 architecture: split components, same container</h2>
+      <p>The external shape remains simple. Internally, each domain gets a clear owner.</p>
+      <div class="legend">
+        <div><span class="dot" style="background:var(--blue)"></span> External input</div>
+        <div><span class="dot" style="background:var(--green)"></span> Internal service boundary</div>
+        <div><span class="dot" style="background:var(--purple)"></span> Current store</div>
+        <div><span class="dot" style="background:var(--orange)"></span> Human approval</div>
+        <div><span class="dot" style="background:var(--red)"></span> Kubernetes mutation boundary</div>
+      </div>
+
+      <div class="diagram" aria-label="Modular monolith architecture for k8s-ai-sre">
+        <div class="external-row">
+          <div class="node source span-3 arrow-right"><strong>Alertmanager</strong><span>/webhooks/alertmanager</span></div>
+          <div class="node source span-3 arrow-right"><strong>Manual API / UI</strong><span>/investigate and inspector</span></div>
+          <div class="node source span-3 arrow-right"><strong>Operator</strong><span>HTTP or Telegram approval</span></div>
+          <div class="node source span-3"><strong>Kubernetes / Prometheus</strong><span>Evidence source and action target</span></div>
+        </div>
+
+        <div class="container">
+          <div class="container-title">
+            <span>Single k8s-ai-sre container / process</span>
+            <span class="tag">modular monolith</span>
+          </div>
+          <div class="container-grid">
+            <div class="node service span-3 arrow-right"><strong>API + Ingestion</strong><span>FastAPI routes, auth, validation, target normalization</span><small>app/http.py + future app/ingestion.py</small></div>
+            <div class="node service span-3 arrow-right"><strong>Incident Service</strong><span>Dedup, create, update, lifecycle events, attach actions</span><small>future app/incidents/service.py</small></div>
+            <div class="node service span-3 arrow-right"><strong>Investigation Service</strong><span>Evidence orchestration, model call, deterministic fallback</span><small>app/investigate.py</small></div>
+            <div class="node service span-3"><strong>Proposal Service</strong><span>Convert diagnosis into safe proposed actions</span><small>existing proposal/action helpers</small></div>
+
+            <div class="node store span-3 arrow-right"><strong>SQLite Store</strong><span>Keep current persistence for now</span><small>No Postgres migration yet</small></div>
+            <div class="node approval span-3 arrow-right"><strong>Notification Service</strong><span>Telegram notification and future Slack boundary</span><small>app/notifier.py + app/telegram.py</small></div>
+            <div class="node approval span-3 arrow-right"><strong>Approval Service</strong><span>Approve/reject, actor identity, expiry checks</span><small>app/actions.py boundary</small></div>
+            <div class="node danger span-3"><strong>Action Executor</strong><span>RBAC can-i, namespace allow-list, kubectl mutation</span><small>app/tools/actions.py</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section phases">
+      <div class="phase current">
+        <span class="num">01</span><br><b>Now: modular monolith</b>
+        <p>Split code into internal services. Keep same container, SQLite, Telegram, and synchronous investigation behavior.</p>
+      </div>
+      <div class="phase">
+        <span class="num">02</span><br><b>Next: in-process async</b>
+        <p>Add an internal job queue/background worker to remove LLM calls from request handling without external infra.</p>
+      </div>
+      <div class="phase">
+        <span class="num">03</span><br><b>Then: production state</b>
+        <p>Move from SQLite to Postgres/PVC-backed storage and add stronger idempotency/audit semantics.</p>
+      </div>
+      <div class="phase">
+        <span class="num">04</span><br><b>Later: distributed control plane</b>
+        <p>Introduce external queue, separate deployments, LLM gateway, executor workers, and multi-cluster agents.</p>
+      </div>
+    </section>
+
+    <section class="section compare">
+      <div class="card warning">
+        <h2>Do not do yet</h2>
+        <ul>
+          <li>Do not introduce Kafka/NATS/SQS immediately.</li>
+          <li>Do not split into many Kubernetes Deployments yet.</li>
+          <li>Do not migrate to Postgres as part of the first split.</li>
+          <li>Do not rewrite all Kubernetes access to the Python client yet.</li>
+          <li>Do not build the multi-cluster agent yet.</li>
+        </ul>
+      </div>
+      <div class="card callout">
+        <h2>Do first</h2>
+        <ul>
+          <li>Thin <code>app/http.py</code> by moving business orchestration to services.</li>
+          <li>Create an incident lifecycle service for dedup/create/update/resolve.</li>
+          <li>Keep investigation behavior unchanged but isolate its boundary.</li>
+          <li>Keep approval and execution separate in code, even if still same process.</li>
+          <li>Add tests around service boundaries before runtime changes.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>Suggested first PR boundary</h2>
+      <p>Start with the smallest useful extraction: incident lifecycle orchestration.</p>
+      <pre><code>app/incidents/service.py
+  - investigate_manual_target(kind, namespace, name)
+  - ingest_alertmanager_target(kind, namespace, name, statuses, receiver)
+  - resolve_alertmanager_target(kind, namespace, name, statuses, receiver)
+  - deduplicate_active_target(kind, namespace, name)
+
+app/http.py
+  - validates request/auth
+  - calls incident service
+  - returns API response</code></pre>
+      <p>
+        This keeps the deployment unchanged but prepares the codebase for later async workers and external queues.
+      </p>
+    </section>
+
+    <section class="card section diagram-wrap">
+      <h2>Future target remains possible, but not now</h2>
+      <p>The modular monolith is a stepping stone. These components can later become separate deployments when needed.</p>
+      <div class="future-row" style="margin-top:16px">
+        <div class="node future source span-2"><strong>API Gateway</strong><span>Separate deployment</span></div>
+        <div class="node future service span-2"><strong>Investigation Workers</strong><span>Queue consumers</span></div>
+        <div class="node future service span-2"><strong>LLM Gateway</strong><span>Redaction/cost/retries</span></div>
+        <div class="node future approval span-2"><strong>Approval Service</strong><span>SSO/Slack/UI</span></div>
+        <div class="node future danger span-2"><strong>Executor Worker</strong><span>Approved mutations</span></div>
+        <div class="node future store span-2"><strong>Postgres + Queue</strong><span>Durable state/events</span></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

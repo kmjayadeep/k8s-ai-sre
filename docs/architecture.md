@@ -2,6 +2,8 @@
 
 `k8s-ai-sre` is a service-first assistant that combines HTTP ingestion, investigation orchestration, tool access, and guarded action execution.
 
+For the incremental scaling roadmap, see [Phased Scaling Plan](scaling-phased-plan.md).
+
 ## Main Components
 
 - `main.py`: server entrypoint
